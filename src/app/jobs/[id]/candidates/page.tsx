@@ -1,82 +1,136 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Table, Button, message, Card, Typography } from 'antd';
 import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
-import { Layout, Typography, Space, Table } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import { PlusOutlined } from '@ant-design/icons';
 
-const { Content } = Layout;
-const { Text } = Typography;
-
-async function getCandidates(jobId: string) {
-    return prisma.candidate.findMany({
-        where: {
-            jobId,
-        },
-        include: {
-            job: true,
-            persona: true,
-            steps: {
-                orderBy: {
-                    date: 'desc',
-                },
-            },
-        },
-    });
+interface Candidate {
+    id: string
+    linkedinUrl: string | null
+    cvUrl: string | null
+    notes: string | null
+    createdAt: Date
+    updatedAt: Date
+    personaId: string
+    jobId: string
+    persona: {
+        id: string
+        name: string
+        email: string
+        notes: string | null
+        createdAt: Date
+        updatedAt: Date
+    },
+    steps: {
+        id: string
+        type: string
+        status: string
+        notes: string | null
+        date: Date
+        createdAt: Date
+        updatedAt: Date
+        candidateId: string
+    }[]
 }
 
-export default async function CandidatesPage({
+export default function JobCandidatesPage({
     params,
 }: {
-    params: { id: string; };
+    params: { id: string };
 }) {
-    const candidates = await getCandidates(params.id);
+    const [cands, setCands] = useState<Candidate[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    const fetchCands = async () => {
+        try {
+            const response = await fetch(`/api/candidates?jobId=${params.id}`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch candidates for job');
+            }
+            const data = await response.json();
+            setCands(data);
+        } catch (error) {
+            console.error('Error:', error);
+            message.error('Failed to load candidates');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchCands();
+    }, []);
+
+    const columns = [
+        {
+            title: 'Name',
+            key: 'name',
+            render: (c: Candidate) => c.persona.name,
+        },
+        {
+            title: 'Email',
+            key: 'email',
+            render: (c: Candidate) => c.persona.email,
+        },
+        {
+            title: 'LinkedIn',
+            dataIndex: 'linkedinUrl',
+            key: 'linkedinUrl',
+        },
+        {
+            title: 'CV',
+            dataIndex: 'cvUrl',
+            key: 'cvUrl',
+        },
+        {
+            title: 'Notes',
+            dataIndex: 'notes',
+            key: 'notes',
+        },
+        {
+            title: 'Step',
+            dataIndex: 'steps',
+            key: 'step',
+            render: (steps: any[]) => steps.length > 0 ? steps[0].type : null,
+        },
+        {
+            title: 'Created At',
+            dataIndex: 'createdAt',
+            key: 'createdAt',
+        },
+        {
+            title: 'Updated At',
+            dataIndex: 'updatedAt',
+            key: 'updatedAt',
+        },
+        {
+            title: 'Actions',
+            key: 'actions',
+            render: (_: any, record: Candidate) => (
+                <div style={{ display: 'flex', gap: '8px' }}>
+                    <Link href={`/jobs/${record.id}/candidates/${record.id}`}>Edit</Link>
+                </div>
+            ),
+        },
+    ];
 
     return (
-        <Layout>
-            <Content style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-                <Space direction="vertical" size="large" style={{ width: '100%' }}>
-                    {/* Header */}
-                    <Space direction="vertical" size="small">
-                        <Link href={`/jobs/${params.id}`} style={{ color: '#2A9D8F' }}>
-                            <Space>
-                                <ArrowLeftOutlined />
-                                <Text>Back to Job</Text>
-                            </Space>
-                        </Link>
-                    </Space>
-
-                    <Table
-                        dataSource={candidates}
-                        columns={[
-                            {
-                                title: 'Name',
-                                dataIndex: 'persona.name',
-                                key: 'name',
-                                render: (name: string, record: any) => (
-                                    <Link href={`/jobs/${params.id}/candidates/${record.id}`}>{name}</Link>
-                                ),
-                            },
-                            {
-                                title: 'Email',
-                                dataIndex: 'persona.email',
-                                key: 'email',
-                            },
-                            {
-                                title: 'Notes',
-                                dataIndex: 'persona.notes',
-                                key: 'notes',
-                                ellipsis: true,
-                            },
-                            {
-                                title: 'Created',
-                                dataIndex: 'persona.createdAt',
-                                key: 'createdAt',
-                                render: (date: string) => new Date(date).toLocaleDateString(),
-                                sorter: (a: any, b: any) => new Date(a.persona.createdAt).getTime() - new Date(b.persona.createdAt).getTime(),
-                            },
-                        ]}
-                    />
-                </Space>
-            </Content>
-        </Layout>
+        <Card>
+            <Typography.Title>
+                Job Candidates
+            </Typography.Title>
+            <Link href={`/jobs/${params.id}/candidates/new`}>
+                <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: '1rem' }}>
+                    New Candidate
+                </Button>
+            </Link>
+            <Table
+                columns={columns}
+                dataSource={cands}
+                rowKey="id"
+                loading={loading}
+            />
+        </Card>
     );
 }

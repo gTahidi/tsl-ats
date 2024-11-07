@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
+    // Parse URL to get query parameters
+    const { searchParams } = new URL(request.url);
+    const jobId = searchParams.get('jobId'); // Retrieve jobId from query params
+
+    // Query the database with optional filtering by jobId
     const candidates = await prisma.candidate.findMany({
+      where: jobId ? { jobId } : {},
       include: {
+        persona: true,
         steps: {
           orderBy: {
             date: 'desc',
@@ -12,6 +19,7 @@ export async function GET() {
         },
       },
     });
+
     return NextResponse.json(candidates);
   } catch (error) {
     console.error('Failed to fetch candidates:', error);
@@ -24,14 +32,25 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const { name, email, linkedinUrl, notes, jobPostingId } = await request.json();
+    const { name, email, linkedinUrl, notes, jobId } = await request.json();
+
+    console.log({
+      name,
+      email,
+      linkedinUrl,
+      notes,
+      jobId,
+    })
 
     // Create or find persona
-    const persona = await prisma.candidate.findFirst({
-      where: { email },
+    const cand = await prisma.candidate.findFirst({
+      where: {
+        persona: { email },
+        job: { id: jobId }
+      }
     });
 
-    if (persona) {
+    if (cand) {
       return NextResponse.json(
         { error: 'Candidate with this email already exists' },
         { status: 400 }
@@ -39,13 +58,20 @@ export async function POST(request: Request) {
     }
 
     // Create candidate and associated process
-    const candidate = await prisma.candidate.create({
+    const newCand = await prisma.candidate.create({
       data: {
-        name,
-        email,
+        persona: {
+          connectOrCreate: {
+            where: { email },
+            create: {
+              name,
+              email,
+            },
+          },
+        },
         notes,
         linkedinUrl,
-        job: { connect: { id: jobPostingId } },
+        job: { connect: { id: jobId } },
         steps: {
           create: {
             type: 'application',
@@ -64,7 +90,7 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json(candidate);
+    return NextResponse.json(newCand);
   } catch (error) {
     console.error('Failed to create candidate:', error);
     return NextResponse.json(
