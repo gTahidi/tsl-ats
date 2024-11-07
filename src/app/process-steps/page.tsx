@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Typography, Button, message } from 'antd';
+import { Typography, Button, Card, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProcessStepsTable from '@/app/components/tables/ProcessStepsTable';
 

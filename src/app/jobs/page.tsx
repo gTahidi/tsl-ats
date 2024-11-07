@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Table, Button, message } from 'antd';
+import { Table, Button, message, Card, Typography } from 'antd';
 import Link from 'next/link';
 import { PlusOutlined } from '@ant-design/icons';
 
@@ -81,16 +81,20 @@ export default function JobsPage() {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: JobPosting) => (
-        <Link href={`/jobs/${record.id}/edit`}>Edit</Link>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <Link href={`/jobs/${record.id}`}>Edit</Link>
+        </div>
       ),
     },
   ];
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-6">Job Postings</h1>
+    <Card>
+      <Typography.Title>
+        Job Postings
+      </Typography.Title>
       <Link href="/jobs/new">
-        <Button type="primary" icon={<PlusOutlined />} className="mb-4">
+        <Button type="primary" icon={<PlusOutlined />} style={{ marginBottom: '1rem' }}>
           New Job
         </Button>
       </Link>
@@ -100,6 +104,6 @@ export default function JobsPage() {
         rowKey="id"
         loading={loading}
       />
-    </div>
+    </Card>
   );
 }

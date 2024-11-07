@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Form, Input, Button, Select, message, Spin } from 'antd';
+import { Form, Input, Button, Select, message, Spin, Card } from 'antd';
 import { useRouter } from 'next/navigation';
 
 const { TextArea } = Input;
@@ -80,7 +80,7 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
   }
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <Card>
       <h1 className="text-2xl font-semibold mb-6">Edit Job</h1>
       <Form
         layout="vertical"
@@ -122,6 +122,6 @@ export default function EditJobPage({ params }: { params: { id: string } }) {
           </Button>
         </Form.Item>
       </Form>
-    </div>
+    </Card>
   );
 }
