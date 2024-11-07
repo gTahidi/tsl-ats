@@ -24,8 +24,6 @@ export async function POST(request: Request) {
     const job = await prisma.jobPosting.create({
       data: {
         title: data.title,
-        company: data.company,
-        location: data.location,
         description: data.description,
         linkedinUrl: data.linkedinUrl,
       },

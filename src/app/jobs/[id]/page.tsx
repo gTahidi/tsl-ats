@@ -10,8 +10,11 @@ async function getJob(id: string) {
     include: {
       candidates: {
         include: {
-          persona: true,
-          process: { include: { steps: true } }
+          steps: {
+            orderBy: {
+              date: 'desc',
+            },
+          },
         },
       },
     },
@@ -35,7 +38,6 @@ export default async function JobDetailPage({
             ← Back to Jobs
           </Link>
           <h1 className="mt-2 text-3xl font-bold">{job.title}</h1>
-          <p className="text-xl text-gray-600">{job.company}</p>
         </div>
 
         {/* Job Description */}
@@ -59,7 +61,7 @@ export default async function JobDetailPage({
               Add Candidate
             </Link>
           </div>
-          
+
           {/* Candidate List */}
           {job.candidates.length === 0 ? (
             <p className="text-center py-4">No candidates yet.</p>
@@ -68,9 +70,16 @@ export default async function JobDetailPage({
               {job.candidates.map((candidate) => (
                 <div key={candidate.id} className="border rounded-lg p-4">
                   <Link href={`/jobs/${job.id}/candidates/${candidate.id}`}>
-                    <h3>{candidate.persona.name}</h3>
-                    <p>Status: {candidate.status}</p>
+                    <h3>{candidate.name}</h3>
                   </Link>
+                  <p>Notes</p>
+                  <p>{candidate.notes}</p>
+                  {candidate.steps.length > 0 && (
+                    <div>
+                      <p>Last Step</p>
+                      <p>{candidate.steps[0].type} - {candidate.steps[0].status}</p>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>

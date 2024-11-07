@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { AntdRegistry } from "@/app/components/AntdRegistry";
+import AntdRegistry from "@/app/components/AntdRegistry";
 import MainLayout from "@/app/components/layout/MainLayout";
 import { headers } from "next/headers";
 import { cookies } from "next/headers";

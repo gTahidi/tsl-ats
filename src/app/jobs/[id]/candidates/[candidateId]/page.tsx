@@ -5,24 +5,17 @@ import ProcessSteps from '@/app/components/ProcessSteps';
 import CVUpload from '@/app/components/CVUpload';
 import { getDownloadUrl } from '@/lib/s3';
 
-export const dynamic = 'force-dynamic';
-
 async function getCandidate(jobId: string, candidateId: string) {
   return prisma.candidate.findFirst({
     where: {
       id: candidateId,
-      jobPostingId: jobId,
+      jobId,
     },
     include: {
-      persona: true,
-      jobPosting: true,
-      process: {
-        include: {
-          steps: {
-            orderBy: {
-              date: 'desc',
-            },
-          },
+      job: true,
+      steps: {
+        orderBy: {
+          date: 'desc',
         },
       },
     },
@@ -47,8 +40,8 @@ export default async function CandidateDetailPage({
           <Link href={`/jobs/${params.id}`} className="text-indigo-600 hover:text-indigo-500">
             ← Back to Job
           </Link>
-          <h1 className="mt-2 text-3xl font-bold">{candidate.persona.name}</h1>
-          <p className="text-xl text-gray-600">{candidate.jobPosting.title}</p>
+          <h1 className="mt-2 text-3xl font-bold">{candidate.name}</h1>
+          <p className="text-xl text-gray-600">{candidate.job.title}</p>
         </div>
 
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
@@ -58,27 +51,19 @@ export default async function CandidateDetailPage({
             <dl className="space-y-4">
               <div>
                 <dt className="text-sm font-medium text-gray-500">Email</dt>
-                <dd className="mt-1">{candidate.persona.email}</dd>
+                <dd className="mt-1">{candidate.email}</dd>
               </div>
-              {candidate.persona.linkedinUrl && (
+              {candidate.linkedinUrl && (
                 <div>
                   <dt className="text-sm font-medium text-gray-500">LinkedIn</dt>
                   <dd className="mt-1">
-                    <a href={candidate.persona.linkedinUrl} target="_blank" rel="noopener noreferrer"
+                    <a href={candidate.linkedinUrl} target="_blank" rel="noopener noreferrer"
                       className="text-indigo-600 hover:text-indigo-500">
                       View Profile
                     </a>
                   </dd>
                 </div>
               )}
-              <div>
-                <dt className="text-sm font-medium text-gray-500">Status</dt>
-                <dd className="mt-1">
-                  <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                    {candidate.status}
-                  </span>
-                </dd>
-              </div>
               {candidate.notes && (
                 <div>
                   <dt className="text-sm font-medium text-gray-500">Notes</dt>
@@ -114,7 +99,7 @@ export default async function CandidateDetailPage({
             <ProcessSteps
               candidateId={candidate.id}
               jobId={params.id}
-              steps={candidate.process?.steps || []}
+              steps={candidate?.steps || []}
             />
           </div>
         </div>

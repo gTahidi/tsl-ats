@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Typography, Card, Space, Button, message } from 'antd';
+import { Typography, Button, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProcessStepsTable from '@/app/components/tables/ProcessStepsTable';
 
@@ -61,12 +61,12 @@ export default function ProcessStepsPage() {
   };
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
+    <div>
       <Card>
-        <Space direction="horizontal" style={{ width: '100%', justifyContent: 'space-between' }}>
+        <div>
           <Title level={2}>Process Steps</Title>
           <Button type="primary" icon={<PlusOutlined />}>Add Step</Button>
-        </Space>
+        </div>
       </Card>
       <Card>
         <ProcessStepsTable
@@ -76,6 +76,6 @@ export default function ProcessStepsPage() {
           loading={loading}
         />
       </Card>
-    </Space>
+    </div>
   );
 }

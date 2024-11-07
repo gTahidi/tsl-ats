@@ -1,4 +1,4 @@
-'use client';
+"use client";
 
 import { useState } from 'react';
 import { Layout, Menu, Button, theme, Typography } from 'antd';
@@ -6,7 +6,6 @@ import {
   MenuFoldOutlined,
   MenuUnfoldOutlined,
   UserOutlined,
-  BriefcaseOutlined,
   OrderedListOutlined,
   UploadOutlined,
 } from '@ant-design/icons';
