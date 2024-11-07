@@ -4,10 +4,10 @@ import { useState } from 'react';
 
 type CVUploadProps = {
   candidateId: string;
-  onUploadComplete: () => void;
+  onUploadComplete?: () => void;
 };
 
-export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProps) {
+export default function CVUpload({ candidateId }: CVUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
@@ -40,7 +40,6 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
       });
 
       if (!uploadResponse.ok) throw new Error('Failed to upload file');
-      onUploadComplete();
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload CV');

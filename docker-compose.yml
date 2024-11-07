@@ -7,12 +7,12 @@ services:
       POSTGRES_PASSWORD: postgres
       POSTGRES_DB: ats_platform
     ports:
-      - "5433:5432"
+      - "5469:5432"
     volumes:
-      - postgres_data:/var/lib/postgresql/data
+      - ./docker/postgres_data:/var/lib/postgresql/data
 
   minio:
-    image: minio/minio
+    image: minio/minio:latest
     ports:
       - "9500:9000"
       - "9501:9001"
@@ -21,7 +21,7 @@ services:
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     volumes:
-      - minio_data:/data
+      - ./docker/minio_data:/data
 
 volumes:
   postgres_data:

@@ -65,7 +65,7 @@ export default async function CandidateDetailPage({
                   <dt className="text-sm font-medium text-gray-500">LinkedIn</dt>
                   <dd className="mt-1">
                     <a href={candidate.persona.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                       className="text-indigo-600 hover:text-indigo-500">
+                      className="text-indigo-600 hover:text-indigo-500">
                       View Profile
                     </a>
                   </dd>
@@ -102,10 +102,6 @@ export default async function CandidateDetailPage({
                   ) : (
                     <CVUpload
                       candidateId={candidate.id}
-                      onUploadComplete={() => {
-                        // This will trigger a server-side rerender
-                        window.location.reload();
-                      }}
                     />
                   )}
                 </dd>
