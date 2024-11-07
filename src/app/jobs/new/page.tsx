@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Form, Input, Button, Select, message } from 'antd';
+import { Card, Form, Input, Button, Select, message } from 'antd';
 import { useRouter } from 'next/navigation';
 
 const { TextArea } = Input;
@@ -41,7 +41,7 @@ export default function NewJobPage() {
   };
 
   return (
-    <div className="p-6 max-w-2xl mx-auto">
+    <Card>
       <h1 className="text-2xl font-semibold mb-6">Create New Job</h1>
       <Form
         layout="vertical"
@@ -78,6 +78,6 @@ export default function NewJobPage() {
           </Button>
         </Form.Item>
       </Form>
-    </div>
+    </Card>
   );
 }

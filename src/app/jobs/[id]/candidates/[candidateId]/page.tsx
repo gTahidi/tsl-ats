@@ -18,6 +18,7 @@ async function getCandidate(jobId: string, candidateId: string) {
     },
     include: {
       job: true,
+      persona: true,
       steps: {
         orderBy: {
           date: 'desc',
@@ -49,7 +50,7 @@ export default async function CandidateDetailPage({
                 <Text>Back to Job</Text>
               </Space>
             </Link>
-            <Title level={2}>{candidate.name}</Title>
+            <Title level={2}>{candidate.persona.name}</Title>
             <Text type="secondary" style={{ fontSize: '18px' }}>{candidate.job.title}</Text>
           </Space>
 
@@ -58,7 +59,7 @@ export default async function CandidateDetailPage({
             <Card title={<Title level={4}>Candidate Information</Title>}>
               <Descriptions layout="vertical" column={1}>
                 <Descriptions.Item label="Email">
-                  {candidate.email}
+                  {candidate.persona.email}
                 </Descriptions.Item>
 
                 {candidate.linkedinUrl && (
