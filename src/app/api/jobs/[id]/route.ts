@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import prisma from '@/utils/db/prisma';
 
 export async function GET(
-  request: Request,
+  _: Request,
   { params }: { params: { id: string } }
 ) {
   try {

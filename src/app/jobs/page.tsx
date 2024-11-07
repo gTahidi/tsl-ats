@@ -82,7 +82,7 @@ export default function JobsPage() {
       key: 'actions',
       render: (_: any, record: JobPosting) => (
         <div style={{ display: 'flex', gap: '8px' }}>
-          <Link href={`/jobs/${record.id}`}>Edit</Link>
+          <Link href={`/jobs/${record.id}/edit`}>Edit</Link>
         </div>
       ),
     },

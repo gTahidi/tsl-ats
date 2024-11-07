@@ -1,12 +1,12 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Table, Button, message } from 'antd';
+import { Table, Button, message, Card, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import type { ColumnsType } from 'antd/es/table';
 import CreatePersonaModal from './CreatePersonaModal';
 
-interface Persona {
+export interface Persona {
   id: string;
   name: string;
   email: string;
@@ -93,9 +93,9 @@ export default function PersonasPage() {
   }, []);
 
   return (
-    <div className="p-6">
+    <Card>
       <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-semibold">Personas</h1>
+        <Typography.Title level={2}>Personas</Typography.Title>
         <Button
           type="primary"
           icon={<PlusOutlined />}
@@ -117,6 +117,6 @@ export default function PersonasPage() {
         onCancel={() => setIsModalOpen(false)}
         onSubmit={handleCreatePersona}
       />
-    </div>
+    </Card>
   );
 }

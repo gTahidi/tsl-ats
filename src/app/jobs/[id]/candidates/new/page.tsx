@@ -1,8 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
+import { Typography, Select, Input, Card, Button } from 'antd';
+import { Persona } from '@/app/personas/page';
 
 export default function NewCandidatePage({
   params,
@@ -12,19 +13,29 @@ export default function NewCandidatePage({
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [personas, setPersonas] = useState<Persona[]>([]);
 
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const [form, setForm] = useState({
+    email: '',
+    name: '',
+    linkedinUrl: '',
+    notes: '',
+  });
+
+  const disabled = loading || form.email.length === 0 || form.name.length === 0;
+
+  const handleSubmit = async () => {
     setLoading(true);
     setError('');
 
-    const formData = new FormData(e.currentTarget);
+    if (disabled) {
+      setLoading(false);
+      return;
+    }
+
     const data = {
-      name: formData.get('name'),
-      email: formData.get('email'),
-      linkedinUrl: formData.get('linkedinUrl'),
-      notes: formData.get('notes'),
-      jobPostingId: params.id,
+      ...form,
+      jobId: params.id,
     };
 
     try {
@@ -45,78 +56,64 @@ export default function NewCandidatePage({
     }
   };
 
+  useEffect(() => {
+    const fetchPersonas = async () => {
+      try {
+        const response = await fetch('/api/personas');
+        const data = await response.json();
+        setPersonas(data.personas);
+      } catch (error) {
+        console.error('Failed to fetch personas:', error);
+        setError('Failed to load personas');
+      }
+    };
+
+    fetchPersonas();
+  }, []);
+
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="mb-8">
-          <Link href={`/jobs/${params.id}`} className="text-indigo-600 hover:text-indigo-500">
-            ← Back to Job
-          </Link>
-          <h1 className="mt-2 text-3xl font-bold">Add New Candidate</h1>
-        </div>
-
-        <div className="bg-white shadow rounded-lg p-6">
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-                {error}
-              </div>
-            )}
-
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700">Name</label>
-              <input
-                type="text"
-                name="name"
-                id="name"
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">Email</label>
-              <input
-                type="email"
-                name="email"
-                id="email"
-                required
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="linkedinUrl" className="block text-sm font-medium text-gray-700">LinkedIn URL</label>
-              <input
-                type="url"
-                name="linkedinUrl"
-                id="linkedinUrl"
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div>
-              <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
-              <textarea
-                name="notes"
-                id="notes"
-                rows={4}
-                className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-              />
-            </div>
-
-            <div className="flex justify-end">
-              <button
-                type="submit"
-                disabled={loading}
-                className="btn-primary disabled:opacity-50"
-              >
-                {loading ? 'Adding...' : 'Add Candidate'}
-              </button>
-            </div>
-          </form>
-        </div>
-      </div>
-    </div>
+    <Card>
+      <Typography.Title level={2}>New Candidate</Typography.Title>
+      <Card>
+        <Select
+          placeholder="Select persona"
+          style={{ width: '100%', marginBottom: 16 }}
+          options={personas.map((persona) => ({
+            label: persona.name,
+            value: persona.id
+          }))}
+          onSelect={(_, { value }) => {
+            const persona = personas.find((p) => p.id === value);
+            if (!persona) return;
+            setForm({ ...form, name: persona.name, email: persona.email });
+          }}
+        />
+        <Input
+          placeholder="LinkedIn URL"
+          value={form.linkedinUrl}
+          onChange={(e) => setForm({ ...form, linkedinUrl: e.target.value })}
+          style={{ marginBottom: 16 }}
+        />
+        <Input
+          placeholder="Notes"
+          value={form.notes}
+          onChange={(e) => setForm({ ...form, notes: e.target.value })}
+          style={{ marginBottom: 16 }}
+        />
+        {error && <Typography.Text type="danger">{error}</Typography.Text>}
+        {disabled && (
+          <Typography.Text type="danger">All fields are required</Typography.Text>
+        )}
+        <Button
+          type="primary"
+          onClick={handleSubmit}
+          loading={loading}
+          style={{ marginBottom: 16 }}
+          disabled={disabled}
+        >
+          Submit
+        </Button>
+      </Card>
+    </Card>
   );
 }
