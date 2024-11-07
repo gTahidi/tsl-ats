@@ -1,27 +1,28 @@
 version: '3.8'
+
 services:
   postgres:
-    image: postgres:latest
+    image: postgres:15
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: ats_platform
+      POSTGRES_DB: ats
     ports:
-      - "5469:5432"
+      - "5432:5432"
     volumes:
-      - ./docker/postgres_data:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
   minio:
-    image: minio/minio:latest
+    image: minio/minio
     ports:
-      - "9500:9000"
-      - "9501:9001"
+      - "9010:9000"
+      - "9011:9001"
     environment:
       MINIO_ROOT_USER: minioadmin
       MINIO_ROOT_PASSWORD: minioadmin
     command: server /data --console-address ":9001"
     volumes:
-      - ./docker/minio_data:/data
+      - minio_data:/data
 
 volumes:
   postgres_data:

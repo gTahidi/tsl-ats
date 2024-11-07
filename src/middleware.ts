@@ -1,24 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isAuthenticated } from '@/lib/auth';
+
+const publicPaths = ['/login'];
 
 export function middleware(request: NextRequest) {
-  // Skip authentication for login page and API routes
-  if (
-    request.nextUrl.pathname.startsWith('/login') ||
-    request.nextUrl.pathname.startsWith('/api/auth')
-  ) {
-    return NextResponse.next();
+  const isAuthenticated = request.cookies.has('auth');
+  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+
+  if (!isAuthenticated && !isPublicPath) {
+    return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  // Check if user is authenticated
-  if (!isAuthenticated(request)) {
-    return NextResponse.redirect(new URL('/login', request.url));
+  if (isAuthenticated && isPublicPath) {
+    return NextResponse.redirect(new URL('/candidates', request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!_next/static|favicon.ico).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
 };
