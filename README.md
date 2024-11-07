@@ -20,33 +20,27 @@ A modern Application Tracking System built with Next.js, PostgreSQL, and MinIO.
 
 ## Local Development
 
-1. Clone the repository
-```bash
-git clone [repository-url]
-cd oss-ats
-```
-
-2. Install dependencies
+1. Install dependencies
 ```bash
 npm install
 ```
 
-3. Set up environment variables
+2. Set up environment variables
 ```bash
-cp .env.production.template .env
+cp .env.example .env
 ```
 
-4. Start local services
+3. Start local services
 ```bash
 docker-compose up -d
 ```
 
-5. Run database migrations
+4. Run database migrations
 ```bash
-npx prisma migrate deploy
+npm run migrate
 ```
 
-6. Start development server
+5. Start development server
 ```bash
 npm run dev
 ```
