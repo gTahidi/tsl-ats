@@ -1,47 +1,32 @@
 import { NextResponse } from 'next/server';
-import prisma from '@/utils/db/prisma';
+import { prisma } from '@/utils/db/prisma';
 
 export async function GET() {
   try {
-    const jobs = await prisma.jobPosting.findMany({
-      include: {
-        candidates: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
+    const jobs = await prisma.job.findMany({
+      orderBy: { createdAt: 'desc' },
     });
-
     return NextResponse.json(jobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch jobs' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch jobs' }, { status: 500 });
   }
 }
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { title, description, linkedinUrl, status } = body;
-
-    const job = await prisma.jobPosting.create({
+    const data = await request.json();
+    const job = await prisma.job.create({
       data: {
-        title,
-        description,
-        linkedinUrl,
-        status: status || 'Open',
+        title: data.title,
+        description: data.description,
+        linkedinUrl: data.linkedinUrl,
+        status: data.status,
       },
     });
-
     return NextResponse.json(job);
   } catch (error) {
     console.error('Error creating job:', error);
-    return NextResponse.json(
-      { error: 'Failed to create job' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to create job' }, { status: 500 });
   }
 }
