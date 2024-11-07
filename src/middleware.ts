@@ -1,17 +1,18 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
+import { isAuthenticated } from './lib/auth';
 
 const publicPaths = ['/login'];
 
 export function middleware(request: NextRequest) {
-  const isAuthenticated = request.cookies.has('auth');
+  const isAuthOk = isAuthenticated(request);
   const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
 
-  if (!isAuthenticated && !isPublicPath) {
+  if (!isAuthOk && !isPublicPath) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (isAuthenticated && isPublicPath) {
+  if (isAuthOk && isPublicPath) {
     return NextResponse.redirect(new URL('/candidates', request.url));
   }
 
