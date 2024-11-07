@@ -62,3 +62,5 @@ logs
 *.swp
 *.swo
 *~
+/uploads/*
+!/uploads/.gitkeep

@@ -2,7 +2,11 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Table, Timeline, Button, Card, Typography, Alert } from 'antd';
+import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
 import StepModal from './StepModal';
+
+const { Title } = Typography;
 
 type Step = {
   id: string;
@@ -33,68 +37,105 @@ export default function ProcessSteps({ candidateId, jobId, steps }: ProcessSteps
 
       if (!response.ok) throw new Error('Failed to add step');
       router.refresh();
+      setIsModalOpen(false);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to add step');
       throw err;
     }
   };
 
+  const columns = [
+    {
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      render: (text: string) => text.charAt(0).toUpperCase() + text.slice(1),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+      render: (status: string) => {
+        const icon = status === 'completed' ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> :
+                    status === 'cancelled' ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> :
+                    <ClockCircleOutlined style={{ color: '#1890ff' }} />;
+        return (
+          <span>
+            {icon}{' '}
+            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+          </span>
+        );
+      },
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      render: (text: string | null) => text || '-',
+    },
+    {
+      title: 'Date',
+      dataIndex: 'date',
+      key: 'date',
+      render: (date: Date) => new Date(date).toLocaleDateString(),
+    },
+  ];
+
   return (
-    <div>
+    <Card>
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-          {error}
-        </div>
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
       )}
 
-      <div className="flex justify-between items-center mb-4">
-        <h2 className="text-xl font-semibold">Process Steps</h2>
-        <button onClick={() => setIsModalOpen(true)} className="btn-primary">
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>Process Steps</Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setIsModalOpen(true)}
+        >
           Add Step
-        </button>
+        </Button>
       </div>
 
-      <div className="flow-root">
-        <ul role="list" className="-mb-8">
-          {steps.map((step, stepIdx) => (
-            <li key={step.id}>
-              <div className="relative pb-8">
-                {stepIdx !== steps.length - 1 && (
-                  <span className="absolute left-4 top-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true" />
-                )}
-                <div className="relative flex space-x-3">
-                  <div>
-                    <span className={`h-8 w-8 rounded-full flex items-center justify-center ring-8 ring-white
-                      ${step.status === 'completed' ? 'bg-green-500' : step.status === 'cancelled' ? 'bg-red-500' : 'bg-blue-500'}`}>
-                      <span className="text-white text-sm">{step.type[0].toUpperCase()}</span>
-                    </span>
-                  </div>
-                  <div className="flex min-w-0 flex-1 justify-between space-x-4 pt-1.5">
-                    <div>
-                      <p className="text-sm text-gray-500">
-                        {step.type.charAt(0).toUpperCase() + step.type.slice(1)} - {' '}
-                        <span className="font-medium">
-                          {step.status.charAt(0).toUpperCase() + step.status.slice(1).replace('_', ' ')}
-                        </span>
-                      </p>
-                      {step.notes && <p className="mt-1 text-sm text-gray-600">{step.notes}</p>}
-                    </div>
-                    <div className="whitespace-nowrap text-right text-sm text-gray-500">
-                      {new Date(step.date).toLocaleDateString()}
-                    </div>
-                  </div>
+      <Table
+        dataSource={steps}
+        columns={columns}
+        rowKey="id"
+        pagination={false}
+        style={{ marginBottom: 24 }}
+      />
+
+      <Card title="Timeline View" size="small">
+        <Timeline
+          items={steps.map(step => ({
+            color: step.status === 'completed' ? 'green' :
+                   step.status === 'cancelled' ? 'red' : 'blue',
+            children: (
+              <div>
+                <div style={{ fontWeight: 'bold' }}>
+                  {step.type.charAt(0).toUpperCase() + step.type.slice(1)}
+                </div>
+                <div>{step.notes}</div>
+                <div style={{ color: '#888', fontSize: '0.9em' }}>
+                  {new Date(step.date).toLocaleDateString()}
                 </div>
               </div>
-            </li>
-          ))}
-        </ul>
-      </div>
+            ),
+          }))}
+        />
+      </Card>
 
       <StepModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onSubmit={handleAddStep}
       />
-    </div>
+    </Card>
   );
 }
