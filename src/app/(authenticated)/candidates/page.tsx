@@ -19,6 +19,10 @@ export default function CandidatesPage() {
     initialValues: null,
   });
 
+  const handleCreate = () => { };
+  const handleDelete = (_: string) => { };
+  const fetchData = async (_: any) => { };
+
   const columns = [
     {
       title: 'Name',
