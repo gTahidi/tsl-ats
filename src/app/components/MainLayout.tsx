@@ -4,12 +4,11 @@ import { useState } from 'react';
 import { Layout, Menu } from 'antd';
 import {
   UserOutlined,
-  BriefcaseOutlined,
+  SnippetsOutlined,
   TeamOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import RightSidePanel from './RightSidePanel';
-import type { Job, Persona } from '@/types';
 
 const { Sider, Content } = Layout;
 
@@ -31,7 +30,7 @@ const MainLayout = ({ children }: Props) => {
   const menuItems = [
     {
       key: '/jobs',
-      icon: <BriefcaseOutlined />,
+      icon: <SnippetsOutlined />,
       label: 'Jobs',
     },
     {
