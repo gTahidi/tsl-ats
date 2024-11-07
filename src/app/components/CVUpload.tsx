@@ -1,12 +1,12 @@
 'use client';
 
 import { useState } from 'react';
-import { Upload, Alert, Card, message } from 'antd';
+import { message } from 'antd';
+import Alert from 'antd/es/alert';
+import Dragger from 'antd/es/upload/Dragger';
 import { InboxOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd';
-import type { RcFile } from 'antd/es/upload/interface';
-
-const { Dragger } = Upload;
+import type { UploadProps } from 'antd/es/upload';
+import type { RcFile, UploadChangeParam, UploadFile } from 'antd/es/upload/interface';
 
 type CVUploadProps = {
   candidateId: string;
@@ -22,7 +22,6 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
     setError('');
 
     try {
-      // Get mock upload URL
       const response = await fetch('/api/mock-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -59,19 +58,19 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
     name: 'file',
     multiple: false,
     accept: '.pdf,.doc,.docx',
-    customRequest: async ({ file, onSuccess, onError }) => {
+    customRequest: async (options: any) => {
       try {
-        const success = await handleUpload(file as RcFile);
+        const success = await handleUpload(options.file as RcFile);
         if (success) {
-          onSuccess?.(null);
+          options.onSuccess?.(null);
         } else {
-          onError?.(new Error('Upload failed'));
+          options.onError?.(new Error('Upload failed'));
         }
       } catch (err) {
-        onError?.(err as Error);
+        options.onError?.(err as Error);
       }
     },
-    onChange(info) {
+    onChange(info: UploadChangeParam<UploadFile>) {
       if (info.file.status === 'done') {
         setError('');
       }
@@ -79,13 +78,13 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
   };
 
   return (
-    <Card size="small" title="CV Upload" style={{ marginTop: 16 }}>
+    <div>
       {error && (
         <Alert
           message={error}
           type="error"
           showIcon
-          style={{ marginBottom: 16 }}
+          style={{ marginBottom: '1rem' }}
         />
       )}
       <Dragger {...uploadProps} disabled={uploading}>
@@ -99,6 +98,6 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
           Support for PDF, DOC, DOCX files.
         </p>
       </Dragger>
-    </Card>
+    </div>
   );
 }
