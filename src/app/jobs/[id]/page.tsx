@@ -1,91 +1,127 @@
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+'use client';
 
-export const dynamic = 'force-dynamic';
+import { useEffect, useState } from 'react';
+import { Form, Input, Button, Select, message, Spin } from 'antd';
+import { useRouter } from 'next/navigation';
 
-async function getJob(id: string) {
-  return prisma.jobPosting.findUnique({
-    where: { id },
-    include: {
-      candidates: {
-        include: {
-          steps: {
-            orderBy: {
-              date: 'desc',
-            },
-          },
-        },
-      },
-    },
-  });
+const { TextArea } = Input;
+
+interface JobFormData {
+  title: string;
+  description?: string;
+  linkedinUrl?: string;
+  status: string;
 }
 
-export default async function JobDetailPage({
-  params,
-}: {
-  params: { id: string };
-}) {
-  const job = await getJob(params.id);
-  if (!job) notFound();
+interface JobPosting extends JobFormData {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export default function EditJobPage({ params }: { params: { id: string } }) {
+  const [loading, setLoading] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+  const [job, setJob] = useState<JobPosting | null>(null);
+  const router = useRouter();
+
+  useEffect(() => {
+    const fetchJob = async () => {
+      try {
+        const response = await fetch(`/api/jobs/${params.id}`);
+        if (!response.ok) throw new Error('Failed to fetch job');
+        const data = await response.json();
+        setJob(data.job);
+      } catch (error) {
+        console.error('Error fetching job:', error);
+        message.error('Failed to load job');
+        router.push('/jobs');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJob();
+  }, [params.id, router]);
+
+  const onFinish = async (values: JobFormData) => {
+    setSubmitting(true);
+    try {
+      const response = await fetch(`/api/jobs/${params.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) throw new Error('Failed to update job');
+
+      message.success('Job updated successfully');
+      router.push('/jobs');
+    } catch (error) {
+      console.error('Error updating job:', error);
+      message.error('Failed to update job');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-screen">
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  if (!job) {
+    return null;
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Job Header */}
-        <div className="mb-8">
-          <Link href="/" className="text-indigo-600 hover:text-indigo-500">
-            ← Back to Jobs
-          </Link>
-          <h1 className="mt-2 text-3xl font-bold">{job.title}</h1>
-        </div>
+    <div className="p-6 max-w-2xl mx-auto">
+      <h1 className="text-2xl font-semibold mb-6">Edit Job</h1>
+      <Form
+        layout="vertical"
+        onFinish={onFinish}
+        initialValues={{
+          title: job.title,
+          description: job.description,
+          linkedinUrl: job.linkedinUrl,
+          status: job.status,
+        }}
+      >
+        <Form.Item
+          label="Title"
+          name="title"
+          rules={[{ required: true, message: 'Please enter the job title' }]}
+        >
+          <Input placeholder="e.g., Senior Software Engineer" />
+        </Form.Item>
 
-        {/* Job Description */}
-        {job.description && (
-          <div className="bg-white shadow rounded-lg p-6 mb-8">
-            <h2 className="text-xl font-semibold mb-4">Description</h2>
-            <p className="whitespace-pre-wrap">{job.description}</p>
-          </div>
-        )}
+        <Form.Item label="Description" name="description">
+          <TextArea rows={4} placeholder="Job description..." />
+        </Form.Item>
 
-        {/* Candidates Section */}
-        <div className="bg-white shadow rounded-lg p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">
-              Candidates ({job.candidates.length})
-            </h2>
-            <Link
-              href={`/jobs/${job.id}/candidates/new`}
-              className="btn-primary"
-            >
-              Add Candidate
-            </Link>
-          </div>
+        <Form.Item label="LinkedIn URL" name="linkedinUrl">
+          <Input placeholder="https://www.linkedin.com/jobs/..." />
+        </Form.Item>
 
-          {/* Candidate List */}
-          {job.candidates.length === 0 ? (
-            <p className="text-center py-4">No candidates yet.</p>
-          ) : (
-            <div className="space-y-4">
-              {job.candidates.map((candidate) => (
-                <div key={candidate.id} className="border rounded-lg p-4">
-                  <Link href={`/jobs/${job.id}/candidates/${candidate.id}`}>
-                    <h3>{candidate.name}</h3>
-                  </Link>
-                  <p>Notes</p>
-                  <p>{candidate.notes}</p>
-                  {candidate.steps.length > 0 && (
-                    <div>
-                      <p>Last Step</p>
-                      <p>{candidate.steps[0].type} - {candidate.steps[0].status}</p>
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
+        <Form.Item label="Status" name="status">
+          <Select>
+            <Select.Option value="Open">Open</Select.Option>
+            <Select.Option value="Closed">Closed</Select.Option>
+            <Select.Option value="Draft">Draft</Select.Option>
+          </Select>
+        </Form.Item>
+
+        <Form.Item>
+          <Button type="primary" htmlType="submit" loading={submitting}>
+            Update Job
+          </Button>
+        </Form.Item>
+      </Form>
     </div>
   );
 }

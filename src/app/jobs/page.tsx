@@ -1,75 +1,105 @@
 'use client';
 
-import { useState } from 'react';
-import { Typography, Card, Space, Button, message } from 'antd';
+import { useEffect, useState } from 'react';
+import { Table, Button, message } from 'antd';
+import Link from 'next/link';
 import { PlusOutlined } from '@ant-design/icons';
-import JobsTable from '@/app/components/tables/JobsTable';
 
-const { Title } = Typography;
-
-// Mock data for initial testing
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Senior Frontend Developer',
-    status: 'Open',
-    linkedinUrl: 'https://linkedin.com/jobs/1',
-    candidateCount: 5,
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'DevOps Engineer',
-    status: 'Draft',
-    candidateCount: 0,
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'Product Manager',
-    status: 'Closed',
-    linkedinUrl: 'https://linkedin.com/jobs/3',
-    candidateCount: 12,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 10 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+interface JobPosting {
+  id: string;
+  title: string;
+  status: string;
+  linkedinUrl: string;
+  createdAt: string;
+  candidates: any[];
+}
 
 export default function JobsPage() {
-  const [loading, setLoading] = useState(false);
-  const [jobs, setJobs] = useState(mockJobs);
+  const [jobs, setJobs] = useState<JobPosting[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const handleEdit = (job: any) => {
-    message.info(`Edit clicked for ${job.title}`);
-  };
-
-  const handleDelete = (id: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      setJobs(prev => prev.filter(j => j.id !== id));
-      message.success('Job deleted successfully');
+  const fetchJobs = async () => {
+    try {
+      const response = await fetch('/api/jobs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+      const data = await response.json();
+      setJobs(data);
+    } catch (error) {
+      console.error('Error:', error);
+      message.error('Failed to load jobs');
+    } finally {
       setLoading(false);
-    }, 1000);
+    }
   };
+
+  useEffect(() => {
+    fetchJobs();
+  }, []);
+
+  const columns = [
+    {
+      title: 'Title',
+      dataIndex: 'title',
+      key: 'title',
+      render: (text: string, record: JobPosting) => (
+        <Link href={`/jobs/${record.id}`}>{text}</Link>
+      ),
+    },
+    {
+      title: 'Status',
+      dataIndex: 'status',
+      key: 'status',
+    },
+    {
+      title: 'Candidates',
+      key: 'candidates',
+      render: (_: any, record: JobPosting) => (
+        <Link href={`/jobs/${record.id}/candidates`}>
+          {record.candidates.length} candidates
+        </Link>
+      ),
+    },
+    {
+      title: 'LinkedIn',
+      dataIndex: 'linkedinUrl',
+      key: 'linkedinUrl',
+      render: (url: string) => url ? (
+        <a href={url} target="_blank" rel="noopener noreferrer">
+          View
+        </a>
+      ) : null,
+    },
+    {
+      title: 'Created',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: string) => new Date(date).toLocaleDateString(),
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: JobPosting) => (
+        <Link href={`/jobs/${record.id}/edit`}>Edit</Link>
+      ),
+    },
+  ];
 
   return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Card>
-        <Space direction="horizontal" style={{ width: '100%', justifyContent: 'space-between' }}>
-          <Title level={2}>Jobs</Title>
-          <Button type="primary" icon={<PlusOutlined />}>Add Job</Button>
-        </Space>
-      </Card>
-      <Card>
-        <JobsTable
-          jobs={jobs}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          loading={loading}
-        />
-      </Card>
-    </Space>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-6">Job Postings</h1>
+      <Link href="/jobs/new">
+        <Button type="primary" icon={<PlusOutlined />} className="mb-4">
+          New Job
+        </Button>
+      </Link>
+      <Table
+        columns={columns}
+        dataSource={jobs}
+        rowKey="id"
+        loading={loading}
+      />
+    </div>
   );
 }
