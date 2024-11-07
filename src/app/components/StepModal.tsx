@@ -1,6 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { Modal, Form, Select, Input, Alert } from 'antd';
+import type { FormInstance } from 'antd/es/form';
+
+const { TextArea } = Input;
 
 type StepModalProps = {
   isOpen: boolean;
@@ -16,118 +20,101 @@ const STEP_TYPES = [
   'offer',
   'hired',
   'rejected',
-];
+] as const;
 
 const STATUS_OPTIONS = [
   'scheduled',
   'in_progress',
   'completed',
   'cancelled',
-];
+] as const;
 
 export default function StepModal({ isOpen, onClose, onSubmit }: StepModalProps) {
+  const [form] = Form.useForm();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  if (!isOpen) return null;
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    setLoading(true);
-    setError('');
-
-    const formData = new FormData(e.currentTarget);
-    const data = {
-      type: formData.get('type') as string,
-      status: formData.get('status') as string,
-      notes: formData.get('notes') as string,
-    };
-
+  const handleSubmit = async () => {
     try {
-      await onSubmit(data);
+      setLoading(true);
+      setError('');
+      const values = await form.validateFields();
+      await onSubmit(values);
+      form.resetFields();
       onClose();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add step');
+      if (err instanceof Error) {
+        setError(err.message);
+      } else {
+        setError('Failed to add step');
+      }
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="fixed inset-0 bg-gray-500 bg-opacity-75 flex items-center justify-center p-4">
-      <div className="bg-white rounded-lg max-w-md w-full p-6">
-        <div className="flex justify-between items-center mb-4">
-          <h3 className="text-lg font-medium">Add Process Step</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-500">×</button>
-        </div>
+    <Modal
+      title="Add Process Step"
+      open={isOpen}
+      onCancel={onClose}
+      onOk={handleSubmit}
+      confirmLoading={loading}
+      okText={loading ? 'Adding...' : 'Add Step'}
+      width={520}
+    >
+      {error && (
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
+      )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {error && (
-            <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-              {error}
-            </div>
-          )}
+      <Form
+        form={form}
+        layout="vertical"
+        initialValues={{
+          type: STEP_TYPES[0],
+          status: STATUS_OPTIONS[0],
+        }}
+      >
+        <Form.Item
+          name="type"
+          label="Step Type"
+          rules={[{ required: true, message: 'Please select a step type' }]}
+        >
+          <Select>
+            {STEP_TYPES.map((type) => (
+              <Select.Option key={type} value={type}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
 
-          <div>
-            <label htmlFor="type" className="block text-sm font-medium text-gray-700">Step Type</label>
-            <select
-              id="type"
-              name="type"
-              required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            >
-              {STEP_TYPES.map((type) => (
-                <option key={type} value={type}>
-                  {type.charAt(0).toUpperCase() + type.slice(1)}
-                </option>
-              ))}
-            </select>
-          </div>
+        <Form.Item
+          name="status"
+          label="Status"
+          rules={[{ required: true, message: 'Please select a status' }]}
+        >
+          <Select>
+            {STATUS_OPTIONS.map((status) => (
+              <Select.Option key={status} value={status}>
+                {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+              </Select.Option>
+            ))}
+          </Select>
+        </Form.Item>
 
-          <div>
-            <label htmlFor="status" className="block text-sm font-medium text-gray-700">Status</label>
-            <select
-              id="status"
-              name="status"
-              required
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            >
-              {STATUS_OPTIONS.map((status) => (
-                <option key={status} value={status}>
-                  {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-                </option>
-              ))}
-            </select>
-          </div>
-
-          <div>
-            <label htmlFor="notes" className="block text-sm font-medium text-gray-700">Notes</label>
-            <textarea
-              id="notes"
-              name="notes"
-              rows={3}
-              className="mt-1 block w-full rounded-md border border-gray-300 px-3 py-2"
-            />
-          </div>
-
-          <div className="flex justify-end space-x-3">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 border rounded-md text-gray-700 hover:bg-gray-50"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={loading}
-              className="btn-primary disabled:opacity-50"
-            >
-              {loading ? 'Adding...' : 'Add Step'}
-            </button>
-          </div>
-        </form>
-      </div>
-    </div>
+        <Form.Item
+          name="notes"
+          label="Notes"
+        >
+          <TextArea rows={3} />
+        </Form.Item>
+      </Form>
+    </Modal>
   );
 }

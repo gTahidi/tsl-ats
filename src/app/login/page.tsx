@@ -1,7 +1,15 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Card from 'antd/es/card';
+import Form from 'antd/es/form';
+import Input from 'antd/es/input';
+import Button from 'antd/es/button';
+import Alert from 'antd/es/alert';
+import Typography from 'antd/es/typography';
+
+const { Title } = Typography;
 
 export default function LoginPage() {
   const [password, setPassword] = useState('');
@@ -9,8 +17,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleSubmit = async (e: FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async () => {
     setError('');
     setLoading(true);
 
@@ -39,48 +46,66 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
+    <div style={{
+      minHeight: '100vh',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      padding: '24px'
+    }}>
+      <Card style={{
+        width: '100%',
+        maxWidth: '400px',
+        borderRadius: '4px',
+        boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)'
+      }}>
+        <div style={{ textAlign: 'center', marginBottom: '24px' }}>
+          <Title level={2} style={{
+            margin: 0,
+            color: '#2C363F',
+            fontFamily: "'IBM Plex Mono', monospace"
+          }}>
             ATS Platform Login
-          </h2>
+          </Title>
         </div>
-        <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="rounded-md shadow-sm -space-y-px">
-            <div>
-              <label htmlFor="password" className="sr-only">
-                Password
-              </label>
-              <input
-                id="password"
-                name="password"
-                type="password"
-                required
-                className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
-                placeholder="Password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                disabled={loading}
-              />
-            </div>
-          </div>
+
+        <Form onFinish={handleSubmit} layout="vertical">
+          <Form.Item>
+            <Input.Password
+              placeholder="Password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              disabled={loading}
+              size="large"
+              style={{ borderRadius: '2px' }}
+            />
+          </Form.Item>
 
           {error && (
-            <div className="text-red-500 text-sm text-center">{error}</div>
+            <Form.Item>
+              <Alert
+                message={error}
+                type="error"
+                showIcon
+                style={{ marginBottom: '16px' }}
+              />
+            </Form.Item>
           )}
 
-          <div>
-            <button
-              type="submit"
-              disabled={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+          <Form.Item>
+            <Button
+              type="primary"
+              htmlType="submit"
+              loading={loading}
+              block
+              size="large"
+              style={{ height: '40px' }}
             >
               {loading ? 'Logging in...' : 'Sign in'}
-            </button>
-          </div>
-        </form>
-      </div>
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
   );
 }

@@ -1,26 +1,29 @@
 'use client';
 
 import { useState } from 'react';
+import { Upload, Alert, Card, message } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
+import type { UploadProps } from 'antd';
+import type { RcFile } from 'antd/es/upload/interface';
+
+const { Dragger } = Upload;
 
 type CVUploadProps = {
   candidateId: string;
-  onUploadComplete?: () => void;
+  onUploadComplete?: (fileUrl: string) => void;
 };
 
-export default function CVUpload({ candidateId }: CVUploadProps) {
+export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
+  const handleUpload = async (file: RcFile): Promise<boolean> => {
     setUploading(true);
     setError('');
 
     try {
-      // Get presigned URL
-      const urlResponse = await fetch('/api/upload', {
+      // Get mock upload URL
+      const response = await fetch('/api/mock-upload', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -29,49 +32,73 @@ export default function CVUpload({ candidateId }: CVUploadProps) {
         }),
       });
 
-      if (!urlResponse.ok) throw new Error('Failed to get upload URL');
-      const { uploadUrl } = await urlResponse.json();
+      if (!response.ok) {
+        throw new Error('Upload failed');
+      }
 
-      // Upload file using presigned URL
-      const uploadResponse = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: file,
-        headers: { 'Content-Type': file.type },
-      });
+      const data = await response.json();
 
-      if (!uploadResponse.ok) throw new Error('Failed to upload file');
+      if (data.success) {
+        message.success('File uploaded successfully');
+        onUploadComplete?.(data.fileUrl);
+        return true;
+      }
+
+      throw new Error(data.error || 'Upload failed');
     } catch (err) {
       console.error('Upload error:', err);
       setError(err instanceof Error ? err.message : 'Failed to upload CV');
+      message.error('Failed to upload file');
+      return false;
     } finally {
       setUploading(false);
     }
   };
 
+  const uploadProps: UploadProps = {
+    name: 'file',
+    multiple: false,
+    accept: '.pdf,.doc,.docx',
+    customRequest: async ({ file, onSuccess, onError }) => {
+      try {
+        const success = await handleUpload(file as RcFile);
+        if (success) {
+          onSuccess?.(null);
+        } else {
+          onError?.(new Error('Upload failed'));
+        }
+      } catch (err) {
+        onError?.(err as Error);
+      }
+    },
+    onChange(info) {
+      if (info.file.status === 'done') {
+        setError('');
+      }
+    },
+  };
+
   return (
-    <div className="mt-4">
+    <Card size="small" title="CV Upload" style={{ marginTop: 16 }}>
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded">
-          {error}
-        </div>
+        <Alert
+          message={error}
+          type="error"
+          showIcon
+          style={{ marginBottom: 16 }}
+        />
       )}
-      <div className="flex items-center justify-center w-full">
-        <label className="w-full flex flex-col items-center px-4 py-6 bg-white text-blue-500 rounded-lg shadow-lg tracking-wide uppercase border border-blue-500 cursor-pointer hover:bg-blue-500 hover:text-white">
-          <svg className="w-8 h-8" fill="currentColor" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
-            <path d="M16.88 9.1A4 4 0 0 1 16 17H5a5 5 0 0 1-1-9.9V7a3 3 0 0 1 4.52-2.59A4.98 4.98 0 0 1 17 8c0 .38-.04.74-.12 1.1zM11 11h3l-4-4-4 4h3v3h2v-3z" />
-          </svg>
-          <span className="mt-2 text-base leading-normal">
-            {uploading ? 'Uploading...' : 'Select CV'}
-          </span>
-          <input
-            type='file'
-            className="hidden"
-            accept=".pdf,.doc,.docx"
-            onChange={handleFileChange}
-            disabled={uploading}
-          />
-        </label>
-      </div>
-    </div>
+      <Dragger {...uploadProps} disabled={uploading}>
+        <p className="ant-upload-drag-icon">
+          <InboxOutlined />
+        </p>
+        <p className="ant-upload-text">
+          Click or drag CV file to this area to upload
+        </p>
+        <p className="ant-upload-hint">
+          Support for PDF, DOC, DOCX files.
+        </p>
+      </Dragger>
+    </Card>
   );
 }

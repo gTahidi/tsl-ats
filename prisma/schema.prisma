@@ -10,8 +10,6 @@ datasource db {
 model JobPosting {
   id          String      @id @default(cuid())
   title       String
-  company     String
-  location    String?
   description String?
   linkedinUrl String?
   createdAt   DateTime    @default(now())
@@ -19,47 +17,28 @@ model JobPosting {
   candidates  Candidate[]
 }
 
-model Persona {
-  id          String      @id @default(cuid())
-  name        String
-  email       String      @unique
-  linkedinUrl String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  candidates  Candidate[]
-}
-
 model Candidate {
-  id           String     @id @default(cuid())
-  notes        String?
-  status       String     @default("applied")
-  cvUrl        String?
-  createdAt    DateTime   @default(now())
-  updatedAt    DateTime   @updatedAt
-  jobPosting   JobPosting @relation(fields: [jobPostingId], references: [id])
-  jobPostingId String
-  persona      Persona    @relation(fields: [personaId], references: [id])
-  personaId    String
-  process      Process?
+  id          String        @id @default(cuid())
+  name        String
+  email       String
+  linkedinUrl String?
+  cvUrl       String?
+  notes       String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  jobId       String
+  job         JobPosting    @relation(fields: [jobId], references: [id])
+  steps       ProcessStep[]
 }
 
-model Process {
+model ProcessStep {
   id          String    @id @default(cuid())
+  type        String
+  status      String
+  notes       String?
+  date        DateTime  @default(now())
+  candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [id])
-  candidateId String    @unique
-  steps       Step[]
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
-}
-
-model Step {
-  id        String   @id @default(cuid())
-  type      String
-  status    String
-  notes     String?
-  date      DateTime
-  process   Process  @relation(fields: [processId], references: [id])
-  processId String
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 }
