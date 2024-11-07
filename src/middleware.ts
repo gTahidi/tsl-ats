@@ -1,24 +1,23 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { isAuthenticated } from './lib/auth';
-
-const publicPaths = ['/login'];
 
 export function middleware(request: NextRequest) {
-  const isAuthOk = isAuthenticated(request);
-  const isPublicPath = publicPaths.includes(request.nextUrl.pathname);
+  const isLoggedIn = request.cookies.has('auth');
+  const isLoginPage = request.nextUrl.pathname === '/login';
 
-  if (!isAuthOk && !isPublicPath) {
+  if (!isLoggedIn && !isLoginPage) {
     return NextResponse.redirect(new URL('/login', request.url));
   }
 
-  if (isAuthOk && isPublicPath) {
-    return NextResponse.redirect(new URL('/candidates', request.url));
+  if (isLoggedIn && isLoginPage) {
+    return NextResponse.redirect(new URL('/jobs', request.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|.*\\.png$).*)'],
+  matcher: [
+    '/((?!api|_next/static|_next/image|favicon.ico).*)',
+  ],
 };
