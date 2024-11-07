@@ -8,37 +8,57 @@ datasource db {
 }
 
 model JobPosting {
-  id          String      @id @default(cuid())
+  id          String  @id @default(cuid())
   title       String
   description String?
   linkedinUrl String?
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  candidates  Candidate[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  candidates Candidate[]
+}
+
+model Persona {
+  id    String  @id @default(cuid())
+  name  String
+  email String  @unique
+  notes String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  candidates Candidate[]
 }
 
 model Candidate {
-  id          String        @id @default(cuid())
-  name        String
-  email       String
+  id String @id @default(cuid())
+
   linkedinUrl String?
   cvUrl       String?
   notes       String?
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  jobId       String
-  job         JobPosting    @relation(fields: [jobId], references: [id])
-  steps       ProcessStep[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  personaId String
+  persona   Persona @relation(fields: [personaId], references: [id])
+
+  jobId String
+  job   JobPosting @relation(fields: [jobId], references: [id])
+
+  steps ProcessStep[]
 }
 
 model ProcessStep {
-  id          String    @id @default(cuid())
-  type        String
-  status      String
-  notes       String?
-  date        DateTime  @default(now())
+  id     String   @id @default(cuid())
+  type   String
+  status String
+  notes  String?
+  date   DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
   candidateId String
   candidate   Candidate @relation(fields: [candidateId], references: [id])
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
 }
