@@ -1,8 +1,10 @@
 'use client';
 
-import React from 'react';
-import { Modal, Form, Input, message } from 'antd';
-import type { CandidateView } from '@/types';
+import React, { useEffect } from 'react';
+import { Modal, Form, Input, message, Select } from 'antd';
+import type { CandidateView, JobView, Persona } from '@/types';
+import { useQuery } from '@tanstack/react-query';
+import CVUpload from './CVUpload';
 
 interface CandidateModalProps {
   visible: boolean;
@@ -19,17 +21,42 @@ const CandidateModal: React.FC<CandidateModalProps> = ({
 }) => {
   const [form] = Form.useForm();
 
-  React.useEffect(() => {
-    if (visible && candidate) {
-      form.setFieldsValue({
-        name: candidate.name,
-        email: candidate.email,
-        linkedinUrl: candidate.linkedinUrl,
-      });
-    } else {
+  useEffect(() => {
+    if (!candidate) {
       form.resetFields();
+      return;
     }
-  }, [visible, candidate, form]);
+
+    form.setFieldsValue(candidate || {});
+  }, [candidate, form]);
+
+  const {
+    data: personas,
+    isLoading: personasLoading,
+  } = useQuery<Persona[]>({
+    queryKey: ['personas'],
+    queryFn: async () => {
+      const response = await fetch('/api/personas');
+      if (!response.ok) {
+        throw new Error('Failed to fetch personas');
+      }
+      return response.json();
+    },
+  });
+
+  const {
+    data: jobs,
+    isLoading: jobsLoading,
+  } = useQuery<JobView[]>({
+    queryKey: ['jobs'],
+    queryFn: async () => {
+      const response = await fetch('/api/jobs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+      return response.json();
+    },
+  });
 
   const handleSubmit = async () => {
     try {
@@ -52,30 +79,58 @@ const CandidateModal: React.FC<CandidateModalProps> = ({
       <Form
         form={form}
         layout="vertical"
-        initialValues={candidate || {}}
       >
         <Form.Item
-          name="name"
-          label="Name"
-          rules={[{ required: true, message: 'Please input the name' }]}
+          name="personaId"
+          label="Persona"
+          rules={[{ required: true, message: 'Please select a persona' }]}
         >
-          <Input />
+          <Select
+            placeholder="Select a persona"
+            style={{ width: '100%' }}
+            disabled={personasLoading}
+            defaultValue={candidate?.personaId}
+            options={(personas || []).map((persona) => ({
+              value: persona.id,
+              label: `${persona.name} (${persona.email})`
+            }))}
+          />
         </Form.Item>
+
         <Form.Item
-          name="email"
-          label="Email"
-          rules={[
-            { required: true, message: 'Please input the email' },
-            { type: 'email', message: 'Please enter a valid email' },
-          ]}
+          name="jobId"
+          label="Job"
+          rules={[{ required: true, message: 'Please select a job' }]}
         >
-          <Input />
+          <Select
+            placeholder="Select a job"
+            style={{ width: '100%' }}
+            disabled={jobsLoading}
+            defaultValue={candidate?.jobId}
+            options={(jobs || []).map((job) => ({
+              value: job.id,
+              label: job.title
+            }))}
+          />
         </Form.Item>
+
         <Form.Item
-          name="linkedinUrl"
-          label="LinkedIn URL"
+          name="notes"
+          label="Notes"
         >
-          <Input />
+          <Input.TextArea rows={4} placeholder="Enter notes" />
+        </Form.Item>
+
+        <Form.Item
+          name="cvFileKey"
+          label="CV"
+        >
+          <CVUpload
+            candidateId={candidate?.id}
+            onUploadComplete={(fileKey: string) => {
+              form.setFieldValue('cvFileKey', fileKey);
+            }}
+          />
         </Form.Item>
       </Form>
     </Modal>

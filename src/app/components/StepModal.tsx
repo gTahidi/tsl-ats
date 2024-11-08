@@ -1,17 +1,6 @@
-'use client';
-
+import { ProcessStep } from '@prisma/client';
 import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
 import { useState } from 'react';
-
-interface ProcessStep {
-  id: string;
-  name: string;
-  description: string;
-  order: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
 
 interface StepModalProps {
   visible: boolean;

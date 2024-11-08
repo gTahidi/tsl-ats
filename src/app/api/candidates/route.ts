@@ -7,6 +7,7 @@ export async function GET() {
       include: {
         persona: true,
         job: true,
+        steps: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -22,17 +23,15 @@ export async function POST(request: Request) {
     const data = await request.json();
     const candidate = await prisma.candidate.create({
       data: {
-        name: data.name,
-        email: data.email,
-        linkedinUrl: data.linkedinUrl,
-        cvUrl: data.cvUrl,
+        cvFileKey: data.cvFileKey,
         notes: data.notes,
         personaId: data.personaId,
         jobId: data.jobId,
-      },
-      include: {
-        persona: true,
-        job: true,
+        ...(data.steps && {
+          steps: {
+            create: data.steps,
+          },
+        }),
       },
     });
     return NextResponse.json(candidate);

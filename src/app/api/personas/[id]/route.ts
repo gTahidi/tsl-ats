@@ -6,30 +6,22 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const job = await prisma.jobPosting.findUnique({
+    const persona = await prisma.persona.findUnique({
       where: { id: params.id },
-      include: {
-        candidates: {
-          include: {
-            persona: true,
-            steps: true,
-          },
-        },
-      },
     });
 
-    if (!job) {
+    if (!persona) {
       return NextResponse.json(
-        { error: 'Job not found' },
+        { error: 'persona not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(job);
+    return NextResponse.json(persona);
   } catch (error) {
-    console.error('Error fetching job:', error);
+    console.error('Error fetching persona:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch job' },
+      { error: 'Failed to fetch persona' },
       { status: 500 }
     );
   }
@@ -41,17 +33,17 @@ export async function PUT(
 ) {
   try {
     const data = await request.json();
-    const job = await prisma.jobPosting.upsert({
+    const persona = await prisma.persona.upsert({
       where: { id: params.id },
       update: data,
       create: data,
     });
 
-    return NextResponse.json(job);
+    return NextResponse.json(persona);
   } catch (error) {
-    console.error('Error updating job:', error);
+    console.error('Error updating persona:', error);
     return NextResponse.json(
-      { error: 'Failed to update job' },
+      { error: 'Failed to update persona' },
       { status: 500 }
     );
   }
@@ -62,15 +54,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.jobPosting.delete({
+    await prisma.persona.delete({
       where: { id: params.id },
     });
 
-    return NextResponse.json({ message: 'Job deleted successfully' });
+    return NextResponse.json({ message: 'persona deleted successfully' });
   } catch (error) {
-    console.error('Error deleting job:', error);
+    console.error('Error deleting persona:', error);
     return NextResponse.json(
-      { error: 'Failed to delete job' },
+      { error: 'Failed to delete persona' },
       { status: 500 }
     );
   }

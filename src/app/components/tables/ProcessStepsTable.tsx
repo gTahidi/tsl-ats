@@ -5,58 +5,48 @@ import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
 import type { ColumnType } from 'antd/es/table';
 import type { Key } from 'react';
-
-interface ProcessStep {
-  id: string;
-  name: string;
-  description: string;
-  status: string;
-  order: number;
-  createdAt: string;
-  updatedAt: string;
-}
+import { CandidateView, ProcessStep } from '@/types';
+import { useQuery } from '@tanstack/react-query';
 
 interface ProcessStepsTableProps {
-  steps: ProcessStep[];
+  candidateId: string;
   onEdit?: (step: ProcessStep) => void;
   onDelete?: (step: ProcessStep) => void;
-  loading?: boolean;
 }
 
 export default function ProcessStepsTable({
-  steps,
+  candidateId,
   onEdit,
   onDelete,
-  loading = false,
 }: ProcessStepsTableProps) {
+  const {
+    data: candidate,
+    isLoading,
+  } = useQuery<CandidateView>({
+    queryKey: ['candidate', candidateId],
+    queryFn: async () => {
+      const response = await fetch(`/api/candidates/${candidateId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch process steps');
+      }
+      return response.json();
+    },
+  });
+
   const columns: ColumnType<ProcessStep>[] = [
     {
-      title: 'Order',
-      dataIndex: 'order',
-      key: 'order',
-      width: 80,
-      sorter: (a: ProcessStep, b: ProcessStep) => a.order - b.order,
-    },
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: ProcessStep, b: ProcessStep) => a.name.localeCompare(b.name),
-    },
-    {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      render: (text: string) =>
-        text.length > 100 ? `${text.substring(0, 100)}...` : text,
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      sorter: (a: ProcessStep, b: ProcessStep) => a.type.localeCompare(b.type),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'ACTIVE' ? 'green' : 'orange'}>
-          {status.toLowerCase()}
+        <Tag color={status === 'Completed' ? 'green' : 'orange'}>
+          {status}
         </Tag>
       ),
       filters: [
@@ -110,9 +100,9 @@ export default function ProcessStepsTable({
   return (
     <Table
       columns={columns}
-      dataSource={steps}
+      dataSource={candidate?.steps || []}
       rowKey="id"
-      loading={loading}
+      loading={isLoading}
       pagination={{ pageSize: 10 }}
     />
   );

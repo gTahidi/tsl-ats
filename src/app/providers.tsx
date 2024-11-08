@@ -1,11 +1,9 @@
 'use client';
 
 import React from 'react';
-import { ConfigProvider, App, Layout } from 'antd';
+import { ConfigProvider, App } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-
-const { Header, Content } = Layout;
 
 const theme = {
   token: {
@@ -62,27 +60,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <StyleProvider hashPriority="high">
         <ConfigProvider theme={theme}>
           <App>
-            <Layout style={{ minHeight: '100vh' }}>
-              <Header style={{
-                background: '#fff',
-                borderBottom: '1.5px solid #D9D9D4',
-                padding: '0 24px',
-                display: 'flex',
-                alignItems: 'center',
-              }}>
-                <h1 style={{
-                  margin: 0,
-                  fontSize: '20px',
-                  color: '#2C363F',
-                  fontFamily: "'IBM Plex Mono', monospace",
-                }}>
-                  ATS Platform
-                </h1>
-              </Header>
-              <Content className="main-container">
-                {children}
-              </Content>
-            </Layout>
+            {children}
           </App>
         </ConfigProvider>
       </StyleProvider>

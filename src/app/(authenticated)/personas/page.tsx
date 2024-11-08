@@ -1,112 +1,137 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Table, Button, Space, message } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import React, { useEffect, useState } from 'react';
+import { Button, Flex, message, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import RightSidePanel from '@/app/components/RightSidePanel';
-import { type Persona } from '@prisma/client';
+import PersonasTable from '../../components/tables/PersonasTable';
+import PersonaModal from '../../components/PersonaModal';
+import type { Persona } from '../../../types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-export default function PersonasPage() {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<Persona[]>([]);
-  const [sidePanel, setSidePanel] = useState({
-    open: false,
-    mode: 'create' as 'create' | 'edit',
-    initialValues: null as Persona | null,
+export default function Page(): JSX.Element {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (editingPersona && !modalVisible) {
+      setModalVisible(true);
+    }
+  }, [editingPersona, modalVisible]);
+
+  const {
+    mutateAsync: updatePersona,
+    isPending: updatePending,
+  } = useMutation({
+    mutationFn: async (persona: Persona) => {
+      const response = await fetch(`/api/personas/${persona.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(persona),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update persona');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['personas'] });
+    },
   });
 
-  const fetchPersonas = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/personas');
-      if (!response.ok) throw new Error('Failed to fetch personas');
-      const personas = await response.json();
-      setData(personas);
-    } catch (error) {
-      message.error('Failed to fetch personas');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchPersonas(); }, []);
-
-  const handleCreate = () => setSidePanel({ open: true, mode: 'create', initialValues: null });
-  const handleEdit = (record: Persona) => setSidePanel({ open: true, mode: 'edit', initialValues: record });
-  const handleDelete = async (id: string) => {
-    try {
-      await fetch(`/api/personas/${id}`, { method: 'DELETE' });
+  const {
+    mutateAsync: deletePersona,
+    isPending: deletePending,
+  } = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/personas/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete persona');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
       message.success('Persona deleted successfully');
-      fetchPersonas();
-    } catch (error) {
-      message.error('Failed to delete persona');
+      qc.invalidateQueries({ queryKey: ['personas'] });
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Failed to delete persona');
+    },
+  });
+
+  const handleCreateOrUpdate = async (values: Partial<Persona>) => {
+    if (!values.name || !values.email) {
+      message.error('Title is required');
+      return;
     }
+
+    const now = new Date();
+
+    const newPersona: Persona = editingPersona ? {
+      ...editingPersona,
+      ...values,
+      updatedAt: now,
+    } : {
+      id: crypto.randomUUID(),
+      name: values.name,
+      email: values.email,
+      linkedinUrl: values.linkedinUrl,
+      createdAt: now,
+      updatedAt: now,
+    };
+
+    try {
+      await updatePersona(newPersona);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Failed to update persona');
+      return;
+    }
+
+    message.success(`Persona ${editingPersona ? 'updated' : 'created'} successfully`);
+    setModalVisible(false);
+    setEditingPersona(null);
   };
 
-  const columns: ColumnsType<Persona> = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: Persona, b: Persona) => a.name.localeCompare(b.name)
-    },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      sorter: (a: Persona, b: Persona) => a.email.localeCompare(b.email)
-    },
-    {
-      title: 'Notes',
-      dataIndex: 'notes',
-      key: 'notes',
-      ellipsis: true,
-      render: (text: string | null) => text || '-'
-    },
-    {
-      title: 'Created At',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: Date) => new Date(date).toLocaleDateString(),
-      sorter: (a: Persona, b: Persona) => a.createdAt.getTime() - b.createdAt.getTime()
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: Persona) => (
-        <Space>
-          <Button type="link" onClick={() => handleEdit(record)}>Edit</Button>
-          <Button type="link" danger onClick={() => handleDelete(record.id)}>Delete</Button>
-        </Space>
-      ),
-    },
-  ];
+  const handleDelete = async (id: string) => {
+    await deletePersona(id);
+  };
+
+  const loading = updatePending || deletePending;
 
   return (
-    <div>
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} style={{ marginBottom: 16 }}>
-        Create Persona
-      </Button>
-      <Table
-        columns={columns}
-        dataSource={data}
+    <Flex gap="middle" vertical>
+      <Flex justify="space-between" align="center">
+        <Typography.Title level={3}>
+          Personas
+        </Typography.Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalVisible(true)}
+        >
+          Add Persona
+        </Button>
+      </Flex>
+
+      <PersonasTable
         loading={loading}
-        rowKey="id"
-        pagination={{
-          defaultPageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total) => `Total ${total} personas`
+        onEdit={setEditingPersona}
+        onDelete={handleDelete}
+      />
+
+      <PersonaModal
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingPersona(null);
         }}
+        onSubmit={handleCreateOrUpdate}
+        persona={editingPersona}
       />
-      <RightSidePanel
-        open={sidePanel.open}
-        onClose={() => setSidePanel(prev => ({ ...prev, open: false }))}
-        entityType="persona"
-        mode={sidePanel.mode}
-        initialValues={sidePanel.initialValues}
-        onSubmit={fetchPersonas}
-      />
-    </div>
+    </Flex>
   );
 }

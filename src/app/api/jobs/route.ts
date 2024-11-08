@@ -29,14 +29,6 @@ export async function POST(request: Request) {
     const data = await request.json();
     const job = await prisma.jobPosting.create({
       data,
-      include: {
-        candidates: {
-          include: {
-            persona: true,
-            steps: true,
-          },
-        },
-      },
     });
     return NextResponse.json(job);
   } catch (error) {

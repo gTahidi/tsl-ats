@@ -1,15 +1,13 @@
-'use client';
-
 import { useState } from 'react';
-import { Upload, message } from 'antd';
+import { Flex, Upload, message } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
 import type { UploadProps } from 'antd';
 
 const { Dragger } = Upload;
 
 interface CVUploadProps {
-  candidateId: string;
-  onUploadComplete: (fileUrl: string) => void;
+  candidateId?: string;
+  onUploadComplete: (_: string) => void;
 }
 
 export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProps) {
@@ -24,7 +22,10 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
         setUploading(true);
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('candidateId', candidateId);
+
+        if (candidateId) {
+          formData.append('candidateId', candidateId);
+        }
 
         const response = await fetch('/api/upload', {
           method: 'POST',
@@ -37,7 +38,7 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
 
         const data = await response.json();
         onSuccess?.(data);
-        onUploadComplete(data.fileUrl);
+        onUploadComplete(data.key);
         message.success('File uploaded successfully.');
       } catch (error) {
         onError?.(error as Error);
@@ -52,7 +53,7 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
   };
 
   return (
-    <div>
+    <Flex>
       <Dragger {...props} disabled={uploading}>
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
@@ -62,6 +63,6 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
           Support for PDF, DOC, DOCX. Single file upload only.
         </p>
       </Dragger>
-    </div>
+    </Flex>
   );
 }

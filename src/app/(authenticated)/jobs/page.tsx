@@ -1,103 +1,144 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Table, Button, Space, message } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import React, { useEffect, useState } from 'react';
+import { Button, Flex, message, Typography } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import RightSidePanel from '@/app/components/RightSidePanel';
-import type { Job } from '@/types';
+import JobsTable from '../../components/tables/JobsTable';
+import JobModal from '../../components/JobModal';
+import type { JobView } from '../../../types';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-export default function JobsPage() {
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<Job[]>([]);
-  const [sidePanel, setSidePanel] = useState({
-    open: false,
-    mode: 'create' as 'create' | 'edit',
-    initialValues: null as Job | null,
+export default function Page(): JSX.Element {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingJob, setEditingJob] = useState<JobView | null>(null);
+  const qc = useQueryClient();
+
+  useEffect(() => {
+    if (editingJob && !modalVisible) {
+      setModalVisible(true);
+    }
+  }, [editingJob, modalVisible]);
+
+  const {
+    mutateAsync: updateJob,
+    isPending: updatePending,
+  } = useMutation({
+    mutationFn: async (job: JobView) => {
+      const response = await fetch(`/api/jobs/${job.id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(job),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update job');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
   });
 
-  const fetchJobs = async () => {
-    try {
-      setLoading(true);
-      const response = await fetch('/api/jobs');
-      if (!response.ok) throw new Error('Failed to fetch jobs');
-      const jobs = await response.json();
-      setData(jobs);
-    } catch (error) {
-      message.error('Failed to fetch jobs');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => { fetchJobs(); }, []);
-
-  const handleCreate = () => setSidePanel({ open: true, mode: 'create', initialValues: null });
-  const handleEdit = (record: Job) => setSidePanel({ open: true, mode: 'edit', initialValues: record });
-  const handleDelete = async (id: string) => {
-    try {
-      await fetch(`/api/jobs/${id}`, { method: 'DELETE' });
+  const {
+    mutateAsync: deleteJob,
+    isPending: deletePending,
+  } = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/jobs/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to delete job');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
       message.success('Job deleted successfully');
-      fetchJobs();
-    } catch (error) {
-      message.error('Failed to delete job');
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Failed to delete job');
+    },
+  });
+
+  const handleCreateOrUpdate = async (values: Partial<JobView>) => {
+    if (!values.title) {
+      message.error('Title is required');
+      return;
     }
+
+    const now = new Date();
+
+    const newJob: JobView = editingJob ? {
+      ...editingJob,
+      ...values,
+      updatedAt: now,
+      candidates: undefined,
+    } : {
+      id: crypto.randomUUID(),
+      title: values.title,
+      description: values.description,
+      linkedinUrl: values.linkedinUrl,
+      status: values.status || 'Open',
+      createdAt: now,
+      updatedAt: now,
+      candidates: undefined,
+    };
+
+    console.log({
+      newJob,
+    })
+
+    try {
+      await updateJob(newJob);
+    } catch (error) {
+      message.error(error instanceof Error ? error.message : 'Failed to update job');
+      return;
+    }
+
+    message.success(`Job ${editingJob ? 'updated' : 'created'} successfully`);
+    setModalVisible(false);
+    setEditingJob(null);
   };
 
-  const columns: ColumnsType<Job> = [
-    {
-      title: 'Title',
-      dataIndex: 'title',
-      key: 'title',
-      sorter: (a: Job, b: Job) => a.title.localeCompare(b.title)
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      filters: [
-        { text: 'Open', value: 'Open' },
-        { text: 'Closed', value: 'Closed' },
-        { text: 'On Hold', value: 'On Hold' },
-      ],
-      onFilter: (value, record) => record.status === value.toString(),
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_: any, record: Job) => (
-        <Space>
-          <Button type="link" onClick={() => handleEdit(record)}>Edit</Button>
-          <Button type="link" danger onClick={() => handleDelete(record.id)}>Delete</Button>
-        </Space>
-      ),
-    },
-  ];
+  const handleDelete = async (id: string) => {
+    await deleteJob(id);
+  };
+
+  const loading = updatePending || deletePending;
 
   return (
-    <div>
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} style={{ marginBottom: 16 }}>
-        Create Job
-      </Button>
-      <Table
-        columns={columns}
-        dataSource={data}
+    <Flex gap="middle" vertical>
+      <Flex justify="space-between" align="center">
+        <Typography.Title level={3}>
+          Jobs
+        </Typography.Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalVisible(true)}
+        >
+          Add Job
+        </Button>
+      </Flex>
+
+      <JobsTable
         loading={loading}
-        rowKey="id"
-        pagination={{
-          defaultPageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total) => `Total ${total} jobs`,
+        onEdit={setEditingJob}
+        onDelete={handleDelete}
+      />
+
+      <JobModal
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingJob(null);
         }}
+        onSubmit={handleCreateOrUpdate}
+        job={editingJob}
       />
-      <RightSidePanel
-        open={sidePanel.open}
-        onClose={() => setSidePanel(prev => ({ ...prev, open: false }))}
-        entityType="job"
-        mode={sidePanel.mode}
-        initialValues={sidePanel.initialValues}
-        onSubmit={fetchJobs}
-      />
-    </div>
+    </Flex>
   );
 }
