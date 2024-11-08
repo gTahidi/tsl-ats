@@ -11,14 +11,18 @@ export interface JobFormData {
 
 interface JobFormProps {
   onSubmit: (data: JobFormData) => void;
+  onCancel: () => void;
   initialValues?: Partial<JobFormData>;
   submitText?: string;
+  loading?: boolean;
 }
 
 export default function JobForm({
   onSubmit,
+  onCancel,
   initialValues,
   submitText = 'Submit',
+  loading = false,
 }: JobFormProps) {
   const [form] = Form.useForm();
 
@@ -28,6 +32,7 @@ export default function JobForm({
       layout="vertical"
       onFinish={onSubmit}
       initialValues={initialValues}
+      disabled={loading}
     >
       <Form.Item
         name="title"
@@ -66,8 +71,18 @@ export default function JobForm({
 
       <Form.Item>
         <Space>
-          <Button type="primary" htmlType="submit">
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+          >
             {submitText}
+          </Button>
+          <Button
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
           </Button>
         </Space>
       </Form.Item>

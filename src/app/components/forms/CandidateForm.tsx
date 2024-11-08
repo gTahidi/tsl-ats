@@ -6,6 +6,8 @@ import type { UploadFile } from 'antd/es/upload/interface';
 import type { Job, Persona } from '@/types';
 
 export interface CandidateFormData {
+  name: string;
+  email: string;
   linkedinUrl?: string;
   notes?: string;
   personaId: string;
@@ -19,6 +21,7 @@ interface Props {
   onCancel: () => void;
   personas: Persona[];
   jobs: Job[];
+  loading?: boolean;
 }
 
 const CandidateForm = ({
@@ -27,6 +30,7 @@ const CandidateForm = ({
   onCancel,
   personas,
   jobs,
+  loading = false,
 }: Props) => {
   const [form] = Form.useForm();
 
@@ -46,25 +50,49 @@ const CandidateForm = ({
     return e?.fileList;
   };
 
+  console.log('Rendering CandidateForm with personas:', personas);
+
   return (
     <Form
       form={form}
       layout="vertical"
       initialValues={initialValues}
       onFinish={handleSubmit}
+      disabled={loading}
+      style={{ maxWidth: '600px', margin: '0 auto' }}
     >
+      <Form.Item
+        name="name"
+        label="Name"
+        rules={[{ required: true, message: 'Please enter a name' }]}
+      >
+        <Input placeholder="Enter name" />
+      </Form.Item>
+
+      <Form.Item
+        name="email"
+        label="Email"
+        rules={[
+          { required: true, message: 'Please enter an email' },
+          { type: 'email', message: 'Please enter a valid email' }
+        ]}
+      >
+        <Input placeholder="Enter email" />
+      </Form.Item>
+
       <Form.Item
         name="personaId"
         label="Persona"
         rules={[{ required: true, message: 'Please select a persona' }]}
       >
-        <Select placeholder="Select a persona">
-          {personas.map((persona) => (
-            <Select.Option key={persona.id} value={persona.id}>
-              {persona.name} ({persona.email})
-            </Select.Option>
-          ))}
-        </Select>
+        <Select
+          placeholder="Select a persona"
+          style={{ width: '100%' }}
+          options={personas.map((persona) => ({
+            value: persona.id,
+            label: `${persona.name} (${persona.email})`
+          }))}
+        />
       </Form.Item>
 
       <Form.Item
@@ -72,13 +100,14 @@ const CandidateForm = ({
         label="Job"
         rules={[{ required: true, message: 'Please select a job' }]}
       >
-        <Select placeholder="Select a job">
-          {jobs.map((job) => (
-            <Select.Option key={job.id} value={job.id}>
-              {job.title}
-            </Select.Option>
-          ))}
-        </Select>
+        <Select
+          placeholder="Select a job"
+          style={{ width: '100%' }}
+          options={jobs.map((job) => ({
+            value: job.id,
+            label: job.title
+          }))}
+        />
       </Form.Item>
 
       <Form.Item
@@ -101,8 +130,9 @@ const CandidateForm = ({
           maxCount={1}
           beforeUpload={() => false}
           accept=".pdf,.doc,.docx"
+          disabled={loading}
         >
-          <Button icon={<UploadOutlined />}>Upload CV</Button>
+          <Button icon={<UploadOutlined />} disabled={loading}>Upload CV</Button>
         </Upload>
       </Form.Item>
 
@@ -115,10 +145,19 @@ const CandidateForm = ({
 
       <Form.Item>
         <Space>
-          <Button type="primary" htmlType="submit">
-            {initialValues ? 'Update' : 'Create'} Candidate
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+          >
+            Create Candidate
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
+          <Button
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
+          </Button>
         </Space>
       </Form.Item>
     </Form>

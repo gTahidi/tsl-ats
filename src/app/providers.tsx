@@ -3,6 +3,7 @@
 import React from 'react';
 import { ConfigProvider, App, Layout } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
 const { Header, Content } = Layout;
 
@@ -46,34 +47,45 @@ const theme = {
   },
 };
 
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 60 * 1000, // 1 minute
+      refetchOnWindowFocus: false,
+    },
+  },
+});
+
 export function Providers({ children }: { children: React.ReactNode }) {
   return (
-    <StyleProvider hashPriority="high">
-      <ConfigProvider theme={theme}>
-        <App>
-          <Layout style={{ minHeight: '100vh' }}>
-            <Header style={{
-              background: '#fff',
-              borderBottom: '1.5px solid #D9D9D4',
-              padding: '0 24px',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              <h1 style={{
-                margin: 0,
-                fontSize: '20px',
-                color: '#2C363F',
-                fontFamily: "'IBM Plex Mono', monospace",
+    <QueryClientProvider client={queryClient}>
+      <StyleProvider hashPriority="high">
+        <ConfigProvider theme={theme}>
+          <App>
+            <Layout style={{ minHeight: '100vh' }}>
+              <Header style={{
+                background: '#fff',
+                borderBottom: '1.5px solid #D9D9D4',
+                padding: '0 24px',
+                display: 'flex',
+                alignItems: 'center',
               }}>
-                ATS Platform
-              </h1>
-            </Header>
-            <Content className="main-container">
-              {children}
-            </Content>
-          </Layout>
-        </App>
-      </ConfigProvider>
-    </StyleProvider>
+                <h1 style={{
+                  margin: 0,
+                  fontSize: '20px',
+                  color: '#2C363F',
+                  fontFamily: "'IBM Plex Mono', monospace",
+                }}>
+                  ATS Platform
+                </h1>
+              </Header>
+              <Content className="main-container">
+                {children}
+              </Content>
+            </Layout>
+          </App>
+        </ConfigProvider>
+      </StyleProvider>
+    </QueryClientProvider>
   );
 }

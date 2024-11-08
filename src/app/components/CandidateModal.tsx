@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Modal, Form, Input, message } from 'antd';
-import type { CandidateView } from '../types';
+import type { CandidateView } from '@/types';
 
 interface CandidateModalProps {
   visible: boolean;
