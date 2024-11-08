@@ -1,103 +1,68 @@
-'use client';
-
 import { useState } from 'react';
-import { message } from 'antd';
-import Alert from 'antd/es/alert';
-import Dragger from 'antd/es/upload/Dragger';
+import { Flex, Upload, message } from 'antd';
 import { InboxOutlined } from '@ant-design/icons';
-import type { UploadProps } from 'antd/es/upload';
-import type { RcFile, UploadChangeParam, UploadFile } from 'antd/es/upload/interface';
+import type { UploadProps } from 'antd';
 
-type CVUploadProps = {
-  candidateId: string;
-  onUploadComplete?: (fileUrl: string) => void;
-};
+const { Dragger } = Upload;
+
+interface CVUploadProps {
+  candidateId?: string;
+  onUploadComplete: (_: string) => void;
+}
 
 export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProps) {
   const [uploading, setUploading] = useState(false);
-  const [error, setError] = useState('');
 
-  const handleUpload = async (file: RcFile): Promise<boolean> => {
-    setUploading(true);
-    setError('');
-
-    try {
-      const response = await fetch('/api/mock-upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          candidateId,
-          fileName: file.name,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error('Upload failed');
-      }
-
-      const data = await response.json();
-
-      if (data.success) {
-        message.success('File uploaded successfully');
-        onUploadComplete?.(data.fileUrl);
-        return true;
-      }
-
-      throw new Error(data.error || 'Upload failed');
-    } catch (err) {
-      console.error('Upload error:', err);
-      setError(err instanceof Error ? err.message : 'Failed to upload CV');
-      message.error('Failed to upload file');
-      return false;
-    } finally {
-      setUploading(false);
-    }
-  };
-
-  const uploadProps: UploadProps = {
+  const props: UploadProps = {
     name: 'file',
     multiple: false,
     accept: '.pdf,.doc,.docx',
-    customRequest: async (options: any) => {
+    customRequest: async ({ file, onSuccess, onError }) => {
       try {
-        const success = await handleUpload(options.file as RcFile);
-        if (success) {
-          options.onSuccess?.(null);
-        } else {
-          options.onError?.(new Error('Upload failed'));
+        setUploading(true);
+        const formData = new FormData();
+        formData.append('file', file);
+
+        if (candidateId) {
+          formData.append('candidateId', candidateId);
         }
-      } catch (err) {
-        options.onError?.(err as Error);
+
+        const response = await fetch('/api/upload', {
+          method: 'POST',
+          body: formData,
+        });
+
+        if (!response.ok) {
+          throw new Error('Upload failed');
+        }
+
+        const data = await response.json();
+        onSuccess?.(data);
+        onUploadComplete(data.key);
+        message.success('File uploaded successfully.');
+      } catch (error) {
+        onError?.(error as Error);
+        message.error('File upload failed.');
+      } finally {
+        setUploading(false);
       }
     },
-    onChange(info: UploadChangeParam<UploadFile>) {
-      if (info.file.status === 'done') {
-        setError('');
-      }
+    onDrop(e) {
+      console.log('Dropped files', e.dataTransfer.files);
     },
   };
 
   return (
-    <div>
-      {error && (
-        <Alert
-          message={error}
-          type="error"
-          showIcon
-          style={{ marginBottom: '1rem' }}
-        />
-      )}
-      <Dragger {...uploadProps} disabled={uploading}>
+    <Flex>
+      <Dragger {...props} disabled={uploading}>
         <p className="ant-upload-drag-icon">
           <InboxOutlined />
         </p>
-        <p className="ant-upload-text">
-          Click or drag CV file to this area to upload
-        </p>
+        <p className="ant-upload-text">Click or drag CV file to this area to upload</p>
         <p className="ant-upload-hint">
-          Support for PDF, DOC, DOCX files.
+          Support for PDF, DOC, DOCX. Single file upload only.
         </p>
       </Dragger>
-    </div>
+    </Flex>
   );
 }

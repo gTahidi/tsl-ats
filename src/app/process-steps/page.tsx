@@ -1,73 +1,90 @@
 'use client';
 
-import { useState } from 'react';
-import { Typography, Button, Card, message } from 'antd';
+import { useState, useEffect } from 'react';
+import { Card, Button, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
-import ProcessStepsTable from '@/app/components/tables/ProcessStepsTable';
-
-const { Title } = Typography;
-
-// Mock data for initial testing
-const mockSteps = [
-  {
-    id: '1',
-    name: 'Initial Screening',
-    order: 1,
-    status: 'Active',
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    name: 'Technical Interview',
-    order: 2,
-    status: 'Active',
-    createdAt: new Date(Date.now() - 25 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    name: 'HR Interview',
-    order: 3,
-    status: 'Active',
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    name: 'Take Home Test',
-    order: 4,
-    status: 'Inactive',
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-];
+import ProcessStepsTable from '../components/tables/ProcessStepsTable';
+import StepModal from '../components/StepModal';
+import { ProcessStep } from '@/types';
 
 export default function ProcessStepsPage() {
-  const [loading, setLoading] = useState(false);
-  const [steps, setSteps] = useState(mockSteps);
+  const [steps, setSteps] = useState<ProcessStep[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingStep, setEditingStep] = useState<ProcessStep | null>(null);
 
-  const handleEdit = (step: any) => {
-    message.info(`Edit clicked for ${step.name}`);
+  useEffect(() => {
+    fetchSteps();
+  }, []);
+
+  const fetchSteps = async () => {
+    try {
+      const response = await fetch('/api/process-steps');
+      if (!response.ok) throw new Error('Failed to fetch steps');
+      const data = await response.json();
+      // Ensure all required fields are present
+      const processedSteps = data.map((step: any) => ({
+        id: step.id,
+        name: step.name,
+        description: step.description || '', // Provide default empty string if missing
+        order: step.order,
+        status: step.status,
+        createdAt: step.createdAt,
+        updatedAt: step.updatedAt,
+      }));
+      setSteps(processedSteps);
+    } catch (error) {
+      console.error('Error fetching steps:', error);
+      message.error('Failed to load process steps');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      setSteps(prev => prev.filter(s => s.id !== id));
+  const handleCreate = () => {
+    setEditingStep(null);
+    setModalVisible(true);
+  };
+
+  const handleEdit = (step: ProcessStep) => {
+    setEditingStep(step);
+    setModalVisible(true);
+  };
+
+  const handleDelete = async (step: ProcessStep) => {
+    try {
+      const response = await fetch(`/api/process-steps/${step.id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete step');
       message.success('Process step deleted successfully');
-      setLoading(false);
-    }, 1000);
+      fetchSteps();
+    } catch (error) {
+      console.error('Error deleting step:', error);
+      message.error('Failed to delete process step');
+    }
+  };
+
+  const handleModalClose = (refresh?: boolean) => {
+    setModalVisible(false);
+    setEditingStep(null);
+    if (refresh) {
+      fetchSteps();
+    }
   };
 
   return (
-    <div>
-      <Card>
-        <div>
-          <Title level={2}>Process Steps</Title>
-          <Button type="primary" icon={<PlusOutlined />}>Add Step</Button>
-        </div>
-      </Card>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-4">
+        <h1 className="text-2xl font-semibold">Process Steps</h1>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleCreate}
+        >
+          Add Step
+        </Button>
+      </div>
       <Card>
         <ProcessStepsTable
           steps={steps}
@@ -76,6 +93,11 @@ export default function ProcessStepsPage() {
           loading={loading}
         />
       </Card>
+      <StepModal
+        visible={modalVisible}
+        onClose={handleModalClose}
+        step={editingStep}
+      />
     </div>
   );
 }

@@ -6,30 +6,27 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const job = await prisma.jobPosting.findUnique({
+    const candidate = await prisma.candidate.findUnique({
       where: { id: params.id },
       include: {
-        candidates: {
-          include: {
-            persona: true,
-            steps: true,
-          },
-        },
+        persona: true,
+        job: true,
+        steps: true,
       },
     });
 
-    if (!job) {
+    if (!candidate) {
       return NextResponse.json(
-        { error: 'Job not found' },
+        { error: 'Candidate not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json(job);
+    return NextResponse.json(candidate);
   } catch (error) {
-    console.error('Error fetching job:', error);
+    console.error('Error fetching candidate:', error);
     return NextResponse.json(
-      { error: 'Failed to fetch job' },
+      { error: 'Failed to fetch candidate' },
       { status: 500 }
     );
   }
@@ -41,17 +38,21 @@ export async function PUT(
 ) {
   try {
     const data = await request.json();
-    const job = await prisma.jobPosting.upsert({
+    const candidate = await prisma.candidate.update({
       where: { id: params.id },
-      update: data,
-      create: data,
+      data,
+      include: {
+        persona: true,
+        job: true,
+        steps: true,
+      },
     });
 
-    return NextResponse.json(job);
+    return NextResponse.json(candidate);
   } catch (error) {
-    console.error('Error updating job:', error);
+    console.error('Error updating candidate:', error);
     return NextResponse.json(
-      { error: 'Failed to update job' },
+      { error: 'Failed to update candidate' },
       { status: 500 }
     );
   }
@@ -62,15 +63,15 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.jobPosting.delete({
+    await prisma.candidate.delete({
       where: { id: params.id },
     });
 
-    return NextResponse.json({ message: 'Job deleted successfully' });
+    return NextResponse.json({ message: 'Candidate deleted successfully' });
   } catch (error) {
-    console.error('Error deleting job:', error);
+    console.error('Error deleting candidate:', error);
     return NextResponse.json(
-      { error: 'Failed to delete job' },
+      { error: 'Failed to delete candidate' },
       { status: 500 }
     );
   }

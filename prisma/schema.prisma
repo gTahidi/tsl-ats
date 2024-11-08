@@ -24,7 +24,7 @@ model Persona {
   id    String  @id @default(cuid())
   name  String
   email String  @unique
-  notes String?
+  linkedinUrl String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -35,8 +35,7 @@ model Persona {
 model Candidate {
   id String @id @default(cuid())
 
-  linkedinUrl String?
-  cvUrl       String?
+  cvFileKey       String?
   notes       String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -54,8 +53,9 @@ model ProcessStep {
   id     String   @id @default(cuid())
   type   String
   status String
+
   notes  String?
-  date   DateTime @default(now())
+  date   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

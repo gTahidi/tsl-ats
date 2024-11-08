@@ -3,79 +3,95 @@
 import { Table, Space, Button, Tag, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
-
-interface ProcessStep {
-  id: string;
-  name: string;
-  order: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import type { ColumnType } from 'antd/es/table';
+import type { Key } from 'react';
+import { CandidateView, ProcessStep } from '@/types';
+import { useQuery } from '@tanstack/react-query';
 
 interface ProcessStepsTableProps {
-  steps: ProcessStep[];
-  onEdit: (step: ProcessStep) => void;
-  onDelete: (id: string) => void;
-  loading?: boolean;
+  candidateId: string;
+  onEdit?: (step: ProcessStep) => void;
+  onDelete?: (step: ProcessStep) => void;
 }
 
 export default function ProcessStepsTable({
-  steps,
+  candidateId,
   onEdit,
   onDelete,
-  loading = false,
 }: ProcessStepsTableProps) {
-  const columns = [
-    {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a: ProcessStep, b: ProcessStep) => a.name.localeCompare(b.name),
+  const {
+    data: candidate,
+    isLoading,
+  } = useQuery<CandidateView>({
+    queryKey: ['candidate', candidateId],
+    queryFn: async () => {
+      const response = await fetch(`/api/candidates/${candidateId}`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch process steps');
+      }
+      return response.json();
     },
+  });
+
+  const columns: ColumnType<ProcessStep>[] = [
     {
-      title: 'Order',
-      dataIndex: 'order',
-      key: 'order',
-      width: 80,
+      title: 'Type',
+      dataIndex: 'type',
+      key: 'type',
+      sorter: (a: ProcessStep, b: ProcessStep) => a.type.localeCompare(b.type),
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'Active' ? 'green' : 'red'}>{status}</Tag>
+        <Tag color={status === 'Completed' ? 'green' : 'orange'}>
+          {status}
+        </Tag>
       ),
       filters: [
-        { text: 'Active', value: 'Active' },
-        { text: 'Inactive', value: 'Inactive' },
+        { text: 'Active', value: 'ACTIVE' },
+        { text: 'Inactive', value: 'INACTIVE' },
       ],
-      onFilter: (value: string | number | boolean, record: ProcessStep) =>
-        record.status === value,
+      onFilter: (value: boolean | Key, record: ProcessStep) => record.status === value,
     },
     {
-      title: 'Created',
+      title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
-    },
-    {
-      title: 'Updated',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
+      render: (date: string) => {
+        if (typeof window === 'undefined') return date;
+        return format(new Date(date), 'PPP');
+      },
+      sorter: (a: ProcessStep, b: ProcessStep) => {
+        if (typeof window === 'undefined') return 0;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      },
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ProcessStep) => (
         <Space size="middle">
-          <Tooltip title="Edit">
-            <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(record)} />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id)} />
-          </Tooltip>
+          {onEdit && (
+            <Tooltip title="Edit">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => onEdit(record)}
+              />
+            </Tooltip>
+          )}
+          {onDelete && (
+            <Tooltip title="Delete">
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(record)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -84,14 +100,10 @@ export default function ProcessStepsTable({
   return (
     <Table
       columns={columns}
-      dataSource={steps}
+      dataSource={candidate?.steps || []}
       rowKey="id"
-      loading={loading}
-      pagination={{
-        defaultPageSize: 10,
-        showSizeChanger: true,
-        showTotal: (total) => `Total ${total} steps`,
-      }}
+      loading={isLoading}
+      pagination={{ pageSize: 10 }}
     />
   );
 }
