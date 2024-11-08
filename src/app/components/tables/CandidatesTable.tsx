@@ -45,13 +45,19 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({
       title: 'Created',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      render: (date: string) => {
+        if (typeof window === 'undefined') return date;
+        return new Date(date).toLocaleDateString();
+      },
     },
     {
       title: 'Updated',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      render: (date: string) => new Date(date).toLocaleDateString(),
+      render: (date: string) => {
+        if (typeof window === 'undefined') return date;
+        return new Date(date).toLocaleDateString();
+      },
     },
     {
       title: 'Actions',
