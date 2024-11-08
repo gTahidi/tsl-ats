@@ -1,118 +1,90 @@
 'use client';
 
-import { Table, Space, Button, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, FilePdfOutlined } from '@ant-design/icons';
-import type { TableProps } from 'antd';
-import { format } from 'date-fns';
-
-interface Candidate {
-  id: string;
-  name: string;
-  email: string;
-  processStatus: string;
-  cvUrl?: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import React from 'react';
+import { Table, Button, Popconfirm } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
+import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import type { CandidateView } from '../../types';
 
 interface CandidatesTableProps {
-  candidates: Candidate[];
-  onEdit: (candidate: Candidate) => void;
-  onDelete: (id: string) => void;
+  candidates: CandidateView[];
+  onEdit: (candidate: CandidateView) => void;
+  onDelete: (candidate: CandidateView) => void;
   loading?: boolean;
 }
 
-export default function CandidatesTable({
+const CandidatesTable: React.FC<CandidatesTableProps> = ({
   candidates,
   onEdit,
   onDelete,
   loading = false,
-}: CandidatesTableProps) {
-  const columns = [
+}) => {
+  const columns: ColumnsType<CandidateView> = [
     {
       title: 'Name',
       dataIndex: 'name',
       key: 'name',
-      sorter: (a: Candidate, b: Candidate) => a.name.localeCompare(b.name),
+      sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      sorter: (a: Candidate, b: Candidate) => a.email.localeCompare(b.email),
     },
     {
       title: 'Status',
-      dataIndex: 'processStatus',
-      key: 'processStatus',
-      render: (status: string) => (
-        <Tag color={
-          status === 'Applied' ? 'blue' :
-          status === 'Interviewing' ? 'orange' :
-          status === 'Rejected' ? 'red' :
-          status === 'Hired' ? 'green' : 'default'
-        }>{status}</Tag>
-      ),
-      filters: [
-        { text: 'Applied', value: 'Applied' },
-        { text: 'Interviewing', value: 'Interviewing' },
-        { text: 'Rejected', value: 'Rejected' },
-        { text: 'Hired', value: 'Hired' },
-      ],
-      onFilter: (value: string | number | boolean, record: Candidate) =>
-        record.processStatus === value,
+      dataIndex: 'status',
+      key: 'status',
     },
     {
-      title: 'CV',
-      key: 'cv',
-      render: (_: any, record: Candidate) => (
-        record.cvUrl ? (
-          <Tooltip title="Download CV">
-            <Button
-              type="link"
-              icon={<FilePdfOutlined />}
-              onClick={() => window.open(record.cvUrl)}
-            />
-          </Tooltip>
-        ) : null
-      ),
+      title: 'Job',
+      dataIndex: 'jobTitle',
+      key: 'jobTitle',
     },
     {
       title: 'Created',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
-      sorter: (a: Candidate, b: Candidate) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (date: string) => new Date(date).toLocaleDateString(),
     },
     {
       title: 'Updated',
       dataIndex: 'updatedAt',
       key: 'updatedAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
-      sorter: (a: Candidate, b: Candidate) =>
-        new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
+      render: (date: string) => new Date(date).toLocaleDateString(),
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: Candidate) => (
-        <Space size="middle">
-          <Tooltip title="Edit">
-            <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(record)} />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id)} />
-          </Tooltip>
-        </Space>
+      render: (_, record) => (
+        <div className="flex gap-2">
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => onEdit(record)}
+          />
+          <Popconfirm
+            title="Delete candidate"
+            description="Are you sure?"
+            onConfirm={() => onDelete(record)}
+            okText="Yes"
+            cancelText="No"
+          >
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+            />
+          </Popconfirm>
+        </div>
       ),
     },
   ];
 
   return (
     <Table
-      columns={columns}
       dataSource={candidates}
+      columns={columns}
       rowKey="id"
       loading={loading}
       pagination={{
@@ -122,4 +94,6 @@ export default function CandidatesTable({
       }}
     />
   );
-}
+};
+
+export default CandidatesTable;

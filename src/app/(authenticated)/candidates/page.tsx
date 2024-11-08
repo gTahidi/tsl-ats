@@ -1,29 +1,72 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useCallback } from 'react';
 import { Table, Button, Space, message, Tag } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined, FileOutlined } from '@ant-design/icons';
 import { useRouter } from 'next/navigation';
 import RightSidePanel from '@/app/components/RightSidePanel';
 import type { Job, Persona } from '@/types';
 
-// Keep existing interface definition for Candidate
+interface Candidate {
+  id: string;
+  linkedinUrl?: string;
+  cvUrl?: string;
+  notes?: string;
+  persona: Persona;
+  job: Job;
+  createdAt: string;
+  updatedAt: string;
+}
 
 export default function CandidatesPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-  const [data, setData] = useState([]);
+  const [data, setData] = useState<Candidate[]>([]);
   const [sidePanel, setSidePanel] = useState({
     open: false,
     mode: 'create' as 'create' | 'edit',
-    initialValues: null,
+    initialValues: null as Candidate | null,
   });
 
-  const handleCreate = () => { };
-  const handleDelete = (_: string) => { };
-  const fetchData = async (_: any) => { };
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/candidates');
+      if (!response.ok) throw new Error('Failed to fetch candidates');
+      const candidates = await response.json();
+      setData(candidates);
+    } catch (error) {
+      console.error('Error:', error);
+      message.error('Failed to load candidates');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
-  const columns = [
+  const handleCreate = () => {
+    setSidePanel({
+      open: true,
+      mode: 'create',
+      initialValues: null,
+    });
+  };
+
+  const handleDelete = async (id: string) => {
+    try {
+      const response = await fetch(`/api/candidates/${id}`, {
+        method: 'DELETE',
+      });
+      if (!response.ok) throw new Error('Failed to delete candidate');
+      message.success('Candidate deleted successfully');
+      fetchData();
+    } catch (error) {
+      console.error('Error:', error);
+      message.error('Failed to delete candidate');
+    }
+  };
+
+  const columns: ColumnsType<Candidate> = [
     {
       title: 'Name',
       key: 'name',
@@ -39,7 +82,7 @@ export default function CandidatesPage() {
       key: 'job',
       render: (_, record) => <Tag color="blue">{record.job.title}</Tag>,
       filters: data.map(item => ({ text: item.job.title, value: item.job.id })),
-      onFilter: (value, record) => record.job.id === value,
+      onFilter: (value, record) => record.job.id === String(value),
     },
     {
       title: 'CV',
@@ -65,8 +108,6 @@ export default function CandidatesPage() {
       ),
     },
   ];
-
-  // Keep existing fetchData, handleCreate, and handleDelete functions
 
   return (
     <div>

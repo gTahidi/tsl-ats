@@ -1,15 +1,20 @@
+import { prisma } from '@/utils/db/prisma';
 import { NextResponse } from 'next/server';
-import prisma from '@/utils/db/prisma';
 
 export async function GET(
-  _: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const job = await prisma.jobPosting.findUnique({
       where: { id: params.id },
       include: {
-        candidates: true,
+        candidates: {
+          include: {
+            persona: true,
+            steps: true,
+          },
+        },
       },
     });
 
@@ -20,9 +25,9 @@ export async function GET(
       );
     }
 
-    return NextResponse.json({ job });
+    return NextResponse.json(job);
   } catch (error) {
-    console.error('Failed to fetch job:', error);
+    console.error('Error fetching job:', error);
     return NextResponse.json(
       { error: 'Failed to fetch job' },
       { status: 500 }
@@ -35,20 +40,23 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const body = await request.json();
+    const data = await request.json();
     const job = await prisma.jobPosting.update({
       where: { id: params.id },
-      data: {
-        title: body.title,
-        description: body.description,
-        linkedinUrl: body.linkedinUrl,
-        status: body.status,
+      data,
+      include: {
+        candidates: {
+          include: {
+            persona: true,
+            steps: true,
+          },
+        },
       },
     });
 
-    return NextResponse.json({ job });
+    return NextResponse.json(job);
   } catch (error) {
-    console.error('Failed to update job:', error);
+    console.error('Error updating job:', error);
     return NextResponse.json(
       { error: 'Failed to update job' },
       { status: 500 }
@@ -57,7 +65,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -65,9 +73,9 @@ export async function DELETE(
       where: { id: params.id },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: 'Job deleted successfully' });
   } catch (error) {
-    console.error('Failed to delete job:', error);
+    console.error('Error deleting job:', error);
     return NextResponse.json(
       { error: 'Failed to delete job' },
       { status: 500 }

@@ -1,114 +1,104 @@
-import { notFound } from 'next/navigation';
-import Link from 'next/link';
-import { prisma } from '@/lib/prisma';
+import { prisma } from '@/utils/db/prisma';
+import { Card, Typography, Descriptions, Button, Upload, message } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import ProcessSteps from '@/app/components/ProcessSteps';
-import CVUpload from '@/app/components/CVUpload';
-import { getDownloadUrl } from '@/lib/s3';
-import { Layout, Card, Typography, Space, Descriptions } from 'antd';
-import { ArrowLeftOutlined } from '@ant-design/icons';
+import Link from 'next/link';
 
-const { Content } = Layout;
-const { Title, Text } = Typography;
+const { Title } = Typography;
 
-async function getCandidate(jobId: string, candidateId: string) {
-  return prisma.candidate.findFirst({
-    where: {
-      id: candidateId,
-      jobId,
-    },
-    include: {
-      job: true,
-      persona: true,
-      steps: {
-        orderBy: {
-          date: 'desc',
-        },
-      },
-    },
-  });
-}
-
-export default async function CandidateDetailPage({
+export default async function CandidatePage({
   params,
 }: {
   params: { id: string; candidateId: string };
 }) {
-  const candidate = await getCandidate(params.id, params.candidateId);
-  if (!candidate) notFound();
+  const candidate = await prisma.candidate.findUnique({
+    where: { id: params.candidateId },
+    include: {
+      persona: true,
+      job: true,
+      steps: {
+        orderBy: { date: 'asc' },
+      },
+    },
+  });
 
-  const cvUrl = candidate.cvUrl ? await getDownloadUrl(candidate.cvUrl) : null;
+  if (!candidate) {
+    return <div>Candidate not found</div>;
+  }
 
   return (
-    <Layout>
-      <Content style={{ padding: '24px', maxWidth: '1200px', margin: '0 auto' }}>
-        <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Header */}
-          <Space direction="vertical" size="small">
-            <Link href={`/jobs/${params.id}`} style={{ color: '#2A9D8F' }}>
-              <Space>
-                <ArrowLeftOutlined />
-                <Text>Back to Job</Text>
-              </Space>
-            </Link>
-            <Title level={2}>{candidate.persona.name}</Title>
-            <Text type="secondary" style={{ fontSize: '18px' }}>{candidate.job.title}</Text>
-          </Space>
+    <div style={{ padding: '24px' }}>
+      <div style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <Title level={2}>Candidate Details</Title>
+        <Link href={`/jobs/${params.id}/candidates`}>
+          <Button>Back to Candidates</Button>
+        </Link>
+      </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-            {/* Candidate Information */}
-            <Card title={<Title level={4}>Candidate Information</Title>}>
-              <Descriptions layout="vertical" column={1}>
-                <Descriptions.Item label="Email">
-                  {candidate.persona.email}
-                </Descriptions.Item>
+      <div style={{ display: 'grid', gap: '24px', gridTemplateColumns: '1fr 1fr' }}>
+        <Card title="Personal Information">
+          <Descriptions column={1}>
+            <Descriptions.Item label="Name">{candidate.persona.name}</Descriptions.Item>
+            <Descriptions.Item label="Email">{candidate.persona.email}</Descriptions.Item>
+            {candidate.persona.notes && (
+              <Descriptions.Item label="Notes">{candidate.persona.notes}</Descriptions.Item>
+            )}
+            {candidate.linkedinUrl && (
+              <Descriptions.Item label="LinkedIn">
+                <a href={candidate.linkedinUrl} target="_blank" rel="noopener noreferrer">
+                  Profile
+                </a>
+              </Descriptions.Item>
+            )}
+          </Descriptions>
+        </Card>
 
-                {candidate.linkedinUrl && (
-                  <Descriptions.Item label="LinkedIn">
-                    <a
-                      href={candidate.linkedinUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#2A9D8F' }}
-                    >
-                      View Profile
-                    </a>
-                  </Descriptions.Item>
-                )}
+        <Card title="Job Information">
+          <Descriptions column={1}>
+            <Descriptions.Item label="Position">{candidate.job.title}</Descriptions.Item>
+            {candidate.job.description && (
+              <Descriptions.Item label="Job Description">
+                {candidate.job.description}
+              </Descriptions.Item>
+            )}
+            <Descriptions.Item label="Status">{candidate.job.status}</Descriptions.Item>
+          </Descriptions>
+        </Card>
 
-                {candidate.notes && (
-                  <Descriptions.Item label="Notes">
-                    <Text style={{ whiteSpace: 'pre-wrap' }}>{candidate.notes}</Text>
-                  </Descriptions.Item>
-                )}
+        <Card title="Documents">
+          <Upload
+            action={`/api/candidates/${candidate.id}/cv`}
+            showUploadList={true}
+            maxCount={1}
+            accept=".pdf,.doc,.docx"
+            onChange={(info) => {
+              if (info.file.status === 'done') {
+                message.success(`${info.file.name} file uploaded successfully`);
+              } else if (info.file.status === 'error') {
+                message.error(`${info.file.name} file upload failed.`);
+              }
+            }}
+          >
+            <Button icon={<UploadOutlined />}>Upload CV</Button>
+          </Upload>
+          {candidate.cvUrl && (
+            <div style={{ marginTop: '16px' }}>
+              <a href={candidate.cvUrl} target="_blank" rel="noopener noreferrer">
+                View Current CV
+              </a>
+            </div>
+          )}
+        </Card>
 
-                <Descriptions.Item label="CV">
-                  {cvUrl ? (
-                    <a
-                      href={cvUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ color: '#2A9D8F' }}
-                    >
-                      View CV
-                    </a>
-                  ) : (
-                    <CVUpload candidateId={candidate.id} />
-                  )}
-                </Descriptions.Item>
-              </Descriptions>
-            </Card>
-
-            {/* Process Steps */}
-            <Card>
-              <ProcessSteps
-                candidateId={candidate.id}
-                jobId={params.id}
-                steps={candidate?.steps || []}
-              />
-            </Card>
+        <Card title="Process">
+          <div style={{ marginTop: '16px' }}>
+            <ProcessSteps
+              candidateId={candidate.id}
+              steps={candidate?.steps || []}
+            />
           </div>
-        </Space>
-      </Content>
-    </Layout>
+        </Card>
+      </div>
+    </div>
   );
 }

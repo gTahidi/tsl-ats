@@ -1,79 +1,64 @@
 'use client';
 
 import { Form, Input, Button, Space } from 'antd';
-import type { Persona } from '@/types';
 
 export interface PersonaFormData {
   name: string;
-  email: string;
-  notes?: string;
+  description: string;
+  requirements: string;
 }
 
-interface Props {
-  initialValues?: PersonaFormData;
-  onSubmit: (values: PersonaFormData) => Promise<void>;
-  onCancel: () => void;
+interface PersonaFormProps {
+  onSubmit: (data: PersonaFormData) => void;
+  initialValues?: Partial<PersonaFormData>;
+  submitText?: string;
 }
 
-const PersonaForm = ({
-  initialValues,
+export default function PersonaForm({
   onSubmit,
-  onCancel,
-}: Props) => {
+  initialValues,
+  submitText = 'Submit',
+}: PersonaFormProps) {
   const [form] = Form.useForm();
-
-  const handleSubmit = async (values: PersonaFormData) => {
-    try {
-      await onSubmit(values);
-      form.resetFields();
-    } catch (error) {
-      console.error('Error submitting form:', error);
-    }
-  };
 
   return (
     <Form
       form={form}
       layout="vertical"
+      onFinish={onSubmit}
       initialValues={initialValues}
-      onFinish={handleSubmit}
     >
       <Form.Item
         name="name"
         label="Name"
-        rules={[{ required: true, message: 'Please enter the name' }]}
+        rules={[{ required: true, message: 'Please enter the persona name' }]}
       >
-        <Input placeholder="Enter name" />
+        <Input placeholder="Enter persona name" />
       </Form.Item>
 
       <Form.Item
-        name="email"
-        label="Email"
-        rules={[
-          { required: true, message: 'Please enter the email' },
-          { type: 'email', message: 'Please enter a valid email' }
-        ]}
+        name="description"
+        label="Description"
+        rules={[{ required: true, message: 'Please enter the persona description' }]}
       >
-        <Input placeholder="Enter email" />
+        <Input.TextArea rows={4} placeholder="Enter persona description" />
       </Form.Item>
 
       <Form.Item
-        name="notes"
-        label="Notes"
+        name="requirements"
+        label="Requirements"
+        rules={[{ required: true, message: 'Please enter the persona requirements' }]}
       >
-        <Input.TextArea rows={4} placeholder="Enter notes" />
+        <Input.TextArea rows={4} placeholder="Enter persona requirements" />
       </Form.Item>
 
       <Form.Item>
         <Space>
           <Button type="primary" htmlType="submit">
-            {initialValues ? 'Update' : 'Create'} Persona
+            {submitText}
           </Button>
-          <Button onClick={onCancel}>Cancel</Button>
         </Space>
       </Form.Item>
     </Form>
   );
-};
-
-export default PersonaForm;
+}

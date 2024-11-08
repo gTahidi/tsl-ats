@@ -1,73 +1,64 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, Typography, Button, message, Space } from 'antd';
-import ProcessStepsTable from '@/app/components/tables/ProcessStepsTable';
+import React, { useState } from 'react';
+import { Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import type { ProcessStep } from '../../types/process';
 
-const { Title } = Typography;
-
-// Mock data remains the same as previously defined
-const mockSteps = [
-  // ... existing mock steps array content ...
+const mockSteps: ProcessStep[] = [
+  {
+    id: '1',
+    name: 'Initial Screening',
+    description: 'Review of candidate resume and initial qualifications',
+    order: 1,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: '2',
+    name: 'Technical Interview',
+    description: 'In-depth technical assessment',
+    order: 2,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
+  {
+    id: '3',
+    name: 'Culture Fit',
+    description: 'Evaluation of cultural alignment',
+    order: 3,
+    status: 'active',
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString(),
+  },
 ];
 
-export default function ProcessStepsTestPage() {
+export default function ProcessStepsPage(): JSX.Element {
+  const [steps, setSteps] = useState<ProcessStep[]>(mockSteps);
   const [loading, setLoading] = useState(false);
-  const [steps, setSteps] = useState(mockSteps);
 
-  const handleEdit = (step: any) => {
-    message.info(`Edit clicked for ${step.name}`);
-  };
-
-  const handleDelete = (id: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      setSteps(prev => prev.filter(s => s.id !== id));
-      message.success('Step deleted successfully');
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleReorder = (draggedId: string, droppedId: string) => {
-    setLoading(true);
-    setTimeout(() => {
-      const draggedStep = steps.find(s => s.id === draggedId);
-      const droppedStep = steps.find(s => s.id === droppedId);
-
-      if (draggedStep && droppedStep) {
-        const newSteps = steps.map(step => {
-          if (step.id === draggedId) return { ...step, sequence: droppedStep.sequence };
-          if (step.id === droppedId) return { ...step, sequence: draggedStep.sequence };
-          return step;
-        });
-
-        setSteps(newSteps.sort((a, b) => a.sequence - b.sequence));
-        message.success('Steps reordered successfully');
-      }
-      setLoading(false);
-    }, 1000);
+  const handleAddStep = () => {
+    // Implementation for adding a new step
+    message.info('Add step functionality to be implemented');
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '40px auto', padding: '0 20px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Card>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Title level={2}>Process Steps Table Test</Title>
-            <Button onClick={() => setSteps([...steps, ...mockSteps])}>
-              Add More Mock Data
-            </Button>
-          </Space>
-        </Card>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Process Steps</h1>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={handleAddStep}
+        >
+          Add Step
+        </Button>
+      </div>
 
-        <ProcessStepsTable
-          steps={steps}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          onReorder={handleReorder}
-          loading={loading}
-        />
-      </Space>
+      {/* Table implementation will go here */}
+      <pre>{JSON.stringify(steps, null, 2)}</pre>
     </div>
   );
 }

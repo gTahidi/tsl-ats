@@ -3,20 +3,23 @@
 import { Table, Space, Button, Tag, Tooltip } from 'antd';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
+import type { ColumnType } from 'antd/es/table';
+import type { Key } from 'react';
 
 interface ProcessStep {
   id: string;
   name: string;
-  order: number;
+  description: string;
   status: string;
+  order: number;
   createdAt: string;
   updatedAt: string;
 }
 
 interface ProcessStepsTableProps {
   steps: ProcessStep[];
-  onEdit: (step: ProcessStep) => void;
-  onDelete: (id: string) => void;
+  onEdit?: (step: ProcessStep) => void;
+  onDelete?: (step: ProcessStep) => void;
   loading?: boolean;
 }
 
@@ -26,7 +29,14 @@ export default function ProcessStepsTable({
   onDelete,
   loading = false,
 }: ProcessStepsTableProps) {
-  const columns = [
+  const columns: ColumnType<ProcessStep>[] = [
+    {
+      title: 'Order',
+      dataIndex: 'order',
+      key: 'order',
+      width: 80,
+      sorter: (a: ProcessStep, b: ProcessStep) => a.order - b.order,
+    },
     {
       title: 'Name',
       dataIndex: 'name',
@@ -34,48 +44,59 @@ export default function ProcessStepsTable({
       sorter: (a: ProcessStep, b: ProcessStep) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Order',
-      dataIndex: 'order',
-      key: 'order',
-      width: 80,
+      title: 'Description',
+      dataIndex: 'description',
+      key: 'description',
+      render: (text: string) =>
+        text.length > 100 ? `${text.substring(0, 100)}...` : text,
     },
     {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
       render: (status: string) => (
-        <Tag color={status === 'Active' ? 'green' : 'red'}>{status}</Tag>
+        <Tag color={status === 'ACTIVE' ? 'green' : 'orange'}>
+          {status.toLowerCase()}
+        </Tag>
       ),
       filters: [
-        { text: 'Active', value: 'Active' },
-        { text: 'Inactive', value: 'Inactive' },
+        { text: 'Active', value: 'ACTIVE' },
+        { text: 'Inactive', value: 'INACTIVE' },
       ],
-      onFilter: (value: string | number | boolean, record: ProcessStep) =>
-        record.status === value,
+      onFilter: (value: boolean | Key, record: ProcessStep) => record.status === value,
     },
     {
-      title: 'Created',
+      title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
-    },
-    {
-      title: 'Updated',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (date: string) => format(new Date(date), 'MMM d, yyyy'),
+      render: (date: string) => format(new Date(date), 'PPP'),
+      sorter: (a: ProcessStep, b: ProcessStep) =>
+        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
     },
     {
       title: 'Actions',
       key: 'actions',
       render: (_: any, record: ProcessStep) => (
         <Space size="middle">
-          <Tooltip title="Edit">
-            <Button type="text" icon={<EditOutlined />} onClick={() => onEdit(record)} />
-          </Tooltip>
-          <Tooltip title="Delete">
-            <Button type="text" danger icon={<DeleteOutlined />} onClick={() => onDelete(record.id)} />
-          </Tooltip>
+          {onEdit && (
+            <Tooltip title="Edit">
+              <Button
+                type="text"
+                icon={<EditOutlined />}
+                onClick={() => onEdit(record)}
+              />
+            </Tooltip>
+          )}
+          {onDelete && (
+            <Tooltip title="Delete">
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+                onClick={() => onDelete(record)}
+              />
+            </Tooltip>
+          )}
         </Space>
       ),
     },
@@ -87,11 +108,7 @@ export default function ProcessStepsTable({
       dataSource={steps}
       rowKey="id"
       loading={loading}
-      pagination={{
-        defaultPageSize: 10,
-        showSizeChanger: true,
-        showTotal: (total) => `Total ${total} steps`,
-      }}
+      pagination={{ pageSize: 10 }}
     />
   );
 }

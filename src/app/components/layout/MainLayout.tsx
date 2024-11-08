@@ -1,42 +1,47 @@
-"use client";
+'use client';
 
-import { useState } from 'react';
-import { Layout, Menu, Button, theme, Typography } from 'antd';
+import { Layout, Menu } from 'antd';
 import {
-  MenuFoldOutlined,
-  MenuUnfoldOutlined,
   UserOutlined,
+  HomeOutlined,
+  TeamOutlined,
   OrderedListOutlined,
   UploadOutlined,
+  FolderOutlined,
 } from '@ant-design/icons';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { ReactNode } from 'react';
 
-const { Header, Sider, Content } = Layout;
-const { Title } = Typography;
+const { Content, Sider } = Layout;
 
 interface MainLayoutProps {
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export default function MainLayout({ children }: MainLayoutProps) {
-  const [collapsed, setCollapsed] = useState(false);
   const pathname = usePathname();
-
-  const {
-    token: { colorBgContainer, borderRadiusLG },
-  } = theme.useToken();
 
   const menuItems = [
     {
-      key: '/candidates',
-      icon: <UserOutlined />,
-      label: <Link href="/candidates">Candidates</Link>,
+      key: '/dashboard',
+      icon: <HomeOutlined />,
+      label: <Link href="/dashboard">Dashboard</Link>,
     },
     {
       key: '/jobs',
-      icon: <BriefcaseOutlined />,
+      icon: <FolderOutlined />,
       label: <Link href="/jobs">Jobs</Link>,
+    },
+    {
+      key: '/candidates',
+      icon: <TeamOutlined />,
+      label: <Link href="/candidates">Candidates</Link>,
+    },
+    {
+      key: '/personas',
+      icon: <UserOutlined />,
+      label: <Link href="/personas">Personas</Link>,
     },
     {
       key: '/process-steps',
@@ -44,19 +49,17 @@ export default function MainLayout({ children }: MainLayoutProps) {
       label: <Link href="/process-steps">Process Steps</Link>,
     },
     {
-      key: '/upload',
+      key: '/uploads',
       icon: <UploadOutlined />,
-      label: <Link href="/upload">Upload CV</Link>,
+      label: <Link href="/uploads">Uploads</Link>,
     },
   ];
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
-        trigger={null}
-        collapsible
-        collapsed={collapsed}
-        theme="light"
+        breakpoint="lg"
+        collapsedWidth="0"
         style={{
           overflow: 'auto',
           height: '100vh',
@@ -66,42 +69,19 @@ export default function MainLayout({ children }: MainLayoutProps) {
           bottom: 0,
         }}
       >
-        <div style={{ padding: '16px', textAlign: 'center' }}>
-          <Title level={4} style={{ margin: 0, color: '#1890ff' }}>
-            {collapsed ? 'ATS' : 'ATS System'}
-          </Title>
-        </div>
+        <div style={{ height: 32, margin: 16, background: 'rgba(255, 255, 255, 0.2)' }} />
         <Menu
-          theme="light"
+          theme="dark"
           mode="inline"
           selectedKeys={[pathname]}
           items={menuItems}
-          style={{ borderRight: 0 }}
         />
       </Sider>
-      <Layout style={{ marginLeft: collapsed ? 80 : 200, transition: 'all 0.2s' }}>
-        <Header style={{ padding: 0, background: colorBgContainer }}>
-          <Button
-            type="text"
-            icon={collapsed ? <MenuUnfoldOutlined /> : <MenuFoldOutlined />}
-            onClick={() => setCollapsed(!collapsed)}
-            style={{
-              fontSize: '16px',
-              width: 64,
-              height: 64,
-            }}
-          />
-        </Header>
-        <Content
-          style={{
-            margin: '24px 16px',
-            padding: 24,
-            background: colorBgContainer,
-            borderRadius: borderRadiusLG,
-            minHeight: 280,
-          }}
-        >
-          {children}
+      <Layout style={{ marginLeft: 200 }}>
+        <Content style={{ margin: '24px 16px 0', overflow: 'initial' }}>
+          <div style={{ padding: 24, background: '#fff' }}>
+            {children}
+          </div>
         </Content>
       </Layout>
     </Layout>
