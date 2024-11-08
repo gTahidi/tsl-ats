@@ -4,21 +4,11 @@ import { useState } from 'react';
 import { Button, Modal, Form, Input, Select, message, Steps } from 'antd';
 import { useRouter } from 'next/navigation';
 import { PlusOutlined } from '@ant-design/icons';
-
-type Step = {
-  id: string;
-  type: string;
-  status: string;
-  notes: string | null;
-  date: Date;
-  createdAt: Date;
-  updatedAt: Date;
-  candidateId: string;
-};
+import { ProcessStep } from '@/types';
 
 type ProcessStepsProps = {
   candidateId: string;
-  steps: Step[];
+  steps: ProcessStep[];
 };
 
 export default function ProcessSteps({ candidateId, steps }: ProcessStepsProps) {

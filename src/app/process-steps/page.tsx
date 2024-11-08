@@ -5,16 +5,7 @@ import { Card, Button, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import ProcessStepsTable from '../components/tables/ProcessStepsTable';
 import StepModal from '../components/StepModal';
-
-interface ProcessStep {
-  id: string;
-  name: string;
-  description: string;
-  order: number;
-  status: string;
-  createdAt: string;
-  updatedAt: string;
-}
+import { ProcessStep } from '@/types';
 
 export default function ProcessStepsPage() {
   const [steps, setSteps] = useState<ProcessStep[]>([]);

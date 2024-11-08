@@ -1,138 +1,113 @@
 'use client';
 
-import { useState, useCallback } from 'react';
-import { Table, Button, Space, message, Tag } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
-import { PlusOutlined, FileOutlined } from '@ant-design/icons';
-import { useRouter } from 'next/navigation';
-import RightSidePanel from '@/app/components/RightSidePanel';
-import type { Job, Persona } from '@/types';
+import React, { useState } from 'react';
+import { Button, Flex, Typography, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import CandidatesTable from '../../components/tables/CandidatesTable';
+import CandidateModal from '../../components/CandidateModal';
+import type { CandidateView } from '@/types';
+import { useQueryClient } from '@tanstack/react-query';
 
-interface Candidate {
-  id: string;
-  linkedinUrl?: string;
-  cvUrl?: string;
-  notes?: string;
-  persona: Persona;
-  job: Job;
-  createdAt: string;
-  updatedAt: string;
-}
+export default function Page(): JSX.Element {
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingCandidate, setEditingCandidate] = useState<CandidateView | null>(null);
+  const qc = useQueryClient();
 
-export default function CandidatesPage() {
-  const router = useRouter();
-  const [loading, setLoading] = useState(false);
-  const [data, setData] = useState<Candidate[]>([]);
-  const [sidePanel, setSidePanel] = useState({
-    open: false,
-    mode: 'create' as 'create' | 'edit',
-    initialValues: null as Candidate | null,
-  });
-
-  const fetchData = useCallback(async () => {
+  const handleCreateOrUpdate = async (values: Partial<CandidateView>) => {
     try {
-      setLoading(true);
-      const response = await fetch('/api/candidates');
-      if (!response.ok) throw new Error('Failed to fetch candidates');
-      const candidates = await response.json();
-      setData(candidates);
-    } catch (error) {
-      console.error('Error:', error);
-      message.error('Failed to load candidates');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+      const url = editingCandidate
+        ? `/api/candidates/${editingCandidate.id}`
+        : '/api/candidates';
 
-  const handleCreate = () => {
-    setSidePanel({
-      open: true,
-      mode: 'create',
-      initialValues: null,
-    });
+      const method = editingCandidate ? 'PUT' : 'POST';
+      const now = new Date();
+
+      if (!editingCandidate) {
+        values.steps = [
+          {
+            id: crypto.randomUUID(),
+            type: 'Backlog',
+            status: 'Pending',
+            createdAt: now,
+            updatedAt: now,
+            candidateId: values.id!,
+          } as any
+        ];
+      }
+
+      const response = await fetch(url, {
+        method,
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(values),
+      });
+
+      if (!response.ok) throw new Error('Failed to save candidate');
+
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      message.success(`Candidate ${editingCandidate ? 'updated' : 'created'} successfully`);
+
+      setModalVisible(false);
+      setEditingCandidate(null);
+    } catch (error) {
+      message.error('Failed to save candidate');
+    }
   };
 
-  const handleDelete = async (id: string) => {
+  const handleDelete = async (candidate: CandidateView) => {
     try {
-      const response = await fetch(`/api/candidates/${id}`, {
+      const response = await fetch(`/api/candidates/${candidate.id}`, {
         method: 'DELETE',
       });
+
       if (!response.ok) throw new Error('Failed to delete candidate');
+
+      qc.invalidateQueries({ queryKey: ['candidates'] });
       message.success('Candidate deleted successfully');
-      fetchData();
+
+      setEditingCandidate(null);
     } catch (error) {
-      console.error('Error:', error);
       message.error('Failed to delete candidate');
     }
   };
 
-  const columns: ColumnsType<Candidate> = [
-    {
-      title: 'Name',
-      key: 'name',
-      render: (_, record) => (
-        <Button type="link" onClick={() => router.push(`/candidates/${record.id}`)}>
-          {record.persona.name}
-        </Button>
-      ),
-      sorter: (a, b) => a.persona.name.localeCompare(b.persona.name),
-    },
-    {
-      title: 'Job Position',
-      key: 'job',
-      render: (_, record) => <Tag color="blue">{record.job.title}</Tag>,
-      filters: data.map(item => ({ text: item.job.title, value: item.job.id })),
-      onFilter: (value, record) => record.job.id === String(value),
-    },
-    {
-      title: 'CV',
-      key: 'cv',
-      render: (_, record) => record.cvUrl ? (
-        <Button type="link" icon={<FileOutlined />} href={record.cvUrl} target="_blank">
-          View CV
-        </Button>
-      ) : '-',
-    },
-    {
-      title: 'Actions',
-      key: 'actions',
-      render: (_, record) => (
-        <Space>
-          <Button type="link" onClick={() => router.push(`/candidates/${record.id}`)}>
-            View Details
-          </Button>
-          <Button type="link" danger onClick={() => handleDelete(record.id)}>
-            Delete
-          </Button>
-        </Space>
-      ),
-    },
-  ];
+  const handleEdit = (candidate: CandidateView) => {
+    setEditingCandidate(candidate);
+    setModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setEditingCandidate(null);
+  };
 
   return (
-    <div>
-      <Button type="primary" icon={<PlusOutlined />} onClick={handleCreate} style={{ marginBottom: 16 }}>
-        Create Candidate
-      </Button>
-      <Table
-        columns={columns}
-        dataSource={data}
-        loading={loading}
-        rowKey="id"
-        pagination={{
-          defaultPageSize: 10,
-          showSizeChanger: true,
-          showTotal: (total) => `Total ${total} candidates`,
-        }}
+    <Flex gap="middle" vertical>
+      <Flex justify="space-between" align="center">
+        <Typography.Title level={3}>
+          Candidates
+        </Typography.Title>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalVisible(true)}
+        >
+          Add Candidate
+        </Button>
+      </Flex>
+
+      <CandidatesTable
+        onEdit={handleEdit}
+        onDelete={handleDelete}
       />
-      <RightSidePanel
-        open={sidePanel.open}
-        onClose={() => setSidePanel(prev => ({ ...prev, open: false }))}
-        entityType="candidate"
-        mode={sidePanel.mode}
-        initialValues={sidePanel.initialValues}
-        onSubmit={fetchData}
+
+      <CandidateModal
+        visible={modalVisible}
+        onClose={handleModalClose}
+        onSubmit={handleCreateOrUpdate}
+        candidate={editingCandidate}
       />
-    </div>
+    </Flex>
   );
 }

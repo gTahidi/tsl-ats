@@ -1,10 +1,8 @@
 'use client';
 
 import React from 'react';
-import { Modal, Form, Input, Select, message } from 'antd';
-import type { JobView } from '../types/jobs';
-
-const { TextArea } = Input;
+import { Modal, Form, Input, Select } from 'antd';
+import type { JobView } from '../../types';
 
 interface JobModalProps {
   visible: boolean;
@@ -21,8 +19,6 @@ const JobModal: React.FC<JobModalProps> = ({
 }) => {
   const [form] = Form.useForm();
 
-  // ... existing useEffect implementation ...
-
   return (
     <Modal
       title={job ? 'Edit Job' : 'Add Job'}
@@ -35,33 +31,35 @@ const JobModal: React.FC<JobModalProps> = ({
         <Form.Item
           name="title"
           label="Title"
-          rules={[{ required: true }]}
+          rules={[{ required: true, message: 'Please enter the job title' }]}
         >
-          <Input />
+          <Input placeholder="Enter job title" />
         </Form.Item>
+
         <Form.Item
           name="description"
           label="Description"
-          rules={[{ required: true }]}
+          rules={[{ required: false, message: 'Please enter the job description' }]}
         >
-          <TextArea rows={4} />
+          <Input.TextArea rows={4} placeholder="Enter job description" />
         </Form.Item>
+
         <Form.Item
           name="linkedinUrl"
           label="LinkedIn URL"
-          rules={[{ required: true }]}
         >
-          <Input />
+          <Input placeholder="Enter LinkedIn job posting URL" />
         </Form.Item>
+
         <Form.Item
           name="status"
           label="Status"
-          rules={[{ required: true }]}
+          initialValue={job?.status || 'Open'}
         >
-          <Select>
-            <Select.Option value="active">Active</Select.Option>
-            <Select.Option value="closed">Closed</Select.Option>
-            <Select.Option value="draft">Draft</Select.Option>
+          <Select defaultValue="Open">
+            <Select.Option value="Open">Open</Select.Option>
+            <Select.Option value="Closed">Closed</Select.Option>
+            <Select.Option value="Draft">Draft</Select.Option>
           </Select>
         </Form.Item>
       </Form>

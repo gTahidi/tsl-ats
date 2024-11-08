@@ -1,73 +1,58 @@
-import { Prisma } from '@prisma/client';
-
-export type Job = {
+export type JobView = {
   id: string;
+
   title: string;
   description?: string | null;
   linkedinUrl?: string | null;
-  status: string;
+  status: "Open" | "Closed" | "Draft";
+
   createdAt: Date;
   updatedAt: Date;
-  candidates?: Candidate[];
-};
 
-export type JobView = Job & {
-  candidateCount?: number;
+  candidates?: CandidateView[];
 };
 
 export type Persona = {
   id: string;
+
   name: string;
   email: string;
-  notes?: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-  candidates?: Candidate[];
-};
-
-export type Candidate = {
-  id: string;
   linkedinUrl?: string | null;
-  cvUrl?: string | null;
   notes?: string | null;
+
   createdAt: Date;
   updatedAt: Date;
-  personaId: string;
-  persona: Persona;
-  jobId: string;
-  job: Job;
-  steps?: ProcessStep[];
-  currentStep?: ProcessStep | null;
 };
 
 export interface CandidateView {
   id: string;
-  name: string;
-  email: string;
-  status: string;
-  cvUrl: string | null;
-  linkedinUrl: string | null;
-  jobTitle?: string;
+
+  cvFileKey?: string | null;
+  notes?: string | null;
+
+  steps?: ProcessStep[];
+
+  personaId: string;
+  persona: Persona;
+
+  jobId: string;
+  job: JobView;
+
   createdAt: Date;
   updatedAt: Date;
-  currentStep?: ProcessStep;
-  persona: Persona;
-  steps?: ProcessStep[];
-  notes?: string | null;
-  personaId: string;
-  jobId: string;
 }
 
 export type ProcessStep = {
   id: string;
-  name: string;
-  description: string;
-  type: string;
-  status: string;
-  notes: string | null;
-  date: Date;
+  type: "Backlog" | "Screen" | "Interview" | "Offer" | "Hired" | "Rejected";
+  status: "Pending" | "Completed" | "Failed";
+
+  notes?: string | null;
+  date?: Date | null;
+
   createdAt: Date;
   updatedAt: Date;
+
   candidateId: string;
-  candidate: Candidate;
+  candidate: CandidateView;
 };

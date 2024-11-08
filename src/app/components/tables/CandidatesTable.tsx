@@ -3,27 +3,26 @@
 import React from 'react';
 import { Table, Button, Popconfirm, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 
 interface CandidatesTableProps {
   jobId?: string;
-  candidates?: CandidateView[];
   loading?: boolean;
   onEdit?: (candidate: CandidateView) => void;
   onDelete?: (candidate: CandidateView) => void;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, candidates, loading, onEdit, onDelete }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdit, onDelete }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: fetchedCandidates, isLoading } = useQuery({
     queryKey: ['candidates', jobId],
     queryFn: async () => {
-      const url = jobId ? `/api/jobs/${jobId}/candidates` : '/api/candidates';
+      const url = `/api/candidates${jobId ? `?jobId=${jobId}` : ''}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch candidates');
@@ -52,48 +51,59 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, candidates, lo
   });
 
   const handleRowClick = (record: CandidateView) => {
-    const basePath = jobId ? `/jobs/${jobId}/candidates` : '/candidates';
-    router.push(`${basePath}/${record.id}`);
-  };
-
-  const handleEdit = (record: CandidateView) => {
-    if (onEdit) {
-      onEdit(record);
-    } else {
-      const basePath = jobId ? `/jobs/${jobId}/candidates` : '/candidates';
-      router.push(`${basePath}/${record.id}/edit`);
-    }
-  };
-
-  const handleDelete = (record: CandidateView) => {
-    if (onDelete) {
-      onDelete(record);
-    } else {
-      deleteCandidateMutation.mutate(record.id);
-    }
+    router.push(`/candidates/${record.id}`);
   };
 
   const columns: ColumnsType<CandidateView> = [
     {
       title: 'Name',
-      dataIndex: 'name',
       key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
+      render: (record) => record.persona.name,
+      sorter: (a, b) => a.persona.name.localeCompare(b.persona.name),
     },
     {
       title: 'Email',
-      dataIndex: 'email',
       key: 'email',
+      render: (record) => record.persona.email,
+    },
+    ...(!jobId ?
+      [
+        {
+          title: 'Job',
+          key: 'jobTitle',
+          render: (record: CandidateView) => record.job.title,
+        },
+      ] : []
+    ),
+    {
+      title: 'CV',
+      key: 'cvUrl',
+      render: (record) => {
+        return <CVButton id={record.id} />
+      }
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-    },
-    {
-      title: 'Job',
-      dataIndex: 'jobTitle',
-      key: 'jobTitle',
+      title: 'Step',
+      key: 'step',
+      render: (record: CandidateView) => {
+        const steps = record.steps;
+
+        if (!steps || steps.length === 0) {
+          return 'No steps';
+        }
+
+        const lastStep = steps.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).pop();
+
+        if (!lastStep) {
+          return 'No steps';
+        }
+
+        return (
+          <span>
+            {lastStep.type} - {lastStep.status}
+          </span>
+        )
+      }
     },
     {
       title: 'Created',
@@ -120,22 +130,31 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, candidates, lo
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
           <Button
             type="text"
-            icon={<EditOutlined />}
-            onClick={() => handleEdit(record)}
+            icon={<EyeOutlined />}
+            onClick={() => handleRowClick(record)}
           />
-          <Popconfirm
-            title="Delete candidate"
-            description="Are you sure?"
-            onConfirm={() => handleDelete(record)}
-            okText="Yes"
-            cancelText="No"
-          >
+          {onEdit && (
             <Button
               type="text"
-              danger
-              icon={<DeleteOutlined />}
+              icon={<EditOutlined />}
+              onClick={() => onEdit?.(record)}
             />
-          </Popconfirm>
+          )}
+          {onDelete && (
+            <Popconfirm
+              title="Delete candidate"
+              description="Are you sure?"
+              onConfirm={() => onDelete?.(record)}
+              okText="Yes"
+              cancelText="No"
+            >
+              <Button
+                type="text"
+                danger
+                icon={<DeleteOutlined />}
+              />
+            </Popconfirm>
+          )}
         </div>
       ),
     },
@@ -143,14 +162,10 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, candidates, lo
 
   return (
     <Table
-      dataSource={candidates || fetchedCandidates || []}
+      dataSource={fetchedCandidates || []}
       columns={columns}
       rowKey="id"
       loading={loading || isLoading || deleteCandidateMutation.isPending}
-      onRow={(record) => ({
-        onClick: () => handleRowClick(record),
-        style: { cursor: 'pointer' },
-      })}
       pagination={{
         defaultPageSize: 10,
         showSizeChanger: true,
@@ -159,5 +174,35 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, candidates, lo
     />
   );
 };
+
+const CVButton = ({ id }: { id: string }) => {
+  const {
+    data: url,
+    isLoading,
+  } = useQuery<{ url: string | null }>({
+    queryKey: ['candidates', id, "cv"],
+    queryFn: async () => {
+      const response = await fetch(`/api/candidates/${id}/cv`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch CV');
+      }
+      return response.json();
+    },
+  });
+
+  if (isLoading) {
+    return <span>Loading...</span>;
+  }
+
+  if (!url?.url) {
+    return <span>No CV</span>;
+  }
+
+  return (
+    <a href={url.url} target="_blank" rel="noreferrer">
+      CV
+    </a>
+  )
+}
 
 export default CandidatesTable;
