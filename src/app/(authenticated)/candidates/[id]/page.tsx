@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useParams } from 'next/navigation';
 import { Card, Descriptions, Button, Space, message, Tag } from 'antd';
 import { FileOutlined, LinkedinOutlined, EditOutlined } from '@ant-design/icons';
@@ -18,17 +18,23 @@ interface Candidate {
   updatedAt: string;
 }
 
+interface SidePanelState {
+  open: boolean;
+  mode: 'edit';
+  initialValues: Candidate | null;
+}
+
 export default function CandidateDetailPage() {
   const params = useParams();
   const [loading, setLoading] = useState(true);
   const [candidate, setCandidate] = useState<Candidate | null>(null);
-  const [sidePanel, setSidePanel] = useState({
+  const [sidePanel, setSidePanel] = useState<SidePanelState>({
     open: false,
-    mode: 'edit' as 'edit',
+    mode: 'edit',
     initialValues: null,
   });
 
-  const fetchCandidate = async () => {
+  const fetchCandidate = useCallback(async () => {
     try {
       setLoading(true);
       const response = await fetch(`/api/candidates/${params.id}`);
@@ -40,9 +46,11 @@ export default function CandidateDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [params.id]);
 
-  useEffect(() => { fetchCandidate(); }, [params.id]);
+  useEffect(() => {
+    fetchCandidate();
+  }, [fetchCandidate]);
 
   if (loading || !candidate) return <div>Loading...</div>;
 

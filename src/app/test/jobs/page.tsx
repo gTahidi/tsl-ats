@@ -1,100 +1,88 @@
 'use client';
 
-import { useState } from 'react';
-import { Card, Typography, Button, message, Space } from 'antd';
-import JobsTable from '@/app/components/tables/JobsTable';
+import React, { useState } from 'react';
+import { Button, message } from 'antd';
+import { PlusOutlined } from '@ant-design/icons';
+import JobsTable from '../../components/tables/JobsTable';
+import JobModal from '../../components/JobModal';
+import type { JobView } from '../../types/jobs';
 
-const { Title } = Typography;
-
-// Mock data
-const mockJobs = [
-  {
-    id: '1',
-    title: 'Senior Frontend Developer',
-    linkedinUrl: 'https://linkedin.com/jobs/1',
-    status: 'active',
-    candidateCount: 5,
-    createdAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '2',
-    title: 'Backend Engineer',
-    status: 'active',
-    candidateCount: 3,
-    createdAt: new Date(Date.now() - 20 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '3',
-    title: 'DevOps Engineer',
-    linkedinUrl: 'https://linkedin.com/jobs/3',
-    status: 'inactive',
-    candidateCount: 0,
-    createdAt: new Date(Date.now() - 45 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-  {
-    id: '4',
-    title: 'Product Manager',
-    linkedinUrl: 'https://linkedin.com/jobs/4',
-    status: 'active',
-    candidateCount: 8,
-    createdAt: new Date(Date.now() - 15 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date().toISOString(),
-  },
-  {
-    id: '5',
-    title: 'UI/UX Designer',
-    status: 'inactive',
-    candidateCount: 0,
-    createdAt: new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString(),
-    updatedAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString(),
-  },
-] as const;
-
-export default function JobsTestPage() {
+export default function Page(): JSX.Element {
+  const [jobs, setJobs] = useState<JobView[]>([]);
   const [loading, setLoading] = useState(false);
-  const [jobs, setJobs] = useState(mockJobs);
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingJob, setEditingJob] = useState<JobView | null>(null);
 
-  const handleEdit = (job: any) => {
-    message.info(`Edit clicked for ${job.title}`);
+  const handleCreateOrUpdate = async (values: Partial<JobView>) => {
+    if (!values.title || !values.description) return;
+
+    const newJob: JobView = editingJob ? {
+      ...editingJob,
+      ...values,
+      updatedAt: new Date().toISOString()
+    } : {
+      id: Date.now().toString(),
+      title: values.title,
+      description: values.description,
+      linkedinUrl: values.linkedinUrl || '',
+      status: values.status || 'active',
+      candidateCount: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    setJobs(prev => editingJob
+      ? prev.map(job => job.id === editingJob.id ? newJob : job)
+      : [...prev, newJob]
+    );
+
+    message.success(`Job ${editingJob ? 'updated' : 'created'} successfully`);
+    setModalVisible(false);
+    setEditingJob(null);
   };
 
-  const handleDelete = (id: string) => {
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setJobs(prev => prev.filter(j => j.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      setLoading(true);
+      // In a real implementation, we would make an API call here
+      setJobs(prev => prev.filter(job => job.id !== id));
       message.success('Job deleted successfully');
+    } catch (error) {
+      message.error('Failed to delete job');
+    } finally {
       setLoading(false);
-    }, 1000);
-  };
-
-  const handleAddMockData = () => {
-    setJobs(prev => [...prev, ...mockJobs]);
-    message.success('Mock data added');
+    }
   };
 
   return (
-    <div style={{ maxWidth: 1200, margin: '40px auto', padding: '0 20px' }}>
-      <Space direction="vertical" size="large" style={{ width: '100%' }}>
-        <Card>
-          <Space direction="vertical" style={{ width: '100%' }}>
-            <Title level={2}>Jobs Table Test</Title>
-            <Space>
-              <Button onClick={handleAddMockData}>Add More Mock Data</Button>
-            </Space>
-          </Space>
-        </Card>
+    <div className="p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-semibold">Jobs</h1>
+        <Button
+          type="primary"
+          icon={<PlusOutlined />}
+          onClick={() => setModalVisible(true)}
+        >
+          Add Job
+        </Button>
+      </div>
 
-        <JobsTable
-          jobs={jobs}
-          onEdit={handleEdit}
-          onDelete={handleDelete}
-          loading={loading}
-        />
-      </Space>
+      <JobsTable
+        jobs={jobs}
+        loading={loading}
+        onEdit={setEditingJob}
+        onDelete={handleDelete}
+      />
+
+      <JobModal
+        visible={modalVisible}
+        onClose={() => {
+          setModalVisible(false);
+          setEditingJob(null);
+        }}
+        onSubmit={handleCreateOrUpdate}
+        job={editingJob}
+      />
     </div>
   );
 }

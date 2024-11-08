@@ -1,141 +1,126 @@
 'use client';
 
 import { useState } from 'react';
+import { Button, Modal, Form, Input, Select, message, Steps } from 'antd';
 import { useRouter } from 'next/navigation';
-import { Table, Timeline, Button, Card, Typography, Alert } from 'antd';
-import { PlusOutlined, CheckCircleOutlined, CloseCircleOutlined, ClockCircleOutlined } from '@ant-design/icons';
-import StepModal from './StepModal';
-
-const { Title } = Typography;
+import { PlusOutlined } from '@ant-design/icons';
 
 type Step = {
   id: string;
   type: string;
   status: string;
-  notes?: string | null;
+  notes: string | null;
   date: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  candidateId: string;
 };
 
 type ProcessStepsProps = {
   candidateId: string;
-  jobId: string;
   steps: Step[];
 };
 
-export default function ProcessSteps({ candidateId, jobId, steps }: ProcessStepsProps) {
+export default function ProcessSteps({ candidateId, steps }: ProcessStepsProps) {
   const router = useRouter();
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [error, setError] = useState('');
+  const [form] = Form.useForm();
 
-  const handleAddStep = async (data: { type: string; status: string; notes?: string }) => {
+  const handleAddStep = async (values: any) => {
     try {
       const response = await fetch(`/api/candidates/${candidateId}/steps`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(values),
       });
 
       if (!response.ok) throw new Error('Failed to add step');
-      router.refresh();
+
+      message.success('Step added successfully');
       setIsModalOpen(false);
+      form.resetFields();
+      router.refresh();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to add step');
-      throw err;
+      message.error('Failed to add step');
     }
   };
 
-  const columns = [
-    {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      render: (text: string) => text.charAt(0).toUpperCase() + text.slice(1),
-    },
-    {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => {
-        const icon = status === 'completed' ? <CheckCircleOutlined style={{ color: '#52c41a' }} /> :
-                    status === 'cancelled' ? <CloseCircleOutlined style={{ color: '#ff4d4f' }} /> :
-                    <ClockCircleOutlined style={{ color: '#1890ff' }} />;
-        return (
-          <span>
-            {icon}{' '}
-            {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
-          </span>
-        );
-      },
-    },
-    {
-      title: 'Notes',
-      dataIndex: 'notes',
-      key: 'notes',
-      render: (text: string | null) => text || '-',
-    },
-    {
-      title: 'Date',
-      dataIndex: 'date',
-      key: 'date',
-      render: (date: Date) => new Date(date).toLocaleDateString(),
-    },
-  ];
+  const items = steps.map(step => ({
+    key: step.id,
+    title: step.type,
+    description: (
+      <div>
+        <p>Status: {step.status}</p>
+        {step.notes && <p>Notes: {step.notes}</p>}
+        <p>Date: {new Date(step.date).toLocaleDateString()}</p>
+      </div>
+    ),
+  }));
 
   return (
-    <Card>
-      {error && (
-        <Alert
-          message={error}
-          type="error"
-          showIcon
-          style={{ marginBottom: 16 }}
-        />
-      )}
-
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-        <Title level={4} style={{ margin: 0 }}>Process Steps</Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setIsModalOpen(true)}
-        >
+    <div>
+      <div style={{ marginBottom: 16, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3>Process Steps</h3>
+        <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsModalOpen(true)}>
           Add Step
         </Button>
       </div>
 
-      <Table
-        dataSource={steps}
-        columns={columns}
-        rowKey="id"
-        pagination={false}
-        style={{ marginBottom: 24 }}
+      <Steps
+        direction="vertical"
+        items={items}
+        current={steps.length - 1}
       />
 
-      <Card title="Timeline View" size="small">
-        <Timeline
-          items={steps.map(step => ({
-            color: step.status === 'completed' ? 'green' :
-                   step.status === 'cancelled' ? 'red' : 'blue',
-            children: (
-              <div>
-                <div style={{ fontWeight: 'bold' }}>
-                  {step.type.charAt(0).toUpperCase() + step.type.slice(1)}
-                </div>
-                <div>{step.notes}</div>
-                <div style={{ color: '#888', fontSize: '0.9em' }}>
-                  {new Date(step.date).toLocaleDateString()}
-                </div>
-              </div>
-            ),
-          }))}
-        />
-      </Card>
+      <Modal
+        title="Add Process Step"
+        open={isModalOpen}
+        onCancel={() => {
+          setIsModalOpen(false);
+          form.resetFields();
+        }}
+        footer={null}
+      >
+        <Form form={form} onFinish={handleAddStep} layout="vertical">
+          <Form.Item
+            name="type"
+            label="Type"
+            rules={[{ required: true, message: 'Please select the step type' }]}
+          >
+            <Select>
+              <Select.Option value="Initial Contact">Initial Contact</Select.Option>
+              <Select.Option value="Resume Review">Resume Review</Select.Option>
+              <Select.Option value="Phone Screen">Phone Screen</Select.Option>
+              <Select.Option value="Technical Interview">Technical Interview</Select.Option>
+              <Select.Option value="Culture Fit">Culture Fit</Select.Option>
+              <Select.Option value="Offer">Offer</Select.Option>
+            </Select>
+          </Form.Item>
 
-      <StepModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleAddStep}
-      />
-    </Card>
+          <Form.Item
+            name="status"
+            label="Status"
+            rules={[{ required: true, message: 'Please select the status' }]}
+          >
+            <Select>
+              <Select.Option value="Pending">Pending</Select.Option>
+              <Select.Option value="In Progress">In Progress</Select.Option>
+              <Select.Option value="Completed">Completed</Select.Option>
+              <Select.Option value="Failed">Failed</Select.Option>
+            </Select>
+          </Form.Item>
+
+          <Form.Item name="notes" label="Notes">
+            <Input.TextArea />
+          </Form.Item>
+
+          <Form.Item>
+            <Button type="primary" htmlType="submit" block>
+              Add Step
+            </Button>
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
   );
 }

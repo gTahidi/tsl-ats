@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
 import { prisma } from '@/utils/db/prisma';
+import { NextResponse } from 'next/server';
 
 export async function GET(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -11,6 +11,7 @@ export async function GET(
       include: {
         persona: true,
         job: true,
+        steps: true,
       },
     });
 
@@ -39,16 +40,11 @@ export async function PUT(
     const data = await request.json();
     const candidate = await prisma.candidate.update({
       where: { id: params.id },
-      data: {
-        linkedinUrl: data.linkedinUrl,
-        cvUrl: data.cvUrl,
-        notes: data.notes,
-        personaId: data.personaId,
-        jobId: data.jobId,
-      },
+      data,
       include: {
         persona: true,
         job: true,
+        steps: true,
       },
     });
 
@@ -63,7 +59,7 @@ export async function PUT(
 }
 
 export async function DELETE(
-  request: Request,
+  _request: Request,
   { params }: { params: { id: string } }
 ) {
   try {
@@ -71,7 +67,7 @@ export async function DELETE(
       where: { id: params.id },
     });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ message: 'Candidate deleted successfully' });
   } catch (error) {
     console.error('Error deleting candidate:', error);
     return NextResponse.json(

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { Table, Button, message, Card, Typography } from 'antd';
 import Link from 'next/link';
 import { PlusOutlined } from '@ant-design/icons';
@@ -42,7 +42,7 @@ export default function JobCandidatesPage({
     const [cands, setCands] = useState<Candidate[]>([]);
     const [loading, setLoading] = useState(true);
 
-    const fetchCands = async () => {
+    const fetchCands = useCallback(async () => {
         try {
             const response = await fetch(`/api/candidates?jobId=${params.id}`);
             if (!response.ok) {
@@ -56,11 +56,11 @@ export default function JobCandidatesPage({
         } finally {
             setLoading(false);
         }
-    };
+    }, [params.id]);
 
     useEffect(() => {
         fetchCands();
-    }, []);
+    }, [fetchCands]);
 
     const columns = [
         {

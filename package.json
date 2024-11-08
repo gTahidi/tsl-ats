@@ -16,7 +16,7 @@
     "@ant-design/nextjs-registry": "^1.0.1",
     "@aws-sdk/client-s3": "^3.686.0",
     "@aws-sdk/s3-request-presigner": "^3.686.0",
-    "@prisma/client": "^5.6.0",
+    "@prisma/client": "^5.22.0",
     "antd": "^5.12.2",
     "bcryptjs": "^2.4.3",
     "clsx": "^2.0.0",
@@ -32,12 +32,13 @@
   },
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
+    "@types/js-cookie": "^3.0.6",
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
     "eslint": "^8",
     "eslint-config-next": "14.0.3",
-    "prisma": "^5.6.0",
+    "prisma": "^5.22.0",
     "typescript": "^5"
   }
 }

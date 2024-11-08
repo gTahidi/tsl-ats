@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Typography, Select, Input, Card, Button } from 'antd';
-import { Persona } from '@/app/personas/page';
+import type { Persona } from '@/types';
 
 export default function NewCandidatePage({
   params,
@@ -82,7 +82,7 @@ export default function NewCandidatePage({
             label: persona.name,
             value: persona.id
           }))}
-          onSelect={(_, { value }) => {
+          onSelect={(value) => {
             const persona = personas.find((p) => p.id === value);
             if (!persona) return;
             setForm({ ...form, name: persona.name, email: persona.email });

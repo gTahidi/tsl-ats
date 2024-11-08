@@ -2,38 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { Table, Button, Space, message } from 'antd';
+import type { ColumnsType } from 'antd/es/table';
 import { PlusOutlined } from '@ant-design/icons';
 import RightSidePanel from '@/app/components/RightSidePanel';
-import type { Persona } from '@/types';
-
-const columns = [
-  { title: 'Name', dataIndex: 'name', key: 'name', sorter: true },
-  { title: 'Email', dataIndex: 'email', key: 'email' },
-  {
-    title: 'Notes',
-    dataIndex: 'notes',
-    key: 'notes',
-    ellipsis: true,
-    render: (text: string) => text || '-'
-  },
-  {
-    title: 'Created At',
-    dataIndex: 'createdAt',
-    key: 'createdAt',
-    render: (date: string) => new Date(date).toLocaleDateString(),
-    sorter: true,
-  },
-  {
-    title: 'Actions',
-    key: 'actions',
-    render: (_: any, record: Persona) => (
-      <Space>
-        <Button type="link" onClick={() => handleEdit(record)}>Edit</Button>
-        <Button type="link" danger onClick={() => handleDelete(record.id)}>Delete</Button>
-      </Space>
-    ),
-  },
-];
+import { type Persona } from '@prisma/client';
 
 export default function PersonasPage() {
   const [loading, setLoading] = useState(false);
@@ -41,7 +13,7 @@ export default function PersonasPage() {
   const [sidePanel, setSidePanel] = useState({
     open: false,
     mode: 'create' as 'create' | 'edit',
-    initialValues: null,
+    initialValues: null as Persona | null,
   });
 
   const fetchPersonas = async () => {
@@ -71,6 +43,45 @@ export default function PersonasPage() {
       message.error('Failed to delete persona');
     }
   };
+
+  const columns: ColumnsType<Persona> = [
+    {
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a: Persona, b: Persona) => a.name.localeCompare(b.name)
+    },
+    {
+      title: 'Email',
+      dataIndex: 'email',
+      key: 'email',
+      sorter: (a: Persona, b: Persona) => a.email.localeCompare(b.email)
+    },
+    {
+      title: 'Notes',
+      dataIndex: 'notes',
+      key: 'notes',
+      ellipsis: true,
+      render: (text: string | null) => text || '-'
+    },
+    {
+      title: 'Created At',
+      dataIndex: 'createdAt',
+      key: 'createdAt',
+      render: (date: Date) => new Date(date).toLocaleDateString(),
+      sorter: (a: Persona, b: Persona) => a.createdAt.getTime() - b.createdAt.getTime()
+    },
+    {
+      title: 'Actions',
+      key: 'actions',
+      render: (_: any, record: Persona) => (
+        <Space>
+          <Button type="link" onClick={() => handleEdit(record)}>Edit</Button>
+          <Button type="link" danger onClick={() => handleDelete(record.id)}>Delete</Button>
+        </Space>
+      ),
+    },
+  ];
 
   return (
     <div>
