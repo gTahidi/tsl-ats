@@ -11,6 +11,9 @@ dependencies:
   '@ant-design/icons':
     specifier: ^5.5.1
     version: 5.5.1(react-dom@18.3.1)(react@18.3.1)
+  '@ant-design/nextjs-registry':
+    specifier: ^1.0.1
+    version: 1.0.1(@ant-design/cssinjs@1.21.1)(antd@5.21.6)(next@14.0.3)(react-dom@18.3.1)(react@18.3.1)
   '@aws-sdk/client-s3':
     specifier: ^3.686.0
     version: 3.686.0
@@ -18,8 +21,11 @@ dependencies:
     specifier: ^3.686.0
     version: 3.686.0
   '@prisma/client':
-    specifier: ^5.6.0
+    specifier: ^5.22.0
     version: 5.22.0(prisma@5.22.0)
+  '@tanstack/react-query':
+    specifier: ^5.59.20
+    version: 5.59.20(react@18.3.1)
   antd:
     specifier: ^5.12.2
     version: 5.21.6(date-fns@4.1.0)(react-dom@18.3.1)(react@18.3.1)
@@ -61,6 +67,9 @@ devDependencies:
   '@types/bcryptjs':
     specifier: ^2.4.6
     version: 2.4.6
+  '@types/js-cookie':
+    specifier: ^3.0.6
+    version: 3.0.6
   '@types/node':
     specifier: ^20
     version: 20.17.6
@@ -77,7 +86,7 @@ devDependencies:
     specifier: 14.0.3
     version: 14.0.3(eslint@8.57.1)(typescript@5.6.3)
   prisma:
-    specifier: ^5.6.0
+    specifier: ^5.22.0
     version: 5.22.0
   typescript:
     specifier: ^5
@@ -144,6 +153,22 @@ packages:
       '@babel/runtime': 7.26.0
       classnames: 2.5.1
       rc-util: 5.43.0(react-dom@18.3.1)(react@18.3.1)
+      react: 18.3.1
+      react-dom: 18.3.1(react@18.3.1)
+    dev: false
+
+  /@ant-design/nextjs-registry@1.0.1(@ant-design/cssinjs@1.21.1)(antd@5.21.6)(next@14.0.3)(react-dom@18.3.1)(react@18.3.1):
+    resolution: {integrity: sha512-DaMJ1nClR1a4UfG7vXkDj89z1eARhSDgqvHoxfM0Yco1MZEbaqRj4o+bQToHb3gMb6gbFlrZ51nOBGh5xSJ7EQ==}
+    peerDependencies:
+      '@ant-design/cssinjs': ^1.18.2
+      antd: ^5.0.0
+      next: ^14.0.0
+      react: '>=16.0.0'
+      react-dom: '>=16.0.0'
+    dependencies:
+      '@ant-design/cssinjs': 1.21.1(react-dom@18.3.1)(react@18.3.1)
+      antd: 5.21.6(date-fns@4.1.0)(react-dom@18.3.1)(react@18.3.1)
+      next: 14.0.3(react-dom@18.3.1)(react@18.3.1)
       react: 18.3.1
       react-dom: 18.3.1(react@18.3.1)
     dev: false
@@ -1660,8 +1685,25 @@ packages:
       tslib: 2.8.1
     dev: false
 
+  /@tanstack/query-core@5.59.20:
+    resolution: {integrity: sha512-e8vw0lf7KwfGe1if4uPFhvZRWULqHjFcz3K8AebtieXvnMOz5FSzlZe3mTLlPuUBcydCnBRqYs2YJ5ys68wwLg==}
+    dev: false
+
+  /@tanstack/react-query@5.59.20(react@18.3.1):
+    resolution: {integrity: sha512-Zly0egsK0tFdfSbh5/mapSa+Zfc3Et0Zkar7Wo5sQkFzWyB3p3uZWOHR2wrlAEEV2L953eLuDBtbgFvMYiLvUw==}
+    peerDependencies:
+      react: ^18 || ^19
+    dependencies:
+      '@tanstack/query-core': 5.59.20
+      react: 18.3.1
+    dev: false
+
   /@types/bcryptjs@2.4.6:
     resolution: {integrity: sha512-9xlo6R2qDs5uixm0bcIqCeMCE6HiQsIyel9KQySStiyqNl2tnj2mP3DX1Nf56MD6KMenNNlBBsy3LJ7gUEQPXQ==}
+    dev: true
+
+  /@types/js-cookie@3.0.6:
+    resolution: {integrity: sha512-wkw9yd1kEXOPnvEeEV1Go1MmxtBJL0RR79aOTAApecWFVu7w0NNXNqhcWgvw2YgZDYadliXkl14pa3WXw5jlCQ==}
     dev: true
 
   /@types/json5@0.0.29:

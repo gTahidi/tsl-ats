@@ -1,63 +1,43 @@
+'use server';
+
 import { NextResponse } from 'next/server';
-import { writeFile } from 'fs/promises';
-import { join } from 'path';
+import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 
 export async function POST(request: Request) {
+  const s3Client = new S3Client({
+    region: "auto",
+    endpoint: process.env.S3_ENDPOINT!,
+    credentials: {
+      accessKeyId: process.env.S3_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.S3_SECRET_ACCESS_KEY!
+    },
+    forcePathStyle: true
+  });
+
   try {
-    const formData = await request.formData();
-    const file = formData.get('file') as File;
+    const data = await request.formData();
+    const file = data.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json(
-        { error: 'No file uploaded' },
-        { status: 400 }
-      );
-    }
-
-    // Validate file type
-    const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    if (!allowedTypes.includes(file.type)) {
-      return NextResponse.json(
-        { error: 'Invalid file type. Only PDF, DOC, and DOCX files are allowed.' },
-        { status: 400 }
-      );
-    }
-
-    // Validate file size (10MB limit)
-    const maxSize = 10 * 1024 * 1024; // 10MB in bytes
-    if (file.size > maxSize) {
-      return NextResponse.json(
-        { error: 'File size exceeds 10MB limit.' },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: 'Missing file' }, { status: 400 });
     }
 
     const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
+    const key = crypto.randomUUID();
 
-    // Create uploads directory if it doesn't exist
-    const uploadDir = join(process.cwd(), 'uploads');
-    try {
-      await writeFile(join(uploadDir, file.name), buffer);
-    } catch (error) {
-      console.error('Error saving file:', error);
-      return NextResponse.json(
-        { error: 'Error saving file' },
-        { status: 500 }
-      );
-    }
+    await s3Client.send(
+      new PutObjectCommand({
+        Bucket: process.env.S3_BUCKET,
+        Key: key,
+        Body: new Uint8Array(bytes),
+      })
+    );
 
     return NextResponse.json({
-      success: true,
-      filename: file.name,
-      size: file.size,
-      type: file.type
+      key,
     });
   } catch (error) {
     console.error('Upload error:', error);
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Upload failed' }, { status: 500 });
   }
 }

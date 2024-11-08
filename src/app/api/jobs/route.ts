@@ -1,17 +1,19 @@
+import { prisma } from '@/utils/db/prisma';
 import { NextResponse } from 'next/server';
-import prisma from '@/utils/db/prisma';
 
 export async function GET() {
   try {
     const jobs = await prisma.jobPosting.findMany({
+      orderBy: { createdAt: 'desc' },
       include: {
-        candidates: true,
-      },
-      orderBy: {
-        createdAt: 'desc',
+        candidates: {
+          include: {
+            persona: true,
+            steps: true,
+          },
+        },
       },
     });
-
     return NextResponse.json(jobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
@@ -24,18 +26,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
-    const { title, description, linkedinUrl, status } = body;
-
+    const data = await request.json();
     const job = await prisma.jobPosting.create({
-      data: {
-        title,
-        description,
-        linkedinUrl,
-        status: status || 'Open',
-      },
+      data,
     });
-
     return NextResponse.json(job);
   } catch (error) {
     console.error('Error creating job:', error);
