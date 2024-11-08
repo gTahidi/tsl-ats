@@ -18,6 +18,7 @@ interface Props {
   onSubmit: (values: any) => Promise<void>;
   personas?: Persona[];
   jobs?: Job[];
+  loading?: boolean;
 }
 
 const RightSidePanel = ({
@@ -29,6 +30,7 @@ const RightSidePanel = ({
   onSubmit,
   personas = [],
   jobs = [],
+  loading = false,
 }: Props) => {
   const getTitle = () => {
     const action = mode === 'create' ? 'Create' : 'Edit';
@@ -41,6 +43,7 @@ const RightSidePanel = ({
       initialValues,
       onSubmit,
       onCancel: onClose,
+      loading,
     };
 
     switch (entityType) {

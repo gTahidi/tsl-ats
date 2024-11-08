@@ -10,14 +10,18 @@ export interface PersonaFormData {
 
 interface PersonaFormProps {
   onSubmit: (data: PersonaFormData) => void;
+  onCancel: () => void;
   initialValues?: Partial<PersonaFormData>;
   submitText?: string;
+  loading?: boolean;
 }
 
 export default function PersonaForm({
   onSubmit,
+  onCancel,
   initialValues,
   submitText = 'Submit',
+  loading = false,
 }: PersonaFormProps) {
   const [form] = Form.useForm();
 
@@ -27,6 +31,7 @@ export default function PersonaForm({
       layout="vertical"
       onFinish={onSubmit}
       initialValues={initialValues}
+      disabled={loading}
     >
       <Form.Item
         name="name"
@@ -54,8 +59,18 @@ export default function PersonaForm({
 
       <Form.Item>
         <Space>
-          <Button type="primary" htmlType="submit">
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={loading}
+          >
             {submitText}
+          </Button>
+          <Button
+            onClick={onCancel}
+            disabled={loading}
+          >
+            Cancel
           </Button>
         </Space>
       </Form.Item>

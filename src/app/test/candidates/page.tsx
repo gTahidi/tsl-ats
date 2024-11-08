@@ -5,7 +5,7 @@ import { Button, message } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import CandidatesTable from '../../components/tables/CandidatesTable';
 import CandidateModal from '../../components/CandidateModal';
-import type { CandidateView } from '../../types';
+import type { CandidateView } from '@/types';
 
 export default function Page(): JSX.Element {
   const [candidates, setCandidates] = useState<CandidateView[]>([]);

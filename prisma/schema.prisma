@@ -35,6 +35,8 @@ model Persona {
 model Candidate {
   id String @id @default(cuid())
 
+  name       String
+  email      String
   linkedinUrl String?
   cvUrl       String?
   notes       String?
