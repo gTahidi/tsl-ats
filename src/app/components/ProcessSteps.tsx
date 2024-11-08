@@ -52,7 +52,9 @@ export default function ProcessSteps({ candidateId, steps }: ProcessStepsProps) 
       <div>
         <p>Status: {step.status}</p>
         {step.notes && <p>Notes: {step.notes}</p>}
-        <p>Date: {new Date(step.date).toLocaleDateString()}</p>
+        <p>Date: {typeof window === 'undefined'
+          ? (step.date instanceof Date ? step.date.toISOString() : String(step.date))
+          : new Date(step.date).toLocaleDateString()}</p>
       </div>
     ),
   }));

@@ -69,9 +69,14 @@ export default function ProcessStepsTable({
       title: 'Created At',
       dataIndex: 'createdAt',
       key: 'createdAt',
-      render: (date: string) => format(new Date(date), 'PPP'),
-      sorter: (a: ProcessStep, b: ProcessStep) =>
-        new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+      render: (date: string) => {
+        if (typeof window === 'undefined') return date;
+        return format(new Date(date), 'PPP');
+      },
+      sorter: (a: ProcessStep, b: ProcessStep) => {
+        if (typeof window === 'undefined') return 0;
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      },
     },
     {
       title: 'Actions',
