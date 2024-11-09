@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Flex, Layout, Menu, Typography } from 'antd';
+import { Button, Flex, Layout, Menu, Typography } from 'antd';
 import {
   UserOutlined,
   SnippetsOutlined,
@@ -20,6 +20,8 @@ const MainLayout = ({ children }: Props) => {
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const isLogin = pathname === '/login';
 
   const menuItems = [
     {
@@ -49,6 +51,10 @@ const MainLayout = ({ children }: Props) => {
   };
 
 
+  if (isLogin) {
+    return children;
+  }
+
   return (
     <Layout style={{ minHeight: '100vh' }}>
       <Sider
@@ -57,18 +63,30 @@ const MainLayout = ({ children }: Props) => {
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
       >
-        <Flex justify={"center"} align="center" style={{ padding: '24px' }}>
-          <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
-            {collapsed ? 'ATS' : 'The OSS ATS'}
-          </Typography.Title>
+        <Flex vertical justify="space-between" style={{ height: '100%' }}>
+          <Flex vertical>
+            <Flex justify={"center"} align="center" style={{ padding: '24px' }}>
+              <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
+                {collapsed ? 'ATS' : 'The OSS ATS'}
+              </Typography.Title>
+            </Flex>
+            <Menu
+              theme="light"
+              selectedKeys={[pathname]}
+              mode="inline"
+              items={menuItems}
+              onClick={({ key }) => handleMenuClick(key)}
+            />
+          </Flex>
+          <Button
+            type="dashed"
+            onClick={() => {
+              router.push('/logout');
+            }}
+          >
+            Logout
+          </Button>
         </Flex>
-        <Menu
-          theme="light"
-          selectedKeys={[pathname]}
-          mode="inline"
-          items={menuItems}
-          onClick={({ key }) => handleMenuClick(key)}
-        />
       </Sider>
       <Layout>
         <Content style={{ margin: '24px 16px', minHeight: 280 }}>
