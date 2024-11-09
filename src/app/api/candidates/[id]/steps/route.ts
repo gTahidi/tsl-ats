@@ -3,12 +3,11 @@ import { prisma } from '@/utils/db/prisma';
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } }
 ) {
   try {
-    const { order, name, status, notes, groupId } = await request.json();
+    const { templateId, notes, groupId } = await request.json();
 
-    if (!groupId || !name || !status || !order) {
+    if (!groupId || !templateId) {
       return NextResponse.json(
         { error: 'Type and status are required' },
         { status: 400 }
@@ -17,11 +16,9 @@ export async function POST(
 
     const step = await prisma.processStep.create({
       data: {
-        order,
-        name,
-        status,
         notes,
         groupId,
+        templateId,
       },
     });
 

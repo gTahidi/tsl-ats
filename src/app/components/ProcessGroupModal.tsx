@@ -50,12 +50,11 @@ const ProcessGroupModal: React.FC<ProcessGroupModalProps> = ({
         <Form.List name="steps">
           {(fields, { add, remove }) => (
             <>
-              {fields.map(({ key, name, fieldKey, ...restField }) => (
+              {fields.map(({ key, name, ...restField }) => (
                 <div key={key} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <Form.Item
                     {...restField}
                     name={[name, 'order']}
-                    fieldKey={[fieldKey, 'order']}
                     label="Order"
                     rules={[{ required: true, message: 'Please enter the step order' }]}
                   >
@@ -64,7 +63,6 @@ const ProcessGroupModal: React.FC<ProcessGroupModalProps> = ({
                   <Form.Item
                     {...restField}
                     name={[name, 'name']}
-                    fieldKey={[fieldKey, 'name']}
                     label="Step Name"
                     rules={[{ required: true, message: 'Please enter the step name' }]}
                   >
