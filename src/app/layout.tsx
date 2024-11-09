@@ -8,8 +8,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'OSS ATS',
-  description: 'Open Source Applicant Tracking System',
+  title: 'The OSS ATS',
+  description: 'The Open Source Applicant Tracking System',
 };
 
 export default function RootLayout({

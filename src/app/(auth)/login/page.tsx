@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { Form, Input, Button, message } from 'antd';
+import { Form, Input, Button, message, Flex, Typography } from 'antd';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
 
@@ -40,21 +40,18 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="max-w-md w-full space-y-8 p-8 bg-white rounded-lg shadow-lg">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            ATS Platform
-          </h2>
-          <p className="mt-2 text-center text-sm text-gray-600">
-            Enter your password to access the platform
-          </p>
-        </div>
+    <Flex justify="center" align="center" vertical gap="middle">
+      <Typography.Title level={2}>
+        The OSS ATS Platform
+      </Typography.Title>
+      <Typography.Text>
+        Enter your admin password to access the platform!
+      </Typography.Text>
+      <Flex vertical style={{ minWidth: '30%' }} gap={2}>
         <Form
           name="login"
           onFinish={onFinish}
           layout="vertical"
-          className="mt-8 space-y-6"
         >
           <Form.Item
             name="password"
@@ -63,22 +60,26 @@ export default function LoginPage() {
             <Input.Password
               size="large"
               placeholder="Password"
-              className="appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 focus:z-10 sm:text-sm"
             />
           </Form.Item>
 
-          <Form.Item>
-            <Button
-              type="primary"
-              htmlType="submit"
-              loading={loading}
-              className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Sign in
-            </Button>
-          </Form.Item>
+          <Typography.Text type="secondary">
+            For testing purposes, the password is <Typography.Text code copyable>admin</Typography.Text>
+          </Typography.Text>
+
+          <Flex justify="end">
+            <Form.Item>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={loading}
+              >
+                Sign in
+              </Button>
+            </Form.Item>
+          </Flex>
         </Form>
-      </div>
-    </div>
+      </Flex>
+    </Flex>
   );
 }
