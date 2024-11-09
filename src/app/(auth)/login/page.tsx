@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { Form, Input, Button, message, Flex, Typography } from 'antd';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
+import Image from 'next/image'
+
 
 interface LoginFormData {
   password: string;
@@ -41,6 +43,7 @@ export default function LoginPage() {
 
   return (
     <Flex justify="center" align="center" vertical gap="middle">
+      <Image src={`/img/ats-oss.png`} alt="OSS ATS Logo" width="254" height="254" />
       <Typography.Title level={2}>
         The OSS ATS Platform
       </Typography.Title>
