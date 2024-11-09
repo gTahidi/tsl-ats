@@ -76,6 +76,7 @@ export default function Page(): JSX.Element {
       ...values,
       updatedAt: now,
       candidates: undefined,
+      processGroup: undefined,
     } : {
       id: crypto.randomUUID(),
       title: values.title,
@@ -83,14 +84,11 @@ export default function Page(): JSX.Element {
       linkedinUrl: values.linkedinUrl,
       status: values.status || 'Open',
       processGroupId: values.processGroupId,
+      processGroup: undefined,
       createdAt: now,
       updatedAt: now,
       candidates: undefined,
     };
-
-    console.log({
-      newJob,
-    })
 
     try {
       await updateJob(newJob);

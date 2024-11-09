@@ -15,11 +15,7 @@ export async function GET(
       include: {
         persona: true,
         job: true,
-        currentStep: {
-          include: {
-            template: true,
-          },
-        }
+        steps: true,
       },
       orderBy: { createdAt: 'desc' },
     });
@@ -37,7 +33,7 @@ export async function POST(request: Request) {
     const candidate = await prisma.$transaction(async (tx) => {
       const {
         processGroup: {
-          id,
+          id: groupId,
           steps
         }
       } = await tx.jobPosting.findUniqueOrThrow({
@@ -56,32 +52,41 @@ export async function POST(request: Request) {
         throw new Error('Job does not have any steps');
       }
 
-      const createdCandidate = await tx.candidate.create({
+      const id = data.id || crypto.randomUUID();
+      const stepId = crypto.randomUUID();
+
+      await tx.processStep.create({
         data: {
-          cvFileKey: data.cvFileKey,
-          notes: data.notes,
-          persona: {
-            connect: { id: data.personaId },
-          },
-          job: {
-            connect: { id: data.jobId },
-          },
-          currentStep: {
+          id: stepId,
+          status: 'Pending',
+          candidate: {
             create: {
-              groupId: id,
-              templateId: steps[0].id,
+              id,
+              cvFileKey: data.cvFileKey,
+              notes: data.notes,
+              persona: {
+                connect: { id: data.personaId },
+              },
+              job: {
+                connect: { id: data.jobId },
+              },
+              currentStepId: stepId,
             }
-          }
+          },
+          group: {
+            connect: { id: groupId },
+          },
+          template: {
+            connect: {
+              id: steps[0].id,
+            },
+          },
         },
       });
 
+
       return prisma.candidate.findUnique({
-        where: { id: createdCandidate.id },
-        include: {
-          persona: true,
-          job: true,
-          currentStep: true,
-        },
+        where: { id },
       });
     });
 
