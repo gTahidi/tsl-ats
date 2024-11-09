@@ -19,10 +19,13 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
   const router = useRouter();
   const queryClient = useQueryClient();
 
+  console.log('jobId', jobId);
+
   const { data: fetchedCandidates, isLoading } = useQuery({
-    queryKey: ['candidates', jobId],
+    queryKey: ['candidates', 'byJob', jobId],
     queryFn: async () => {
       const url = `/api/candidates${jobId ? `?jobId=${jobId}` : ''}`;
+      console.log('url', url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch candidates');
@@ -62,9 +65,17 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       sorter: (a, b) => a.persona.name.localeCompare(b.persona.name),
     },
     {
+      title: 'Surname',
+      key: 'surname',
+      render: (record) => record.persona.surname,
+      sorter: (a, b) => a.persona.surname.localeCompare(b.persona.surname),
+      ellipsis: true,
+    },
+    {
       title: 'Email',
       key: 'email',
       render: (record) => record.persona.email,
+      ellipsis: true,
     },
     ...(!jobId ?
       [
@@ -78,7 +89,11 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
     {
       title: 'CV',
       key: 'cvUrl',
-      render: (record) => {
+      render: (record: CandidateView) => {
+        if (!record.cvFileKey) {
+          return '-';
+        }
+
         return <CVButton id={record.id} />
       }
     },
