@@ -38,6 +38,7 @@ export async function PUT(
 ) {
   try {
     const data = await request.json();
+
     const candidate = await prisma.candidate.update({
       where: { id: params.id },
       data,

@@ -92,7 +92,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
           return 'No steps';
         }
 
-        const lastStep = steps.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()).pop();
+        const lastStep = steps.sort((a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || a.createdAt).getTime()).pop();
 
         if (!lastStep) {
           return 'No steps';
@@ -177,12 +177,11 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
 
 const CVButton = ({ id }: { id: string }) => {
   const {
-    data: url,
-    isLoading,
-  } = useQuery<{ url: string | null }>({
-    queryKey: ['candidates', id, "cv"],
-    queryFn: async () => {
-      const response = await fetch(`/api/candidates/${id}/cv`);
+    mutateAsync: fetchCV,
+    isPending,
+  } = useMutation<{ url: string | null }>({
+    mutationFn: async () => {
+      const response = await fetch(`/api/candidates/${id}/cv-blob`);
       if (!response.ok) {
         throw new Error('Failed to fetch CV');
       }
@@ -190,18 +189,23 @@ const CVButton = ({ id }: { id: string }) => {
     },
   });
 
-  if (isLoading) {
-    return <span>Loading...</span>;
-  }
-
-  if (!url?.url) {
-    return <span>No CV</span>;
-  }
-
   return (
-    <a href={url.url} target="_blank" rel="noreferrer">
-      CV
-    </a>
+    <Button
+      type="dashed"
+      disabled={isPending}
+      loading={isPending}
+      onClick={async () => {
+        const { url } = await fetchCV();
+
+        if (url) {
+          window.open(url, '_blank');
+        } else {
+          message.error('No CV found');
+        }
+      }}
+    >
+      Download CV
+    </Button>
   )
 }
 
