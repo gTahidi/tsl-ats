@@ -1,5 +1,6 @@
 docker
 .env
+.env.development.local
 
 # dependencies
 /node_modules

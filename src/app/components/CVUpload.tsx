@@ -27,7 +27,7 @@ export default function CVUpload({ candidateId, onUploadComplete }: CVUploadProp
           formData.append('candidateId', candidateId);
         }
 
-        const response = await fetch('/api/upload', {
+        const response = await fetch('/api/upload-blob', {
           method: 'POST',
           body: formData,
         });
