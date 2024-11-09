@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Form, Input } from 'antd';
 import type { Persona } from '../../types';
 
@@ -19,6 +19,15 @@ const PersonaModal: React.FC<PersonaModalProps> = ({
 }) => {
   const [form] = Form.useForm();
 
+  useEffect(() => {
+    if (!persona) {
+      form.resetFields();
+      return;
+    }
+
+    form.setFieldsValue(persona || {});
+  }, [persona, form]);
+
   return (
     <Modal
       title={persona ? 'Edit Persona' : 'Add Persona'}
@@ -27,13 +36,21 @@ const PersonaModal: React.FC<PersonaModalProps> = ({
       onCancel={onClose}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={persona || {}}>
+      <Form form={form} layout="vertical">
         <Form.Item
           name="name"
           label="Name"
           rules={[{ required: true, message: 'Please enter the persona name' }]}
         >
           <Input placeholder="Enter persona name" />
+        </Form.Item>
+
+        <Form.Item
+          name="surname"
+          label="Surame"
+          rules={[{ required: true, message: 'Please enter the persona surname' }]}
+        >
+          <Input placeholder="Enter persona surname" />
         </Form.Item>
 
         <Form.Item
@@ -45,6 +62,14 @@ const PersonaModal: React.FC<PersonaModalProps> = ({
           ]}
         >
           <Input placeholder="Enter persona email" />
+        </Form.Item>
+
+        <Form.Item
+          name="location"
+          label="Location"
+          rules={[{ required: false, message: 'Please enter the persona location' }]}
+        >
+          <Input placeholder="Enter persona location" />
         </Form.Item>
 
         <Form.Item

@@ -1,11 +1,11 @@
 'use client';
 
 import { Table, Space, Button, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
 import { format } from 'date-fns';
 import type { ColumnType } from 'antd/es/table';
 import type { Key } from 'react';
-import { CandidateView, ProcessStep } from '@/types';
+import { CandidateView, ProcessStep, ProcessStepTemplate } from '@/types';
 import { useQuery } from '@tanstack/react-query';
 
 interface ProcessStepsTableProps {
@@ -33,74 +33,64 @@ export default function ProcessStepsTable({
     },
   });
 
-  const columns: ColumnType<ProcessStep>[] = [
+  const columns: ColumnType<ProcessStepTemplate>[] = [
     {
-      title: 'Type',
-      dataIndex: 'type',
-      key: 'type',
-      sorter: (a: ProcessStep, b: ProcessStep) => a.type.localeCompare(b.type),
+      title: 'Order',
+      dataIndex: 'order',
+      key: 'order',
+      sorter: (a: ProcessStepTemplate, b: ProcessStepTemplate) => a.order - b.order,
     },
     {
-      title: 'Status',
-      dataIndex: 'status',
-      key: 'status',
-      render: (status: string) => (
-        <Tag color={status === 'Completed' ? 'green' : 'orange'}>
-          {status}
-        </Tag>
-      ),
-      filters: [
-        { text: 'Active', value: 'ACTIVE' },
-        { text: 'Inactive', value: 'INACTIVE' },
-      ],
-      onFilter: (value: boolean | Key, record: ProcessStep) => record.status === value,
+      title: 'Name',
+      dataIndex: 'name',
+      key: 'name',
+      sorter: (a: ProcessStepTemplate, b: ProcessStepTemplate) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Created At',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => {
-        if (typeof window === 'undefined') return date;
-        return format(new Date(date), 'PPP');
-      },
-      sorter: (a: ProcessStep, b: ProcessStep) => {
-        if (typeof window === 'undefined') return 0;
-        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      title: 'Completed',
+      key: 'completed',
+      render: (record: ProcessStepTemplate) => {
+        const tId = candidate?.currentStep?.templateId;
+
+        if (record.id === tId) {
+          return (
+            <Tag color="green">
+              Yes
+            </Tag>
+          );
+        }
+
+        return (
+          <Tag color="red">
+            No
+          </Tag>
+        );
       },
     },
     {
       title: 'Actions',
       key: 'actions',
-      render: (_: any, record: ProcessStep) => (
-        <Space size="middle">
-          {onEdit && (
-            <Tooltip title="Edit">
+      render: (rec: ProcessStepTemplate) => {
+        const tId = candidate?.currentStep?.templateId;
+
+        return (
+          <Space>
+            <Tooltip title="Mark as completed">
               <Button
-                type="text"
-                icon={<EditOutlined />}
-                onClick={() => onEdit(record)}
+                disabled={rec.id === tId}
+                icon={<CheckOutlined />}
               />
             </Tooltip>
-          )}
-          {onDelete && (
-            <Tooltip title="Delete">
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-                onClick={() => onDelete(record)}
-              />
-            </Tooltip>
-          )}
-        </Space>
-      ),
-    },
+          </Space>
+        );
+      }
+    }
   ];
 
   return (
     <Table
       columns={columns}
-      dataSource={candidate?.steps || []}
+      dataSource={candidate?.currentStep?.group?.steps || []}
       rowKey="id"
       loading={isLoading}
       pagination={{ pageSize: 10 }}

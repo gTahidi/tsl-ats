@@ -9,10 +9,11 @@ export async function GET(
     const job = await prisma.jobPosting.findUnique({
       where: { id: params.id },
       include: {
+        processGroup: true,
         candidates: {
           include: {
             persona: true,
-            steps: true,
+            currentStep: true,
           },
         },
       },

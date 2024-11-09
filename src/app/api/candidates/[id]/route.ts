@@ -11,7 +11,16 @@ export async function GET(
       include: {
         persona: true,
         job: true,
-        steps: true,
+        currentStep: {
+          include: {
+            group: {
+              include: {
+                steps: true,
+              },
+            },
+            template: true,
+          }
+        }
       },
     });
 
@@ -42,11 +51,6 @@ export async function PUT(
     const candidate = await prisma.candidate.update({
       where: { id: params.id },
       data,
-      include: {
-        persona: true,
-        job: true,
-        steps: true,
-      },
     });
 
     return NextResponse.json(candidate);

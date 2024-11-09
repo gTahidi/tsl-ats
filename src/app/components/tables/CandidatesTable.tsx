@@ -86,21 +86,15 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       title: 'Step',
       key: 'step',
       render: (record: CandidateView) => {
-        const steps = record.steps;
+        const step = record.currentStep
 
-        if (!steps || steps.length === 0) {
-          return 'No steps';
-        }
-
-        const lastStep = steps.sort((a, b) => new Date(a.date || a.createdAt).getTime() - new Date(b.date || a.createdAt).getTime()).pop();
-
-        if (!lastStep) {
-          return 'No steps';
+        if (!step) {
+          return '-';
         }
 
         return (
           <span>
-            {lastStep.type} - {lastStep.status}
+            {step.template.order} - {step.template.name}
           </span>
         )
       }

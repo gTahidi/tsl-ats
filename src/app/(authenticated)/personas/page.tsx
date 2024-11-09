@@ -64,8 +64,8 @@ export default function Page(): JSX.Element {
   });
 
   const handleCreateOrUpdate = async (values: Partial<Persona>) => {
-    if (!values.name || !values.email) {
-      message.error('Title is required');
+    if (!values.name || !values.surname || !values.email) {
+      message.error('Missing fields: name, surname, email');
       return;
     }
 
@@ -78,8 +78,10 @@ export default function Page(): JSX.Element {
     } : {
       id: crypto.randomUUID(),
       name: values.name,
+      surname: values.surname,
       email: values.email,
       linkedinUrl: values.linkedinUrl,
+      location: values.location,
       createdAt: now,
       updatedAt: now,
     };

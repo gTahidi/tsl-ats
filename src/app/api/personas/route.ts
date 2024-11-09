@@ -17,11 +17,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
     const persona = await prisma.persona.create({
-      data: {
-        name: data.name,
-        email: data.email,
-        linkedinUrl: data.linkedinUrl,
-      },
+      data: data,
     });
     return NextResponse.json(persona);
   } catch (error) {
