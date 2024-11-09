@@ -53,6 +53,13 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
       title: 'Location',
       dataIndex: 'location',
       key: 'location',
+      render: (location) => {
+        if (!location) {
+          return '-';
+        }
+
+        return location
+      },
       ellipsis: true,
     },
     {

@@ -39,6 +39,7 @@ export default function Page(): JSX.Element {
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['processGroups'] });
             qc.invalidateQueries({ queryKey: ['jobs'] });
+            qc.invalidateQueries({ queryKey: ['candidates'] });
         },
     });
 
@@ -58,7 +59,8 @@ export default function Page(): JSX.Element {
         onSuccess: () => {
             message.success('Process Group deleted successfully');
 
-            qc.invalidateQueries({ queryKey: ['groups'] });
+            qc.invalidateQueries({ queryKey: ['processGroups'] });
+            qc.invalidateQueries({ queryKey: ['candidates'] });
         },
         onError: (error) => {
             message.error(error instanceof Error ? error.message : 'Failed to delete group');
@@ -108,10 +110,6 @@ export default function Page(): JSX.Element {
             createdAt: now,
             updatedAt: now,
         };
-
-        console.log({
-            newProcessGroup,
-        })
 
         try {
             await upsertProcessGroup(newProcessGroup);

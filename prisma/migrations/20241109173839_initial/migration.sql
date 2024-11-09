@@ -72,6 +72,7 @@ CREATE TABLE "ProcessStep" (
     "updatedAt" TIMESTAMP(3) NOT NULL,
     "groupId" TEXT NOT NULL,
     "templateId" TEXT NOT NULL,
+    "candidateId" TEXT NOT NULL,
 
     CONSTRAINT "ProcessStep_pkey" PRIMARY KEY ("id")
 );
@@ -89,9 +90,6 @@ ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_personaId_fkey" FOREIGN KEY ("
 ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_jobId_fkey" FOREIGN KEY ("jobId") REFERENCES "JobPosting"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Candidate" ADD CONSTRAINT "Candidate_currentStepId_fkey" FOREIGN KEY ("currentStepId") REFERENCES "ProcessStep"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "ProcessStepTemplate" ADD CONSTRAINT "ProcessStepTemplate_groupId_fkey" FOREIGN KEY ("groupId") REFERENCES "ProcessGroup"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -99,3 +97,6 @@ ALTER TABLE "ProcessStep" ADD CONSTRAINT "ProcessStep_groupId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "ProcessStep" ADD CONSTRAINT "ProcessStep_templateId_fkey" FOREIGN KEY ("templateId") REFERENCES "ProcessStepTemplate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProcessStep" ADD CONSTRAINT "ProcessStep_candidateId_fkey" FOREIGN KEY ("candidateId") REFERENCES "Candidate"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

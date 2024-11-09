@@ -45,8 +45,10 @@ export interface CandidateView {
   jobId: string;
   job: JobView;
 
-  currentStepId?: string | null;
-  currentStep?: ProcessStep | null;
+  currentStepId: string;
+  currentStep: ProcessStep;
+
+  steps?: ProcessStep[];
 
   createdAt: Date;
   updatedAt: Date;
@@ -94,4 +96,6 @@ export type ProcessStep = {
 
   templateId: string;
   template: ProcessStepTemplate;
+
+  candidates?: CandidateView[];
 };

@@ -13,7 +13,7 @@ export async function GET(
         candidates: {
           include: {
             persona: true,
-            currentStep: true,
+            steps: true,
           },
         },
       },

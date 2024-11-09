@@ -1,0 +1,4 @@
+{
+  "adapter": "prisma",
+  "projectDescription": "This project is about managing job postings, candidates, personas, process groups, process steps, and process step templates."
+}

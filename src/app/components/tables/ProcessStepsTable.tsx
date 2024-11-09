@@ -1,29 +1,32 @@
 'use client';
 
 import { Table, Space, Button, Tag, Tooltip } from 'antd';
-import { EditOutlined, DeleteOutlined, CheckOutlined } from '@ant-design/icons';
-import { format } from 'date-fns';
+import { CheckOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
-import type { Key } from 'react';
 import { CandidateView, ProcessStep, ProcessStepTemplate } from '@/types';
-import { useQuery } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 interface ProcessStepsTableProps {
   candidateId: string;
   onEdit?: (step: ProcessStep) => void;
   onDelete?: (step: ProcessStep) => void;
+
+  templateSelected?: ProcessStepTemplate;
+  onTemplateSelect?: (step: ProcessStepTemplate) => void;
 }
 
 export default function ProcessStepsTable({
   candidateId,
-  onEdit,
-  onDelete,
+  templateSelected: template,
+  onTemplateSelect: onSelect,
 }: ProcessStepsTableProps) {
+  const qc = useQueryClient();
+
   const {
     data: candidate,
     isLoading,
   } = useQuery<CandidateView>({
-    queryKey: ['candidate', candidateId],
+    queryKey: ['candidates', candidateId],
     queryFn: async () => {
       const response = await fetch(`/api/candidates/${candidateId}`);
       if (!response.ok) {
@@ -32,6 +35,32 @@ export default function ProcessStepsTable({
       return response.json();
     },
   });
+
+  const {
+    mutate: updateCandidate,
+    isPending: updatePending,
+  } = useMutation({
+    mutationFn: async (body: any) => {
+      const response = await fetch(`/api/candidates/${candidateId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update process step');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  const groupSteps = candidate?.job.processGroup?.steps || [];
+  const currStep = candidate?.currentStep;
 
   const columns: ColumnType<ProcessStepTemplate>[] = [
     {
@@ -50,9 +79,15 @@ export default function ProcessStepsTable({
       title: 'Completed',
       key: 'completed',
       render: (record: ProcessStepTemplate) => {
-        const tId = candidate?.currentStep?.templateId;
+        if (!currStep) {
+          return (
+            <Tag color="default">
+              No
+            </Tag>
+          );
+        }
 
-        if (record.id === tId) {
+        if (record.order <= currStep.template.order) {
           return (
             <Tag color="green">
               Yes
@@ -71,16 +106,35 @@ export default function ProcessStepsTable({
       title: 'Actions',
       key: 'actions',
       render: (rec: ProcessStepTemplate) => {
-        const tId = candidate?.currentStep?.templateId;
-
         return (
           <Space>
-            <Tooltip title="Mark as completed">
-              <Button
-                disabled={rec.id === tId}
-                icon={<CheckOutlined />}
-              />
-            </Tooltip>
+            {currStep && (
+              <Tooltip title={rec.order <= currStep.template.order ? 'Step already completed' : 'Complete step'}>
+                <Button
+                  loading={rec.order <= currStep.template.order && updatePending}
+                  disabled={rec.order <= currStep.template.order || updatePending}
+                  icon={<CheckOutlined />}
+                  onClick={() => {
+                    updateCandidate({
+                      currentStep: {
+                        groupId: currStep.groupId,
+                        templateId: rec.id,
+                      },
+                    });
+                  }}
+                />
+              </Tooltip>
+            )}
+            {onSelect && rec.id !== template?.id && (
+              <Tooltip title="See details">
+                <Button
+                  icon={<EyeOutlined />}
+                  onClick={() => {
+                    onSelect(rec);
+                  }}
+                />
+              </Tooltip>
+            )}
           </Space>
         );
       }
@@ -90,7 +144,7 @@ export default function ProcessStepsTable({
   return (
     <Table
       columns={columns}
-      dataSource={candidate?.currentStep?.group?.steps || []}
+      dataSource={groupSteps}
       rowKey="id"
       loading={isLoading}
       pagination={{ pageSize: 10 }}

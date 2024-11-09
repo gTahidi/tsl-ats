@@ -5,11 +5,11 @@ export async function POST(
   request: NextRequest,
 ) {
   try {
-    const { templateId, notes, groupId } = await request.json();
+    const { templateId, notes, groupId, candidateId } = await request.json();
 
-    if (!groupId || !templateId) {
+    if (!groupId || !templateId || !candidateId) {
       return NextResponse.json(
-        { error: 'Type and status are required' },
+        { error: 'Missing required fields' },
         { status: 400 }
       );
     }
@@ -17,8 +17,21 @@ export async function POST(
     const step = await prisma.processStep.create({
       data: {
         notes,
-        groupId,
-        templateId,
+        group: {
+          connect: {
+            id: groupId,
+          },
+        },
+        template: {
+          connect: {
+            id: templateId,
+          },
+        },
+        candidate: {
+          connect: {
+            id: candidateId,
+          },
+        },
       },
     });
 

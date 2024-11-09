@@ -19,13 +19,10 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  console.log('jobId', jobId);
-
   const { data: fetchedCandidates, isLoading } = useQuery({
     queryKey: ['candidates', 'byJob', jobId],
     queryFn: async () => {
       const url = `/api/candidates${jobId ? `?jobId=${jobId}` : ''}`;
-      console.log('url', url);
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Failed to fetch candidates');
@@ -59,17 +56,17 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
 
   const columns: ColumnsType<CandidateView> = [
     {
-      title: 'Name',
-      key: 'name',
-      render: (record) => record.persona.name,
-      sorter: (a, b) => a.persona.name.localeCompare(b.persona.name),
-    },
-    {
-      title: 'Surname',
-      key: 'surname',
-      render: (record) => record.persona.surname,
-      sorter: (a, b) => a.persona.surname.localeCompare(b.persona.surname),
-      ellipsis: true,
+      title: 'Full name',
+      key: 'fullName',
+      render: (record) => `${record.persona.name} ${record.persona.surname}`,
+      sorter: (a, b) => {
+        // Compare first by name, then by surname
+        const nameComparison = a.persona.name.localeCompare(b.persona.name);
+        if (nameComparison !== 0) {
+          return nameComparison;
+        }
+        return a.persona.surname.localeCompare(b.persona.surname);
+      }
     },
     {
       title: 'Email',
@@ -113,15 +110,6 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
           </span>
         )
       }
-    },
-    {
-      title: 'Created',
-      dataIndex: 'createdAt',
-      key: 'createdAt',
-      render: (date: string) => {
-        if (typeof window === 'undefined') return date;
-        return new Date(date).toLocaleDateString();
-      },
     },
     {
       title: 'Updated',

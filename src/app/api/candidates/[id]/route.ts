@@ -12,8 +12,16 @@ export async function GET(
       },
       include: {
         persona: true,
-        job: true,
-        currentStep: {
+        job: {
+          include: {
+            processGroup: {
+              include: {
+                steps: true,
+              },
+            }
+          },
+        },
+        steps: {
           include: {
             group: {
               include: {
@@ -33,7 +41,21 @@ export async function GET(
       );
     }
 
-    return NextResponse.json(candidate);
+    const currStep = await prisma.processStep.findFirst({
+      where: {
+        candidateId: candidate.id,
+        id: candidate.currentStepId
+      },
+      include: {
+        group: true,
+        template: true,
+      }
+    });
+
+    return NextResponse.json({
+      ...candidate,
+      currentStep: currStep
+    });
   } catch (error) {
     console.error('Error fetching candidate:', error);
     return NextResponse.json(
@@ -48,11 +70,47 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const data = await request.json();
+    const {
+      currentStep,
+      ...data
+    } = await request.json();
 
-    const candidate = await prisma.candidate.update({
-      where: { id: params.id },
-      data,
+    const candidate = await prisma.$transaction(async (tx) => {
+      if (currentStep) {
+        const stepId = currentStep.id || crypto.randomUUID();
+
+        await tx.processStep.upsert({
+          where: { id: stepId },
+          update: currentStep,
+          create: {
+            ...currentStep,
+            id: stepId,
+            candidate: {
+              connect: { id: params.id },
+            },
+            group: {
+              connect: { id: currentStep.groupId },
+            },
+            template: {
+              connect: { id: currentStep.templateId },
+            },
+            groupId: undefined,
+            templateId: undefined,
+          },
+        });
+
+        data.currentStepId = stepId;
+      }
+
+      await tx.candidate.update({
+        where: { id: params.id },
+        data,
+      });
+
+
+      return prisma.candidate.findUnique({
+        where: { id: params.id },
+      });
     });
 
     return NextResponse.json(candidate);

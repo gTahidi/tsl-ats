@@ -58,7 +58,7 @@ model Candidate {
   job   JobPosting @relation(fields: [jobId], references: [id])
 
   currentStepId String
-  currentStep   ProcessStep @relation(fields: [currentStepId], references: [id])
+  steps         ProcessStep[] @relation("CandidateSteps")
 }
 
 model ProcessGroup {
@@ -69,8 +69,8 @@ model ProcessGroup {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  jobs        JobPosting[]
-  steps       ProcessStepTemplate[]
+  jobs         JobPosting[]
+  steps        ProcessStepTemplate[]
   processSteps ProcessStep[]
 }
 
@@ -106,5 +106,6 @@ model ProcessStep {
   templateId String
   template   ProcessStepTemplate @relation(fields: [templateId], references: [id])
 
-  candidates Candidate[]
+  candidateId String
+  candidate   Candidate @relation("CandidateSteps", fields: [candidateId], references: [id])
 }
