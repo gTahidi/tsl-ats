@@ -58,7 +58,7 @@ export default function Page(): JSX.Element {
           Candidates
         </Typography.Title>
         <CandidatesTable
-          jobId={jobId}
+          jobId={job.id}
         />
       </Flex>
     </Flex >

@@ -44,12 +44,6 @@ const JobsTable: React.FC<JobsTableProps> = ({
       sorter: (a, b) => a.title.localeCompare(b.title),
     },
     {
-      title: 'Description',
-      dataIndex: 'description',
-      key: 'description',
-      ellipsis: true,
-    },
-    {
       title: 'Status',
       dataIndex: 'status',
       key: 'status',
@@ -71,11 +65,11 @@ const JobsTable: React.FC<JobsTableProps> = ({
     },
     {
       title: 'Candidates',
-      key: 'candidateCount',
+      key: 'candidates',
       render: (_, record: JobView) => (
-        <Tag color="cyan">
+        <span>
           {record.candidates?.length || 0}
-        </Tag>
+        </span>
       ),
     },
     {

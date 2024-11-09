@@ -2,12 +2,14 @@ import { prisma } from '@/utils/db/prisma';
 import { NextResponse } from 'next/server';
 
 export async function GET(
-  _request: Request,
+  _: Request,
   { params }: { params: { id: string } }
 ) {
   try {
     const candidate = await prisma.candidate.findUnique({
-      where: { id: params.id },
+      where: {
+        id: params.id,
+      },
       include: {
         persona: true,
         job: true,

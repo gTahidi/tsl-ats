@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Modal, Form, Input, Select } from 'antd';
 import type { JobView, ProcessGroup } from '../../types';
 import { useQuery } from '@tanstack/react-query';
@@ -19,6 +19,15 @@ const JobModal: React.FC<JobModalProps> = ({
   job,
 }) => {
   const [form] = Form.useForm();
+
+  useEffect(() => {
+    if (!job) {
+      form.resetFields();
+      return;
+    }
+
+    form.setFieldsValue(job || {});
+  }, [job, form]);
 
   const {
     data: groups,
@@ -42,7 +51,7 @@ const JobModal: React.FC<JobModalProps> = ({
       onCancel={onClose}
       destroyOnClose
     >
-      <Form form={form} layout="vertical" initialValues={job || {}}>
+      <Form form={form} layout="vertical">
         <Form.Item
           name="title"
           label="Title"

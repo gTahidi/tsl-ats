@@ -1,9 +1,17 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/utils/db/prisma';
 
-export async function GET() {
+export async function GET(
+  request: NextRequest,
+) {
   try {
+    const searchParams = request.nextUrl.searchParams
+    const jobId = searchParams.get('jobId')
+
     const candidates = await prisma.candidate.findMany({
+      where: {
+        ...(jobId ? { jobId } : {}),
+      },
       include: {
         persona: true,
         job: true,
