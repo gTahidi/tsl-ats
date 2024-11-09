@@ -82,6 +82,7 @@ export default function Page(): JSX.Element {
       description: values.description,
       linkedinUrl: values.linkedinUrl,
       status: values.status || 'Open',
+      processGroupId: values.processGroupId,
       createdAt: now,
       updatedAt: now,
       candidates: undefined,

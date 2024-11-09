@@ -6,6 +6,7 @@ import {
   UserOutlined,
   SnippetsOutlined,
   TeamOutlined,
+  OrderedListOutlined,
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -35,6 +36,11 @@ const MainLayout = ({ children }: Props) => {
       key: '/candidates',
       icon: <TeamOutlined />,
       label: 'Candidates',
+    },
+    {
+      key: '/process-groups',
+      icon: <OrderedListOutlined />,
+      label: 'Process Groups',
     },
   ];
 

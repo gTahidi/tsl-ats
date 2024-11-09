@@ -6,10 +6,11 @@ export async function GET() {
     const jobs = await prisma.jobPosting.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
+        processGroup: true,
         candidates: {
           include: {
             persona: true,
-            steps: true,
+            currentStep: true,
           },
         },
       },

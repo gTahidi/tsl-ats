@@ -58,6 +58,16 @@ const JobsTable: React.FC<JobsTableProps> = ({
           {status.toUpperCase()}
         </Tag>
       ),
+      sorter: (a, b) => a.status.localeCompare(b.status),
+    },
+    {
+      title: 'Process',
+      key: 'process',
+      render: (_, record: JobView) => (
+        <Tag color="cyan">
+          {record.processGroup?.name || "-"}
+        </Tag>
+      ),
     },
     {
       title: 'Candidates',

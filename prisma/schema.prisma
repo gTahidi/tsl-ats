@@ -3,8 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url = env("POSTGRES_PRISMA_URL") // uses connection pooling
+  provider  = "postgresql"
+  url       = env("POSTGRES_PRISMA_URL") // uses connection pooling
   directUrl = env("POSTGRES_URL_NON_POOLING") // uses a direct connection
 }
 
@@ -19,12 +19,21 @@ model JobPosting {
   updatedAt DateTime @updatedAt
 
   candidates Candidate[]
+
+  processGroupId String
+  processGroup   ProcessGroup @relation(fields: [processGroupId], references: [id])
 }
 
 model Persona {
-  id    String  @id @default(cuid())
-  name  String
-  email String  @unique
+  id String @id @default(cuid())
+
+  name    String
+  surname String
+
+  location String?
+
+  email String @unique
+
   linkedinUrl String?
 
   createdAt DateTime @default(now())
@@ -36,10 +45,11 @@ model Persona {
 model Candidate {
   id String @id @default(cuid())
 
-  cvFileKey       String?
-  notes       String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  notes     String?
+  cvFileKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   personaId String
   persona   Persona @relation(fields: [personaId], references: [id])
@@ -47,20 +57,54 @@ model Candidate {
   jobId String
   job   JobPosting @relation(fields: [jobId], references: [id])
 
-  steps ProcessStep[]
+  currentStepId String
+  currentStep   ProcessStep @relation(fields: [currentStepId], references: [id])
 }
 
-model ProcessStep {
-  id     String   @id @default(cuid())
-  type   String
-  status String
+model ProcessGroup {
+  id String @id @default(cuid())
 
-  notes  String?
-  date   DateTime?
+  name String
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  candidateId String
-  candidate   Candidate @relation(fields: [candidateId], references: [id])
+  jobs        JobPosting[]
+  steps       ProcessStepTemplate[]
+  processSteps ProcessStep[]
+}
+
+model ProcessStepTemplate {
+  id String @id @default(cuid())
+
+  order Int
+  name  String
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groupId String
+  group   ProcessGroup @relation(fields: [groupId], references: [id])
+
+  steps ProcessStep[]
+}
+
+model ProcessStep {
+  id String @id @default(cuid())
+
+  status String @default("Pending")
+
+  notes String?
+  date  DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  groupId String
+  group   ProcessGroup @relation(fields: [groupId], references: [id])
+
+  templateId String
+  template   ProcessStepTemplate @relation(fields: [templateId], references: [id])
+
+  candidates Candidate[]
 }

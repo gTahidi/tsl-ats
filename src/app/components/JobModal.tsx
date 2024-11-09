@@ -2,7 +2,8 @@
 
 import React from 'react';
 import { Modal, Form, Input, Select } from 'antd';
-import type { JobView } from '../../types';
+import type { JobView, ProcessGroup } from '../../types';
+import { useQuery } from '@tanstack/react-query';
 
 interface JobModalProps {
   visible: boolean;
@@ -18,6 +19,20 @@ const JobModal: React.FC<JobModalProps> = ({
   job,
 }) => {
   const [form] = Form.useForm();
+
+  const {
+    data: groups,
+    isLoading: groupsLoading,
+  } = useQuery<ProcessGroup[]>({
+    queryKey: ['processGroups'],
+    queryFn: async () => {
+      const response = await fetch('/api/process-groups');
+      if (!response.ok) {
+        throw new Error('Failed to fetch process groups');
+      }
+      return response.json();
+    },
+  });
 
   return (
     <Modal
@@ -56,11 +71,29 @@ const JobModal: React.FC<JobModalProps> = ({
           label="Status"
           initialValue={job?.status || 'Open'}
         >
-          <Select defaultValue="Open">
+          <Select>
             <Select.Option value="Open">Open</Select.Option>
             <Select.Option value="Closed">Closed</Select.Option>
             <Select.Option value="Draft">Draft</Select.Option>
           </Select>
+        </Form.Item>
+
+        <Form.Item
+          name="processGroupId"
+          label="Process Group"
+          rules={[{ required: true, message: 'Please select a process group' }]}
+          initialValue={job?.processGroupId}
+        >
+          <Select
+            placeholder="Select a group"
+            style={{ width: '100%' }}
+            disabled={groupsLoading}
+            defaultValue={job?.processGroupId}
+            options={(groups || []).map((g) => ({
+              value: g.id,
+              label: g.name,
+            }))}
+          />
         </Form.Item>
       </Form>
     </Modal>

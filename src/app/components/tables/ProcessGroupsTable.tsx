@@ -4,32 +4,32 @@ import React from 'react';
 import { Table, Button, Popconfirm } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
-import type { Persona } from '../../../types';
+import type { ProcessGroup } from '../../../types';
 import { useQuery } from '@tanstack/react-query';
 
-interface PersonasTableProps {
+interface groupsTableProps {
   loading?: boolean;
-  onEdit?: (persona: Persona) => void;
+  onEdit?: (group: ProcessGroup) => void;
   onDelete?: (id: string) => void;
 }
 
-const PersonasTable: React.FC<PersonasTableProps> = ({
+const GroupsTable: React.FC<groupsTableProps> = ({
   loading: externalLoading,
   onEdit: externalOnEdit,
   onDelete: externalOnDelete
 }) => {
-  const { data: personas, isLoading } = useQuery<Persona[]>({
-    queryKey: ['personas'],
+  const { data: groups, isLoading } = useQuery<ProcessGroup[]>({
+    queryKey: ['processGroups'],
     queryFn: async () => {
-      const response = await fetch('/api/personas');
+      const response = await fetch('/api/process-groups');
       if (!response.ok) {
-        throw new Error('Failed to fetch personas');
+        throw new Error('Failed to fetch groups');
       }
       return response.json();
     },
   });
 
-  const columns: ColumnsType<Persona> = [
+  const columns: ColumnsType<ProcessGroup> = [
     {
       title: 'Name',
       dataIndex: 'name',
@@ -37,40 +37,9 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
       sorter: (a, b) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Surname',
-      dataIndex: 'surname',
-      key: 'surname',
-      sorter: (a, b) => a.surname.localeCompare(b.surname),
-    },
-    {
-      title: 'Email',
-      dataIndex: 'email',
-      key: 'email',
-      sorter: (a, b) => a.email.localeCompare(b.email),
-      ellipsis: true,
-    },
-    {
-      title: 'Location',
-      dataIndex: 'location',
-      key: 'location',
-      ellipsis: true,
-    },
-    {
-      title: 'LinkedIn URL',
-      dataIndex: 'linkedinUrl',
-      key: 'linkedinUrl',
-      render: (linkedinUrl) => {
-        if (!linkedinUrl) {
-          return '-';
-        }
-
-        return (
-          <a href={linkedinUrl} target="_blank" rel="noreferrer">
-            Go to LinkedIn
-          </a>
-        )
-      },
-      ellipsis: true,
+      title: 'Steps',
+      key: 'steps',
+      render: (_, record) => record.steps?.length || 0,
     },
     {
       title: 'Actions',
@@ -79,7 +48,7 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
         <div className="flex gap-2">
           <Button type="text" icon={<EditOutlined />} onClick={() => externalOnEdit?.(record)} disabled={!externalOnEdit} />
           <Popconfirm
-            title="Delete persona"
+            title="Delete group"
             onConfirm={() => externalOnDelete?.(record.id)}
           >
             <Button type="text" danger icon={<DeleteOutlined />} disabled={!externalOnDelete} />
@@ -91,7 +60,7 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
 
   return (
     <Table
-      dataSource={personas || []}
+      dataSource={groups || []}
       columns={columns}
       rowKey="id"
       loading={externalLoading || isLoading}
@@ -100,4 +69,4 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
   );
 };
 
-export default PersonasTable;
+export default GroupsTable;

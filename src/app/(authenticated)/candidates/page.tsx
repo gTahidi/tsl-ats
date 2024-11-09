@@ -22,17 +22,10 @@ export default function Page(): JSX.Element {
       const method = editingCandidate ? 'PUT' : 'POST';
       const now = new Date();
 
+      values.updatedAt = now;
+
       if (!editingCandidate) {
-        values.steps = [
-          {
-            id: crypto.randomUUID(),
-            type: 'Backlog',
-            status: 'Pending',
-            createdAt: now,
-            updatedAt: now,
-            candidateId: values.id!,
-          } as any
-        ];
+        values.createdAt = now;
       }
 
       const response = await fetch(url, {

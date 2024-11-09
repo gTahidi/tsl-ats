@@ -6,9 +6,9 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { type, status, notes } = await request.json();
+    const { order, name, status, notes, groupId } = await request.json();
 
-    if (!type || !status) {
+    if (!groupId || !name || !status || !order) {
       return NextResponse.json(
         { error: 'Type and status are required' },
         { status: 400 }
@@ -17,11 +17,11 @@ export async function POST(
 
     const step = await prisma.processStep.create({
       data: {
-        type,
+        order,
+        name,
         status,
         notes,
-        candidateId: params.id,
-        date: new Date(),
+        groupId,
       },
     });
 
@@ -36,24 +36,13 @@ export async function POST(
 }
 
 export async function DELETE(
-  request: NextRequest,
+  _: NextRequest,
   { params }: { params: { id: string } }
 ) {
   try {
-    const searchParams = new URL(request.url).searchParams;
-    const stepId = searchParams.get('stepId');
-
-    if (!stepId) {
-      return NextResponse.json(
-        { error: 'Step ID is required' },
-        { status: 400 }
-      );
-    }
-
     await prisma.processStep.delete({
       where: {
-        id: stepId,
-        candidateId: params.id,
+        id: params.id,
       },
     });
 
@@ -72,25 +61,13 @@ export async function PUT(
   { params }: { params: { id: string } }
 ) {
   try {
-    const { stepId, type, status, notes } = await request.json();
-
-    if (!stepId) {
-      return NextResponse.json(
-        { error: 'Step ID is required' },
-        { status: 400 }
-      );
-    }
+    const data = await request.json();
 
     const step = await prisma.processStep.update({
       where: {
-        id: stepId,
-        candidateId: params.id,
+        id: params.id,
       },
-      data: {
-        type,
-        status,
-        notes,
-      },
+      data: data,
     });
 
     return NextResponse.json(step);
