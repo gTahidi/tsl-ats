@@ -9,6 +9,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useState } from "react";
 import { debounce } from 'lodash';
 import RatingTag from "@/app/components/RatingTag";
+import { Editor } from "@/app/components/Editor";
 
 
 type UpdateStepArgs = {
@@ -219,7 +220,6 @@ export default function Page(): JSX.Element {
                         <DatePicker
                           placeholder="Select the date"
                           style={{ minWidth: '180px' }}
-                          defaultValue={selectedCanStep?.date}
                           disabled={updatePending}
                           onChange={(date) => {
                             updateStep({
@@ -256,6 +256,15 @@ export default function Page(): JSX.Element {
                         onChange={(e) => {
                           setNotes(e.target.value);
                           debouncedUpdateStep(selectedCanStep.id, e.target.value);
+                        }}
+                      />
+                    )}
+                    {!!selectedCanStep && (
+                      <Editor
+                        markdown={notes || ""}
+                        onChange={(value) => {
+                          setNotes(value);
+                          debouncedUpdateStep(selectedCanStep.id, value);
                         }}
                       />
                     )}
