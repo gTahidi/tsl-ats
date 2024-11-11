@@ -122,6 +122,43 @@ const CandidateModal: React.FC<CandidateModalProps> = ({
         </Form.Item>
 
         <Form.Item
+          name="source"
+          label="Source"
+          rules={[{ required: false, message: 'Please select a source' }]}
+        >
+          <Select
+            placeholder="Select a source"
+            style={{ width: '100%' }}
+            defaultValue={candidate?.source}
+            options={[
+              { value: 'LinkedIn', label: 'LinkedIn' },
+              { value: 'Email', label: 'Email' },
+              { value: 'Referral', label: 'Referral' },
+              { value: 'Other', label: 'Other' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item
+          name="rating"
+          label="Rating"
+          rules={[{ required: false, message: 'Please select a rating' }]}
+        >
+          <Select
+            placeholder="Select a rating"
+            style={{ width: '100%' }}
+            defaultValue={candidate?.rating}
+            options={[
+              { value: 'Strong no hire', label: 'Strong no hire' },
+              { value: 'No hire', label: 'No hire' },
+              { value: 'Maybe', label: 'Maybe' },
+              { value: 'Hire', label: 'Hire' },
+              { value: 'Strong hire', label: 'Strong hire' },
+            ]}
+          />
+        </Form.Item>
+
+        <Form.Item
           name="cvFileKey"
           label="CV"
         >

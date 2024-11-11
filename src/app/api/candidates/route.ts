@@ -19,7 +19,25 @@ export async function GET(
       },
       orderBy: { createdAt: 'desc' },
     });
-    return NextResponse.json(candidates);
+
+    const currentSteps = await prisma.processStep.findMany({
+      where: {
+        id: { in: candidates.map(c => c.currentStepId) },
+      },
+      include: {
+        template: true,
+      },
+    });
+
+    return NextResponse.json(
+      candidates.map(candidate => {
+        const currentStep = currentSteps.find(step => step.id === candidate.currentStepId);
+        return {
+          ...candidate,
+          currentStep,
+        };
+      })
+    );
   } catch (error) {
     console.error('Error fetching candidates:', error);
     return NextResponse.json({ error: 'Failed to fetch candidates' }, { status: 500 });
@@ -71,6 +89,9 @@ export async function POST(request: Request) {
                 connect: { id: data.jobId },
               },
               currentStepId: stepId,
+              source: data.source,
+              rating: data.rating,
+              metadata: data.metadata,
             }
           },
           group: {

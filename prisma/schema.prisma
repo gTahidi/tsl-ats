@@ -17,11 +17,14 @@ model JobPosting {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   candidates Candidate[]
 
   processGroupId String
   processGroup   ProcessGroup @relation(fields: [processGroupId], references: [id])
+
+  metadata Json @default("{}")
 }
 
 model Persona {
@@ -38,8 +41,11 @@ model Persona {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   candidates Candidate[]
+
+  metadata Json @default("{}")
 }
 
 model Candidate {
@@ -50,6 +56,7 @@ model Candidate {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   personaId String
   persona   Persona @relation(fields: [personaId], references: [id])
@@ -58,7 +65,13 @@ model Candidate {
   job   JobPosting @relation(fields: [jobId], references: [id])
 
   currentStepId String
+  rating String?
+
+  source String?
+
   steps         ProcessStep[] @relation("CandidateSteps")
+
+  metadata Json @default("{}")
 }
 
 model ProcessGroup {
@@ -68,10 +81,13 @@ model ProcessGroup {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   jobs         JobPosting[]
   steps        ProcessStepTemplate[]
   processSteps ProcessStep[]
+
+  metadata Json @default("{}")
 }
 
 model ProcessStepTemplate {
@@ -82,11 +98,14 @@ model ProcessStepTemplate {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   groupId String
   group   ProcessGroup @relation(fields: [groupId], references: [id])
 
   steps ProcessStep[]
+
+  metadata Json @default("{}")
 }
 
 model ProcessStep {
@@ -97,8 +116,11 @@ model ProcessStep {
   notes String?
   date  DateTime?
 
+  rating String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  deletedAt DateTime?
 
   groupId String
   group   ProcessGroup @relation(fields: [groupId], references: [id])
@@ -108,4 +130,6 @@ model ProcessStep {
 
   candidateId String
   candidate   Candidate @relation("CandidateSteps", fields: [candidateId], references: [id])
+
+  metadata Json @default("{}")
 }

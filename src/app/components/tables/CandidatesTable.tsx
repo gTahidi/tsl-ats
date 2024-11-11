@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Popconfirm, message } from 'antd';
+import { Table, Button, Popconfirm, message, Tag } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
@@ -110,6 +110,42 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
           </span>
         )
       }
+    },
+    {
+      title: 'Rating',
+      key: 'rating',
+      render: (record: CandidateView) => {
+        let ratingColor = "default";
+
+        if (!record.rating) {
+          return (
+            <Tag color="default">
+              Not rated
+            </Tag>
+          )
+        }
+
+        if (record.rating === "Strong no hire") {
+          ratingColor = "red";
+        } else if (record.rating === "No hire") {
+          ratingColor = "orange";
+        } else if (record.rating === "Strong hire") {
+          ratingColor = "green";
+        } else if (record.rating === "Hire") {
+          ratingColor = "blue";
+        }
+
+        return (
+          <Tag color={ratingColor}>
+            {record.rating}
+          </Tag>
+        )
+      }
+    },
+    {
+      title: 'Source',
+      dataIndex: 'source',
+      key: 'source',
     },
     {
       title: 'Updated',

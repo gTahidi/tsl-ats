@@ -88,6 +88,7 @@ export default function Page(): JSX.Element {
       createdAt: now,
       updatedAt: now,
       candidates: undefined,
+      metadata: {},
     };
 
     try {
