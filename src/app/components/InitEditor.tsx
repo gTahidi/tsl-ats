@@ -28,6 +28,10 @@ export default function InitializedMDXEditor({
         markdownShortcutPlugin()
       ]}
       {...props}
+      toMarkdownOptions={{
+        bullet: '-',
+        emphasis: '_'
+      }}
       ref={editorRef}
     />
   )

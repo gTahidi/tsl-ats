@@ -5,7 +5,7 @@ import CandidatesTable from "@/app/components/tables/CandidatesTable";
 import { CandidateView, JobView } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Flex, message, Splitter, Typography } from "antd";
+import { Alert, Button, Flex, message, Spin, Splitter, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
 import { useState } from "react";
 
@@ -92,11 +92,23 @@ export default function Page(): JSX.Element {
   };
 
   if (isLoading) {
-    return <Typography.Text>Loading...</Typography.Text>
+    return (
+      <Flex justify="center" align="center" style={{ height: '50vh' }} vertical flex={1}>
+        <Spin />
+      </Flex>
+    )
   }
 
   if (!job) {
-    return <Typography.Text>Job not found</Typography.Text>
+    return (
+      <Flex justify="center" align="center" style={{ height: '50vh' }} vertical flex={1}>
+        <Alert
+          message="Job not found"
+          type="error"
+          closable={false}
+        />
+      </Flex>
+    )
   }
 
   return (
