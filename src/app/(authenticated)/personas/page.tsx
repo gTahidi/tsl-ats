@@ -84,6 +84,7 @@ export default function Page(): JSX.Element {
       location: values.location,
       createdAt: now,
       updatedAt: now,
+      metadata: {},
     };
 
     try {

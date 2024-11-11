@@ -46,8 +46,8 @@ export async function POST(request: Request) {
                         where: {
                             id: step.id,
                         },
-                        update: step,
-                        create: step,
+                        update: step as any,
+                        create: step as any,
                     });
                 }
             }

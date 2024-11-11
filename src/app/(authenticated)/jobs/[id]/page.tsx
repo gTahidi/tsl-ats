@@ -1,16 +1,22 @@
 'use client';
 
+import CandidateModal from "@/app/components/CandidateModal";
 import CandidatesTable from "@/app/components/tables/CandidatesTable";
-import { JobView } from "@/types";
+import { CandidateView, JobView } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
-import { useQuery } from "@tanstack/react-query";
-import { Button, Flex, Splitter, Typography } from "antd";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Button, Flex, message, Splitter, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
+import { useState } from "react";
 
 
 export default function Page(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
+  const qc = useQueryClient();
+
+  const [modalVisible, setModalVisible] = useState(false);
+  const [editingCandidate, setEditingCandidate] = useState<CandidateView | null>(null);
 
   const jobId = params.id;
 
@@ -27,6 +33,63 @@ export default function Page(): JSX.Element {
       return response.json();
     },
   })
+
+  const handleEdit = (candidate: CandidateView) => {
+    setEditingCandidate(candidate);
+    setModalVisible(true);
+  };
+
+  const handleModalClose = () => {
+    setModalVisible(false);
+    setEditingCandidate(null);
+  };
+
+  const handleCreateOrUpdate = async (values: Partial<CandidateView>) => {
+    if (!editingCandidate || !job) {
+      return;
+    }
+
+    try {
+      const url = `/api/candidates/${editingCandidate.id}`;
+
+      const now = new Date();
+      values.updatedAt = now;
+
+      const data = {
+        ...values,
+        job: {
+          connect: {
+            id: values.jobId,
+          },
+        },
+        persona: {
+          connect: {
+            id: values.personaId,
+          },
+        },
+        personaId: undefined,
+        jobId: undefined,
+      }
+
+      const response = await fetch(url, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(data),
+      });
+
+      if (!response.ok) throw new Error('Failed to save candidate');
+
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      message.success(`Candidate ${editingCandidate ? 'updated' : 'created'} successfully`);
+
+      setModalVisible(false);
+      setEditingCandidate(null);
+    } catch (error) {
+      message.error('Failed to save candidate');
+    }
+  };
 
   if (isLoading) {
     return <Typography.Text>Loading...</Typography.Text>
@@ -61,6 +124,7 @@ export default function Page(): JSX.Element {
             </Typography.Title>
             <CandidatesTable
               jobId={job.id}
+              onEdit={handleEdit}
             />
           </Flex>
         </Splitter.Panel>
@@ -98,6 +162,13 @@ export default function Page(): JSX.Element {
           </Flex>
         </Splitter.Panel>
       </Splitter>
+
+      <CandidateModal
+        visible={modalVisible}
+        onClose={handleModalClose}
+        onSubmit={handleCreateOrUpdate}
+        candidate={editingCandidate}
+      />
     </Flex >
   )
 }

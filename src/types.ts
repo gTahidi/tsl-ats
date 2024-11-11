@@ -8,11 +8,14 @@ export type JobView = {
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 
   candidates?: CandidateView[];
 
   processGroupId?: string | null;
   processGroup?: ProcessGroup;
+
+  metadata: Record<string, string>;
 };
 
 export type Persona = {
@@ -29,8 +32,11 @@ export type Persona = {
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 
   candidates?: CandidateView[];
+
+  metadata: Record<string, string>;
 };
 
 export interface CandidateView {
@@ -48,10 +54,16 @@ export interface CandidateView {
   currentStepId: string;
   currentStep: ProcessStep;
 
+  rating?: "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | null;
+  source?: "LinkedIn" | "Email" | "Referral" | "Other" | string | null;
+
   steps?: ProcessStep[];
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
+
+  metadata: Record<string, string>;
 }
 
 export type ProcessGroup = {
@@ -61,8 +73,11 @@ export type ProcessGroup = {
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 
   steps?: ProcessStepTemplate[];
+
+  metadata: Record<string, string>;
 }
 
 export type ProcessStepTemplate = {
@@ -73,11 +88,14 @@ export type ProcessStepTemplate = {
 
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 
   groupId: string;
   group: ProcessGroup;
 
   steps?: ProcessStep[];
+
+  metadata: Record<string, string>;
 };
 
 export type ProcessStep = {
@@ -88,8 +106,11 @@ export type ProcessStep = {
   notes?: string | null;
   date?: Date | null;
 
+  rating?: "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | null;
+
   createdAt: Date;
   updatedAt: Date;
+  deletedAt?: Date | null;
 
   groupId: string;
   group: ProcessGroup;
@@ -98,4 +119,6 @@ export type ProcessStep = {
   template: ProcessStepTemplate;
 
   candidates?: CandidateView[];
+
+  metadata: Record<string, string>;
 };

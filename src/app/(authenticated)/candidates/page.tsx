@@ -28,10 +28,6 @@ export default function Page(): JSX.Element {
         values.createdAt = now;
       }
 
-      console.log({
-        values,
-      })
-
       const response = await fetch(url, {
         method,
         headers: {

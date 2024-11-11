@@ -4,7 +4,7 @@ import ProcessStepsTable from "@/app/components/tables/ProcessStepsTable";
 import { CandidateView, ProcessStepTemplate } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Flex, Input, Splitter, Typography } from "antd";
+import { Button, Flex, Input, Splitter, Table, Tag, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from 'lodash';
@@ -117,14 +117,81 @@ export default function Page(): JSX.Element {
       <Flex vertical>
         <Splitter>
           <Splitter.Panel defaultSize="50%" min="40%" max="70%" style={{ paddingRight: 10 }}>
-            <Typography.Title level={4}>
-              Process Steps
-            </Typography.Title>
-            <ProcessStepsTable
-              candidateId={canId}
-              templateSelected={selectedStep || undefined}
-              onTemplateSelect={handleTemplateSelect}
-            />
+            <Flex gap="middle" vertical>
+              <Flex vertical>
+                <Typography.Title level={4}>
+                  Information
+                </Typography.Title>
+                <Table
+                  dataSource={[candidate]}
+                  rowKey="id"
+                  pagination={false}
+                  columns={[
+                    {
+                      title: 'Name',
+                      key: 'name',
+                      render: (record: CandidateView) => `${record.persona.name} ${record.persona.surname}`,
+                    },
+                    {
+                      title: 'Email',
+                      key: 'email',
+                      render: (record: CandidateView) => (
+                        <Typography.Link href={`mailto:${record.persona.email}`} copyable>
+                          {record.persona.email}
+                        </Typography.Link>
+                      ),
+                      ellipsis: true,
+                    },
+                    {
+                      title: 'Rating',
+                      key: 'rating',
+                      render: (record: CandidateView) => {
+                        let ratingColor = "default";
+
+                        if (!record.rating) {
+                          return (
+                            <Tag color="default">
+                              Not rated
+                            </Tag>
+                          )
+                        }
+
+                        if (record.rating === "Strong no hire") {
+                          ratingColor = "red";
+                        } else if (record.rating === "No hire") {
+                          ratingColor = "orange";
+                        } else if (record.rating === "Strong hire") {
+                          ratingColor = "green";
+                        } else if (record.rating === "Hire") {
+                          ratingColor = "blue";
+                        }
+
+                        return (
+                          <Tag color={ratingColor}>
+                            {record.rating}
+                          </Tag>
+                        )
+                      },
+                    },
+                    {
+                      title: 'Source',
+                      dataIndex: 'source',
+                      key: 'source',
+                    },
+                  ]}
+                />
+              </Flex>
+              <Flex vertical>
+                <Typography.Title level={4}>
+                  Process Steps
+                </Typography.Title>
+                <ProcessStepsTable
+                  candidateId={canId}
+                  templateSelected={selectedStep || undefined}
+                  onTemplateSelect={handleTemplateSelect}
+                />
+              </Flex>
+            </Flex>
           </Splitter.Panel>
           <Splitter.Panel>
             <Flex gap="middle" vertical style={{ paddingLeft: 10 }}>

@@ -109,6 +109,7 @@ export default function Page(): JSX.Element {
             })),
             createdAt: now,
             updatedAt: now,
+            metadata: {},
         };
 
         try {
