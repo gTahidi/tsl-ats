@@ -1,9 +1,9 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Popconfirm, message, Tag } from 'antd';
+import { Table, Button, Popconfirm, message } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -98,6 +98,13 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
     {
       title: 'Step',
       key: 'step',
+      sorter: (a, b) => {
+        if (!a.currentStep || !b.currentStep) {
+          return 0;
+        }
+
+        return a.currentStep.template.order - b.currentStep.template.order;
+      },
       render: (record: CandidateView) => {
         const step = record.currentStep
 
@@ -115,6 +122,19 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
     {
       title: 'Rating',
       key: 'rating',
+      sorter: (a, b) => {
+        const ratings = ['Not rated', 'Strong no hire', 'No hire', 'Maybe', 'Hire', 'Strong hire'];
+        return ratings.indexOf(a.rating || 'Not rated') - ratings.indexOf(b.rating || 'Not rated');
+      },
+      filters: [
+        { text: 'Not rated', value: 'Not rated' },
+        { text: 'Strong no hire', value: 'Strong no hire' },
+        { text: 'No hire', value: 'No hire' },
+        { text: 'Maybe', value: 'Maybe' },
+        { text: 'Hire', value: 'Hire' },
+        { text: 'Strong hire', value: 'Strong hire' },
+      ],
+      onFilter: (value, record) => record.rating === value,
       render: (record: CandidateView) => {
         return <RatingTag rating={record.rating} />;
       }
@@ -201,7 +221,7 @@ const CVButton = ({ id }: { id: string }) => {
 
   return (
     <Button
-      type="dashed"
+      type="link"
       disabled={isPending}
       loading={isPending}
       onClick={async () => {
@@ -213,9 +233,8 @@ const CVButton = ({ id }: { id: string }) => {
           message.error('No CV found');
         }
       }}
-    >
-      Download CV
-    </Button>
+      icon={<DownloadOutlined />}
+    />
   )
 }
 

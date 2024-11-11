@@ -129,7 +129,7 @@ export default function Page(): JSX.Element {
         </Typography.Title>
       </Flex>
       <Splitter>
-        <Splitter.Panel defaultSize="60%" min="40%" max="80%" style={{ paddingRight: 10 }}>
+        <Splitter.Panel defaultSize="80%" min="40%" max="80%" style={{ paddingRight: 10 }}>
           <Flex vertical>
             <Typography.Title level={5}>
               Candidates
