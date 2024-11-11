@@ -7,6 +7,11 @@
 This project aims to be a simple, open-source Applicant Tracking System (ATS) platform 
 that can be self-hosted and customized to your needs.
 
+## Demo
+
+A live demo of the project can be found [here](https://demo.ats-oss.org/), the admin
+password is `admin`.
+
 ## Features
 
 - Job posting management
@@ -17,7 +22,7 @@ that can be self-hosted and customized to your needs.
 
 ## Tech Stack
 
-- Next.js 14 with TypeScript
+- Next.js with TypeScript
 - PostgreSQL database, with Prisma ORM
 - Docker Compose for local development
 - Antd for UI components
@@ -25,30 +30,32 @@ that can be self-hosted and customized to your needs.
 
 ## Local Development
 
+You will need to have `pnpm` and `docker-compose` installed on your machine.
+
 1. Install dependencies
-```bash
-pnpm install
-```
+  ```bash
+  pnpm install
+  ```
 
 2. Set up environment variables
-```bash
-cp .env.example .env
-```
+  ```bash
+  cp .env.example .env
+  ```
 
-3. Start local services
-```bash
-docker-compose up -d
-```
+3. Start local services (Postgres and Minio)
+  ```bash
+  docker-compose up -d
+  ```
 
 4. Run database migrations
-```bash
-npm run migrate
-```
+  ```bash
+  pnpm migrate
+  ```
 
 5. Start development server
-```bash
-npm run dev
-```
+  ```bash
+  pnpm dev
+  ```
 
 ## License
 
