@@ -39,6 +39,8 @@ export type Persona = {
   metadata: Record<string, string>;
 };
 
+export type Rating = "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | string | null;
+
 export interface CandidateView {
   id: string;
 
@@ -54,7 +56,7 @@ export interface CandidateView {
   currentStepId: string;
   currentStep: ProcessStep;
 
-  rating?: "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | null;
+  rating?: Rating;
   source?: "LinkedIn" | "Email" | "Referral" | "Other" | string | null;
 
   steps?: ProcessStep[];
@@ -79,6 +81,7 @@ export type ProcessGroup = {
 
   metadata: Record<string, string>;
 }
+
 
 export type ProcessStepTemplate = {
   id: string;
@@ -106,7 +109,7 @@ export type ProcessStep = {
   notes?: string | null;
   date?: Date | null;
 
-  rating?: "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | null;
+  rating?: Rating;
 
   createdAt: Date;
   updatedAt: Date;

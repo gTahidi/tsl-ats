@@ -5,6 +5,7 @@ import { CheckOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 import { CandidateView, ProcessStep, ProcessStepTemplate } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import RatingTag from '../RatingTag';
 
 interface ProcessStepsTableProps {
   candidateId: string;
@@ -64,7 +65,7 @@ export default function ProcessStepsTable({
 
   const columns: ColumnType<ProcessStepTemplate>[] = [
     {
-      title: 'Order',
+      title: '#',
       dataIndex: 'order',
       key: 'order',
       sorter: (a: ProcessStepTemplate, b: ProcessStepTemplate) => a.order - b.order,
@@ -76,31 +77,22 @@ export default function ProcessStepsTable({
       sorter: (a: ProcessStepTemplate, b: ProcessStepTemplate) => a.name.localeCompare(b.name),
     },
     {
-      title: 'Completed',
-      key: 'completed',
+      title: 'Date',
+      key: 'date',
       render: (record: ProcessStepTemplate) => {
-        if (!currStep) {
-          return (
-            <Tag color="default">
-              No
-            </Tag>
-          );
-        }
-
-        if (record.order <= currStep.template.order) {
-          return (
-            <Tag color="green">
-              Yes
-            </Tag>
-          );
-        }
-
+        const step = candidate?.steps?.find(step => step.templateId === record.id);
         return (
-          <Tag color="red">
-            No
-          </Tag>
-        );
-      },
+          step?.date ? new Date(step.date).toLocaleDateString() : '-'
+        )
+      }
+    },
+    {
+      title: 'Step rating',
+      key: 'rating',
+      render: (record: ProcessStepTemplate) => {
+        const step = candidate?.steps?.find(step => step.templateId === record.id);
+        return <RatingTag rating={step?.rating} />;
+      }
     },
     {
       title: 'Actions',
@@ -109,7 +101,7 @@ export default function ProcessStepsTable({
         return (
           <Space>
             {currStep && (
-              <Tooltip title={rec.order <= currStep.template.order ? 'Step already completed' : 'Complete step'}>
+              <Tooltip title={rec.order <= currStep.template.order ? 'Step already completed' : 'Mark step as current'}>
                 <Button
                   loading={rec.order <= currStep.template.order && updatePending}
                   disabled={rec.order <= currStep.template.order || updatePending}

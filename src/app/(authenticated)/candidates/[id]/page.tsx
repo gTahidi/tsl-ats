@@ -4,10 +4,11 @@ import ProcessStepsTable from "@/app/components/tables/ProcessStepsTable";
 import { CandidateView, ProcessStepTemplate } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Flex, Input, Splitter, Table, Tag, Typography } from "antd";
+import { Button, DatePicker, Flex, Input, Select, Splitter, Table, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { debounce } from 'lodash';
+import RatingTag from "@/app/components/RatingTag";
 
 
 type UpdateStepArgs = {
@@ -55,6 +56,10 @@ export default function Page(): JSX.Element {
         throw new Error('Failed to update process step');
       }
       return response.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['candidates'] });
+      qc.invalidateQueries({ queryKey: ['jobs'] });
     }
   })
 
@@ -143,34 +148,10 @@ export default function Page(): JSX.Element {
                       ellipsis: true,
                     },
                     {
-                      title: 'Rating',
+                      title: 'Final Rating',
                       key: 'rating',
                       render: (record: CandidateView) => {
-                        let ratingColor = "default";
-
-                        if (!record.rating) {
-                          return (
-                            <Tag color="default">
-                              Not rated
-                            </Tag>
-                          )
-                        }
-
-                        if (record.rating === "Strong no hire") {
-                          ratingColor = "red";
-                        } else if (record.rating === "No hire") {
-                          ratingColor = "orange";
-                        } else if (record.rating === "Strong hire") {
-                          ratingColor = "green";
-                        } else if (record.rating === "Hire") {
-                          ratingColor = "blue";
-                        }
-
-                        return (
-                          <Tag color={ratingColor}>
-                            {record.rating}
-                          </Tag>
-                        )
+                        return <RatingTag rating={record.rating} />;
                       },
                     },
                     {
@@ -196,17 +177,61 @@ export default function Page(): JSX.Element {
           <Splitter.Panel>
             <Flex gap="middle" vertical style={{ paddingLeft: 10 }}>
               <Typography.Title level={4}>
-                Details for {selectedStep?.name || "..."}
+                Step #{selectedStep?.order}: {selectedStep?.name}
               </Typography.Title>
               {selectedStep && (
                 <Flex gap={20} vertical>
-                  <Flex gap={1} vertical align="flex-start">
-                    <Typography.Title level={5}>
-                      Step info
-                    </Typography.Title>
-                    <Typography.Text>
-                      {selectedStep?.order} - {selectedStep?.name}
-                    </Typography.Text>
+                  <Flex gap="large" justify="flex-start" align="flex-start">
+                    <Flex gap={1} vertical align="flex-start">
+                      <Typography.Title level={5}>
+                        Rating
+                      </Typography.Title>
+                      {selectedCanStep && (
+                        <Select
+                          placeholder="Select a rating"
+                          style={{ minWidth: '180px' }}
+                          defaultValue={selectedCanStep?.rating}
+                          disabled={updatePending}
+                          loading={updatePending}
+                          onSelect={(value) => {
+                            updateStep({
+                              id: selectedCanStep.id,
+                              data: {
+                                rating: value,
+                              }
+                            });
+                          }}
+                          options={[
+                            { value: 'Strong no hire', label: 'Strong no hire' },
+                            { value: 'No hire', label: 'No hire' },
+                            { value: 'Maybe', label: 'Maybe' },
+                            { value: 'Hire', label: 'Hire' },
+                            { value: 'Strong hire', label: 'Strong hire' },
+                          ]}
+                        />
+                      )}
+                    </Flex>
+                    <Flex gap={1} vertical align="flex-start">
+                      <Typography.Title level={5}>
+                        Date
+                      </Typography.Title>
+                      {selectedCanStep && (
+                        <DatePicker
+                          placeholder="Select the date"
+                          style={{ minWidth: '180px' }}
+                          defaultValue={selectedCanStep?.date}
+                          disabled={updatePending}
+                          onChange={(date) => {
+                            updateStep({
+                              id: selectedCanStep.id,
+                              data: {
+                                date,
+                              }
+                            });
+                          }}
+                        />
+                      )}
+                    </Flex>
                   </Flex>
                   <Flex gap={2} vertical>
                     <Flex justify="space-between" align="center">
