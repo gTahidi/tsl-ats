@@ -4,6 +4,8 @@ import { MDXEditorMethods, MDXEditorProps } from '@mdxeditor/editor'
 import dynamic from 'next/dynamic'
 import { forwardRef } from 'react'
 
+import '@mdxeditor/editor/style.css'
+
 const BaseEditor = dynamic(() => import('./InitEditor'), {
   // Make sure we turn SSR off
   ssr: false

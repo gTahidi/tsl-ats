@@ -4,7 +4,7 @@ import ProcessStepsTable from "@/app/components/tables/ProcessStepsTable";
 import { CandidateView, ProcessStepTemplate } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, Card, DatePicker, Flex, Input, Select, Splitter, Table, Typography } from "antd";
+import { Alert, Button, Card, DatePicker, Flex, Input, Select, Spin, Splitter, Table, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
 import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from 'lodash';
@@ -104,11 +104,23 @@ export default function Page(): JSX.Element {
   }, [editorRef, editor, notes]);
 
   if (isLoading) {
-    return <Typography.Text>Loading...</Typography.Text>
+    return (
+      <Flex justify="center" align="center" style={{ height: '50vh' }} vertical flex={1}>
+        <Spin />
+      </Flex>
+    )
   }
 
   if (!candidate) {
-    return <Typography.Text>Candidate not found</Typography.Text>
+    return (
+      <Flex justify="center" align="center" style={{ height: '50vh' }} vertical flex={1}>
+        <Alert
+          message="Candidate not found"
+          type="error"
+          closable={false}
+        />
+      </Flex>
+    )
   }
 
   return (
