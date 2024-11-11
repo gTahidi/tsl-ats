@@ -4,12 +4,16 @@ import ProcessStepsTable from "@/app/components/tables/ProcessStepsTable";
 import { CandidateView, ProcessStepTemplate } from "@/types";
 import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Button, DatePicker, Flex, Input, Select, Splitter, Table, Typography } from "antd";
+import { Button, Card, DatePicker, Flex, Input, Select, Splitter, Table, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
-import { useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { debounce } from 'lodash';
 import RatingTag from "@/app/components/RatingTag";
 import { Editor } from "@/app/components/Editor";
+
+import '@mdxeditor/editor/style.css'
+import { MDXEditorMethods } from "@mdxeditor/editor";
+import dayjs from "dayjs";
 
 
 type UpdateStepArgs = {
@@ -21,9 +25,11 @@ export default function Page(): JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [selectedStep, setSelectedStep] = useState<ProcessStepTemplate | null>(null);
+  const [editor, setEditor] = useState<"md" | "plain">("plain");
   const qc = useQueryClient();
 
   const [notes, setNotes] = useState<string | undefined>();
+  const editorRef = useRef<MDXEditorMethods>(null);
 
   const canId = params.id;
 
@@ -91,6 +97,7 @@ export default function Page(): JSX.Element {
   useEffect(() => {
     if (selectedCanStep) {
       setNotes(selectedCanStep.notes || undefined);
+      editorRef?.current?.setMarkdown(selectedCanStep.notes || "");
     }
   }, [selectedCanStep]);
 
@@ -221,6 +228,7 @@ export default function Page(): JSX.Element {
                           placeholder="Select the date"
                           style={{ minWidth: '180px' }}
                           disabled={updatePending}
+                          value={selectedCanStep?.date ? dayjs(selectedCanStep.date) : undefined}
                           onChange={(date) => {
                             updateStep({
                               id: selectedCanStep.id,
@@ -234,22 +242,34 @@ export default function Page(): JSX.Element {
                     </Flex>
                   </Flex>
                   <Flex gap={2} vertical>
-                    <Flex justify="space-between" align="center">
+                    <Flex justify="space-between" align="center" style={{ marginBottom: 10 }}>
                       <Typography.Title level={5}>
                         Notes
                       </Typography.Title>
-                      {updatePending && (
-                        <Typography.Text type="secondary">
-                          Saving...
-                        </Typography.Text>
-                      )}
+                      <Flex gap={2}>
+                        {updatePending && (
+                          <Typography.Text type="secondary">
+                            Saving...
+                          </Typography.Text>
+                        )}
+                        <Select
+                          disabled={updatePending}
+                          loading={updatePending}
+                          defaultValue={editor}
+                          onChange={(value) => setEditor(value)}
+                          options={[
+                            { value: "plain", label: "Plain text" },
+                            { value: "md", label: "Markdown" },
+                          ]}
+                        />
+                      </Flex>
                     </Flex>
                     {!selectedCanStep && (
                       <Typography.Text type="secondary">
                         Notes will be displayed here once the candidate is in this step
                       </Typography.Text>
                     )}
-                    {!!selectedCanStep && (
+                    {!!selectedCanStep && editor === "plain" && (
                       <Input.TextArea
                         rows={24}
                         value={notes}
@@ -259,20 +279,26 @@ export default function Page(): JSX.Element {
                         }}
                       />
                     )}
-                    {!!selectedCanStep && (
-                      <Editor
-                        markdown={notes || ""}
-                        onChange={(value) => {
-                          setNotes(value);
-                          debouncedUpdateStep(selectedCanStep.id, value);
-                        }}
-                      />
+                    {!!selectedCanStep && editor === "md" && (
+                      <Card style={{ padding: 10 }}>
+                        <Suspense fallback={null}>
+                          <Editor
+                            ref={editorRef}
+                            markdown={notes || ""}
+                            onChange={(value) => {
+                              setNotes(value);
+                              debouncedUpdateStep(selectedCanStep.id, value);
+                            }}
+                          />
+                        </Suspense>
+                      </Card>
                     )}
                     {!!selectedCanStep && (
                       <Flex justify="end">
                         <Button
                           type="primary"
                           disabled={updatePending}
+                          style={{ marginTop: 10 }}
                           onClick={() => {
                             updateStep({
                               id: selectedCanStep.id,
