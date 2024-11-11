@@ -49,6 +49,7 @@ export default function Page(): JSX.Element {
 
   const {
     mutate: updateStep,
+    mutateAsync: updateStepAsync,
     isPending: updatePending,
   } = useMutation({
     mutationFn: async (body: UpdateStepArgs) => {
@@ -64,10 +65,6 @@ export default function Page(): JSX.Element {
       }
       return response.json();
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['candidates'] });
-      qc.invalidateQueries({ queryKey: ['jobs'] });
-    }
   })
 
 
@@ -77,7 +74,7 @@ export default function Page(): JSX.Element {
         id,
         data: { notes }
       });
-    }, 400),
+    }, 500),
     [updateStep]
   );
 
@@ -97,9 +94,14 @@ export default function Page(): JSX.Element {
   useEffect(() => {
     if (selectedCanStep) {
       setNotes(selectedCanStep.notes || undefined);
-      editorRef?.current?.setMarkdown(selectedCanStep.notes || "");
     }
   }, [selectedCanStep]);
+
+  useEffect(() => {
+    if (editorRef && editor === "md") {
+      editorRef?.current?.setMarkdown(notes || "");
+    }
+  }, [editorRef, editor, notes]);
 
   if (isLoading) {
     return <Typography.Text>Loading...</Typography.Text>
@@ -126,8 +128,7 @@ export default function Page(): JSX.Element {
           {candidate.persona.name} - {candidate.job.title}
         </Typography.Title>
       </Flex>
-
-      <Flex vertical>
+      <Flex vertical style={{ height: 'calc(100vh - 100px)' }}>
         <Splitter>
           <Splitter.Panel defaultSize="50%" min="40%" max="70%" style={{ paddingRight: 10 }}>
             <Flex gap="middle" vertical>
@@ -183,7 +184,7 @@ export default function Page(): JSX.Element {
             </Flex>
           </Splitter.Panel>
           <Splitter.Panel>
-            <Flex gap="middle" vertical style={{ paddingLeft: 10 }}>
+            <Flex gap="middle" vertical style={{ paddingLeft: 10, overflow: 'scroll' }}>
               <Typography.Title level={4}>
                 Step #{selectedStep?.order}: {selectedStep?.name}
               </Typography.Title>
@@ -202,11 +203,13 @@ export default function Page(): JSX.Element {
                           disabled={updatePending}
                           loading={updatePending}
                           onSelect={(value) => {
-                            updateStep({
+                            updateStepAsync({
                               id: selectedCanStep.id,
                               data: {
                                 rating: value,
                               }
+                            }).then(() => {
+                              qc.invalidateQueries({ queryKey: ['candidates'] });
                             });
                           }}
                           options={[
@@ -230,11 +233,13 @@ export default function Page(): JSX.Element {
                           disabled={updatePending}
                           value={selectedCanStep?.date ? dayjs(selectedCanStep.date) : undefined}
                           onChange={(date) => {
-                            updateStep({
+                            updateStepAsync({
                               id: selectedCanStep.id,
                               data: {
                                 date,
                               }
+                            }).then(() => {
+                              qc.invalidateQueries({ queryKey: ['candidates'] });
                             });
                           }}
                         />
@@ -256,6 +261,7 @@ export default function Page(): JSX.Element {
                           disabled={updatePending}
                           loading={updatePending}
                           defaultValue={editor}
+                          style={{ minWidth: '140px' }}
                           onChange={(value) => setEditor(value)}
                           options={[
                             { value: "plain", label: "Plain text" },
@@ -280,7 +286,7 @@ export default function Page(): JSX.Element {
                       />
                     )}
                     {!!selectedCanStep && editor === "md" && (
-                      <Card style={{ padding: 10 }}>
+                      <Flex flex={1} style={{ border: '1px solid #d9d9d9', borderRadius: 4, padding: 10 }}>
                         <Suspense fallback={null}>
                           <Editor
                             ref={editorRef}
@@ -291,7 +297,7 @@ export default function Page(): JSX.Element {
                             }}
                           />
                         </Suspense>
-                      </Card>
+                      </Flex>
                     )}
                     {!!selectedCanStep && (
                       <Flex justify="end">
