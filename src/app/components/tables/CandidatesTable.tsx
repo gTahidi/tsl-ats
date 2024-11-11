@@ -7,6 +7,7 @@ import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import RatingTag from '../RatingTag';
 
 interface CandidatesTableProps {
   jobId?: string;
@@ -115,31 +116,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       title: 'Rating',
       key: 'rating',
       render: (record: CandidateView) => {
-        let ratingColor = "default";
-
-        if (!record.rating) {
-          return (
-            <Tag color="default">
-              Not rated
-            </Tag>
-          )
-        }
-
-        if (record.rating === "Strong no hire") {
-          ratingColor = "red";
-        } else if (record.rating === "No hire") {
-          ratingColor = "orange";
-        } else if (record.rating === "Strong hire") {
-          ratingColor = "green";
-        } else if (record.rating === "Hire") {
-          ratingColor = "blue";
-        }
-
-        return (
-          <Tag color={ratingColor}>
-            {record.rating}
-          </Tag>
-        )
+        return <RatingTag rating={record.rating} />;
       }
     },
     {
