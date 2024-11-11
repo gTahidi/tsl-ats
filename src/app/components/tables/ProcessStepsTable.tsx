@@ -79,6 +79,12 @@ export default function ProcessStepsTable({
     {
       title: 'Date',
       key: 'date',
+      sorter: (a, b) => {
+        const stepA = candidate?.steps?.find(step => step.templateId === a.id);
+        const stepB = candidate?.steps?.find(step => step.templateId === b.id);
+
+        return new Date(stepA?.date || 0).getTime() - new Date(stepB?.date || 0).getTime();
+      },
       render: (record: ProcessStepTemplate) => {
         const step = candidate?.steps?.find(step => step.templateId === record.id);
         return (
@@ -92,6 +98,25 @@ export default function ProcessStepsTable({
       render: (record: ProcessStepTemplate) => {
         const step = candidate?.steps?.find(step => step.templateId === record.id);
         return <RatingTag rating={step?.rating} />;
+      },
+      sorter: (a, b) => {
+        const stepA = candidate?.steps?.find(step => step.templateId === a.id);
+        const stepB = candidate?.steps?.find(step => step.templateId === b.id);
+
+        const ratings = ['Not rated', 'Strong no hire', 'No hire', 'Maybe', 'Hire', 'Strong hire'];
+        return ratings.indexOf(stepA?.rating || 'Not rated') - ratings.indexOf(stepB?.rating || 'Not rated');
+      },
+      filters: [
+        { text: 'Not rated', value: 'Not rated' },
+        { text: 'Strong no hire', value: 'Strong no hire' },
+        { text: 'No hire', value: 'No hire' },
+        { text: 'Maybe', value: 'Maybe' },
+        { text: 'Hire', value: 'Hire' },
+        { text: 'Strong hire', value: 'Strong hire' },
+      ],
+      onFilter: (value, record) => {
+        const step = candidate?.steps?.find(step => step.templateId === record.id);
+        return step?.rating === value;
       }
     },
     {
