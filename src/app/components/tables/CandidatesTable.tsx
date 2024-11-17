@@ -127,12 +127,20 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
         return ratings.indexOf(a.rating || 'Not rated') - ratings.indexOf(b.rating || 'Not rated');
       },
       filters: [
-        { text: 'Not rated', value: 'Not rated' },
+        { text: 'Not rated', value: false },
         { text: 'Strong no hire', value: 'Strong no hire' },
         { text: 'No hire', value: 'No hire' },
         { text: 'Maybe', value: 'Maybe' },
         { text: 'Hire', value: 'Hire' },
         { text: 'Strong hire', value: 'Strong hire' },
+      ],
+      // Strong nos out
+      defaultFilteredValue: [
+        'Not rated',
+        'No hire',
+        'Maybe',
+        'Hire',
+        'Strong hire',
       ],
       onFilter: (value, record) => record.rating === value,
       render: (record: CandidateView) => {
@@ -197,7 +205,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       rowKey="id"
       loading={loading || isLoading || deleteCandidateMutation.isPending}
       pagination={{
-        defaultPageSize: 10,
+        defaultPageSize: 25,
         showSizeChanger: true,
         showTotal: (total) => `Total ${total} candidates`,
       }}
