@@ -3,12 +3,13 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   _: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const candidate = await prisma.candidate.findUnique({
       where: {
-        id: params.id,
+        id,
       },
       include: {
         persona: true,
@@ -67,9 +68,10 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const {
       currentStep,
       ...data
@@ -86,7 +88,7 @@ export async function PUT(
             ...currentStep,
             id: stepId,
             candidate: {
-              connect: { id: params.id },
+              connect: { id },
             },
             group: {
               connect: { id: currentStep.groupId },
@@ -103,13 +105,13 @@ export async function PUT(
       }
 
       await tx.candidate.update({
-        where: { id: params.id },
+        where: { id },
         data,
       });
 
 
       return prisma.candidate.findUnique({
-        where: { id: params.id },
+        where: { id },
       });
     });
 
@@ -125,11 +127,12 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     await prisma.candidate.delete({
-      where: { id: params.id },
+      where: { id },
     });
 
     return NextResponse.json({ message: 'Candidate deleted successfully' });

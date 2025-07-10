@@ -4,11 +4,12 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
     _request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const candidate = await prisma.candidate.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!candidate) {
@@ -19,7 +20,7 @@ export async function GET(
         }
 
         if (!candidate.cvFileKey) {
-            console.warn(`Candidate ${params.id} has no CV file key`);
+            console.warn(`Candidate ${id} has no CV file key`);
 
             return NextResponse.json({
                 url: null,
@@ -33,7 +34,7 @@ export async function GET(
         });
 
         if (fs.blobs.length === 0) {
-            console.warn(`Candidate ${params.id} has no CV blob files at ${prefix}: ${fs.blobs.length}`);
+            console.warn(`Candidate ${id} has no CV blob files at ${prefix}: ${fs.blobs.length}`);
 
             return NextResponse.json({
                 url: null,
