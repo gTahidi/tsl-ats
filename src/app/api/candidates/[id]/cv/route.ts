@@ -5,11 +5,12 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
     _request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
+        const { id } = await params;
         const candidate = await prisma.candidate.findUnique({
-            where: { id: params.id },
+            where: { id },
         });
 
         if (!candidate) {

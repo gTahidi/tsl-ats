@@ -6,7 +6,7 @@ import { ArrowLeftOutlined } from "@ant-design/icons";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Alert, Button, Card, DatePicker, Flex, Input, Select, Spin, Splitter, Table, Typography } from "antd";
 import { useParams, useRouter } from 'next/navigation'
-import { Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { debounce } from 'lodash';
 import RatingTag from "@/app/components/RatingTag";
 import { Editor } from "@/app/components/Editor";
@@ -68,8 +68,8 @@ export default function Page(): JSX.Element {
   })
 
 
-  const debouncedUpdateStep = useCallback(
-    debounce((id: string, notes: string) => {
+  const debouncedUpdateStep = useMemo(
+    () => debounce((id: string, notes: string) => {
       updateStep({
         id,
         data: { notes }
