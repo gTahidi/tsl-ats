@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  previewFeatures = ["pgvector"]
 }
 
 datasource db {
@@ -52,7 +53,8 @@ model Candidate {
   id String @id @default(cuid())
 
   notes     String?
-  cvFileKey String?
+  cv        Cv?       @relation(fields: [cvId], references: [id])
+  cvId      String?   @unique
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -106,6 +108,31 @@ model ProcessStepTemplate {
   steps ProcessStep[]
 
   metadata Json @default("{}")
+}
+
+model Cv {
+  id        String    @id @default(cuid())
+  content   Json // Full CV JSON from Azure Document Intelligence
+  fileUrl   String?   // URL to the stored file (local or Azure)
+  originalFilename String? // Original uploaded filename
+  fileSize  Int?      // File size in bytes
+  mimeType  String?   // MIME type of the file
+  
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  candidate   Candidate? 
+  chunks      CvChunk[] // A CV can be broken into many chunks
+}
+
+model CvChunk {
+  id         String  @id @default(cuid())
+  chunkText  String // The actual text content of the chunk
+  embedding  Unsupported("vector(1536)") // The vector embedding from OpenAI
+  metadata   Json    @default("{}")
+
+  cvId String
+  cv   Cv     @relation(fields: [cvId], references: [id])
 }
 
 model ProcessStep {

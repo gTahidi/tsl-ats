@@ -215,11 +215,13 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
 
 const CVButton = ({ id }: { id: string }) => {
   const {
-    mutateAsync: fetchCV,
+    data: cvData,
     isPending,
-  } = useMutation<{ url: string | null }>({
-    mutationFn: async () => {
-      const response = await fetch(`/api/candidates/${id}/cv-blob`);
+    error,
+  } = useQuery<{ url: string | null }>({
+    queryKey: ['candidate-cv', id],
+    queryFn: async () => {
+      const response = await fetch(`/api/candidates/${id}/cv-azure`);
       if (!response.ok) {
         throw new Error('Failed to fetch CV');
       }
@@ -227,20 +229,21 @@ const CVButton = ({ id }: { id: string }) => {
     },
   });
 
+  const handleDownload = () => {
+    if (cvData?.url) {
+      window.open(cvData.url, '_blank');
+    } else if (error) {
+      message.error('Failed to load CV');
+    } else {
+      message.info('No CV available');
+    }
+  };
+
   return (
     <Button
       type="link"
-      disabled={isPending}
       loading={isPending}
-      onClick={async () => {
-        const { url } = await fetchCV();
-
-        if (url) {
-          window.open(url, '_blank');
-        } else {
-          message.error('No CV found');
-        }
-      }}
+      onClick={handleDownload}
       icon={<DownloadOutlined />}
     />
   )
