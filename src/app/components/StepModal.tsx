@@ -1,4 +1,7 @@
-import { ProcessStep } from '@prisma/client';
+import { type InferSelectModel } from 'drizzle-orm';
+import { processSteps } from '@/db/schema';
+
+type ProcessStep = InferSelectModel<typeof processSteps>;
 import { Modal, Form, Input, Select, InputNumber, message } from 'antd';
 import { useState } from 'react';
 

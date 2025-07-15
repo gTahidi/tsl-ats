@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { prisma } from '@/utils/db/prisma';
+import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
 
 export async function GET(
   request: NextRequest,
 ) {
   try {
-    const searchParams = request.nextUrl.searchParams
-    const jobId = searchParams.get('jobId')
+    const searchParams = request.nextUrl.searchParams;
+    const jobId = searchParams.get('jobId');
 
     const candidates = await prisma.candidate.findMany({
       where: {
@@ -49,65 +50,15 @@ export async function POST(request: Request) {
     const data = await request.json();
 
     const candidate = await prisma.$transaction(async (tx) => {
-      const {
-        processGroup: {
-          id: groupId,
-          steps
-        }
-      } = await tx.jobPosting.findUniqueOrThrow({
-        where: { id: data.jobId },
-        select: {
-          processGroup: {
-            select: {
-              id: true,
-              steps: true,
-            }
-          }
-        }
-      });
-
-      if (steps.length === 0) {
-        throw new Error('Job does not have any steps');
-      }
-
-      const id = data.id || crypto.randomUUID();
-      const stepId = crypto.randomUUID();
-
-      await tx.processStep.create({
-        data: {
-          id: stepId,
-          status: 'Pending',
-          candidate: {
-            create: {
-              id,
-              cvFileKey: data.cvFileKey,
-              notes: data.notes,
-              persona: {
-                connect: { id: data.personaId },
-              },
-              job: {
-                connect: { id: data.jobId },
-              },
-              currentStepId: stepId,
-              source: data.source,
-              rating: data.rating,
-              metadata: data.metadata,
-            }
-          },
-          group: {
-            connect: { id: groupId },
-          },
-          template: {
-            connect: {
-              id: steps[0].id,
-            },
-          },
-        },
-      });
-
-
-      return prisma.candidate.findUnique({
-        where: { id },
+      // Use the refactored function to create the candidate and initial step.
+      // This flow assumes a cvFileKey is provided for a separate upload process.
+      return createCandidateWithInitialStep(tx, {
+        jobId: data.jobId,
+        personaId: data.personaId,
+        notes: data.notes,
+        source: data.source,
+        rating: data.rating,
+        metadata: data.metadata,
       });
     });
 
