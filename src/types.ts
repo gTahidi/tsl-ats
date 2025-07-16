@@ -39,7 +39,12 @@ export type Persona = {
   metadata: Record<string, string>;
 };
 
-export type Rating = "Strong no hire" | "No hire" | "Maybe" | "Hire" | "Strong hire" | string | null;
+export type Rating = {
+  matchScore: number;
+  summary: string;
+  pros: string[];
+  cons: string[];
+} | null;
 
 export interface CandidateView {
   id: string;
@@ -53,10 +58,12 @@ export interface CandidateView {
   jobId: string;
   job: JobView;
 
-  currentStepId: string;
-  currentStep: ProcessStep;
-
-  rating?: Rating;
+  rating?: {
+    matchScore: number;
+    summary: string;
+    pros: string[];
+    cons: string[];
+  } | null;
   source?: "LinkedIn" | "Email" | "Referral" | "Other" | string | null;
 
   steps?: ProcessStep[];

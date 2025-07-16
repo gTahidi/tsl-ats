@@ -11,25 +11,25 @@ import RatingTag from '../RatingTag';
 
 interface CandidatesTableProps {
   jobId?: string;
-  loading?: boolean;
   onEdit?: (candidate: CandidateView) => void;
   onDelete?: (candidate: CandidateView) => void;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdit, onDelete }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDelete }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
-  const { data: fetchedCandidates, isLoading } = useQuery({
-    queryKey: ['candidates', 'byJob', jobId],
+  const { data: fetchedCandidates, isLoading } = useQuery<CandidateView[]>({
+    queryKey: ['candidates', jobId],
     queryFn: async () => {
-      const url = `/api/candidates${jobId ? `?jobId=${jobId}` : ''}`;
+      const url = jobId ? `/api/jobs/${jobId}/candidates` : '/api/candidates';
       const response = await fetch(url);
       if (!response.ok) {
-        throw new Error('Failed to fetch candidates');
+        throw new Error('Network response was not ok');
       }
       return response.json();
     },
+
   });
 
   const deleteCandidateMutation = useMutation({
@@ -59,20 +59,18 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
     {
       title: 'Full name',
       key: 'fullName',
-      render: (record) => `${record.persona.name} ${record.persona.surname}`,
+      render: (record) => `${record.persona?.name || ''} ${record.persona?.surname || ''}`.trim(),
       sorter: (a, b) => {
         // Compare first by name, then by surname
-        const nameComparison = a.persona.name.localeCompare(b.persona.name);
-        if (nameComparison !== 0) {
-          return nameComparison;
-        }
-        return a.persona.surname.localeCompare(b.persona.surname);
+        const nameA = `${a.persona?.name} ${a.persona?.surname}`.trim();
+        const nameB = `${b.persona?.name} ${b.persona?.surname}`.trim();
+        return nameA.localeCompare(nameB);
       }
     },
     {
       title: 'Email',
       key: 'email',
-      render: (record) => record.persona.email,
+      render: (record) => record.persona?.email,
       ellipsis: true,
     },
     ...(!jobId ?
@@ -80,7 +78,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
         {
           title: 'Job',
           key: 'jobTitle',
-          render: (record: CandidateView) => record.job.title,
+          render: (record: CandidateView) => record.job?.title,
         },
       ] : []
     ),
@@ -99,53 +97,44 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       title: 'Step',
       key: 'step',
       sorter: (a, b) => {
-        if (!a.currentStep || !b.currentStep) {
-          return 0;
-        }
-
-        return a.currentStep.template.order - b.currentStep.template.order;
+        const stepA = a.steps?.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+        const stepB = b.steps?.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
+        return (stepA?.template?.order || 0) - (stepB?.template?.order || 0);
       },
       render: (record: CandidateView) => {
-        const step = record.currentStep
+        const currentStep = record.steps?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
 
-        if (!step) {
+        if (!currentStep) {
           return '-';
         }
 
         return (
           <span>
-            {step.template.order} - {step.template.name}
+            {currentStep.template.order} - {currentStep.template.name}
           </span>
-        )
+        );
       }
     },
     {
       title: 'Rating',
       key: 'rating',
-      sorter: (a, b) => {
-        const ratings = ['Not rated', 'Strong no hire', 'No hire', 'Maybe', 'Hire', 'Strong hire'];
-        return ratings.indexOf(a.rating || 'Not rated') - ratings.indexOf(b.rating || 'Not rated');
-      },
+      sorter: (a, b) => (a.rating?.matchScore || 0) - (b.rating?.matchScore || 0),
       filters: [
-        { text: 'Not rated', value: false },
-        { text: 'Strong no hire', value: 'Strong no hire' },
-        { text: 'No hire', value: 'No hire' },
-        { text: 'Maybe', value: 'Maybe' },
-        { text: 'Hire', value: 'Hire' },
-        { text: 'Strong hire', value: 'Strong hire' },
+        { text: 'Rated', value: true },
+        { text: 'Not Rated', value: false },
       ],
-      // Strong nos out
-      defaultFilteredValue: [
-        'Not rated',
-        'No hire',
-        'Maybe',
-        'Hire',
-        'Strong hire',
-      ],
-      onFilter: (value, record) => record.rating === value,
+      onFilter: (value, record) => {
+        if (value === true) {
+          return !!record.rating;
+        }
+        return !record.rating;
+      },
       render: (record: CandidateView) => {
-        return <RatingTag rating={record.rating} />;
-      }
+        if (!record.rating) {
+          return <RatingTag rating={null} />;
+        }
+        return <RatingTag rating={record.rating.matchScore} />;
+      },
     },
     {
       title: 'Source',
@@ -203,7 +192,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, loading, onEdi
       dataSource={fetchedCandidates || []}
       columns={columns}
       rowKey="id"
-      loading={loading || isLoading || deleteCandidateMutation.isPending}
+      loading={isLoading || deleteCandidateMutation.isPending}
       pagination={{
         defaultPageSize: 25,
         showSizeChanger: true,

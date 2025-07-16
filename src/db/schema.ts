@@ -30,7 +30,7 @@ export const jobPostings = pgTable('job_postings', {
 export const personas = pgTable('personas', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   name: text('name').notNull(),
-  surname: text('surname').notNull(),
+  surname: text('surname'),
   location: text('location'),
   email: text('email').unique().notNull(),
   linkedinUrl: text('linkedin_url'),
@@ -45,7 +45,7 @@ export const candidates = pgTable('candidates', {
   personaId: text('persona_id').notNull().references(() => personas.id),
   jobId: text('job_id').notNull().references(() => jobPostings.id),
   currentStepId: text('current_step_id'),
-  rating: text('rating'),
+  rating: jsonb('rating'),
   source: text('source'),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
@@ -80,9 +80,19 @@ export const cvs = pgTable('cvs', {
 export const cvChunks = pgTable('cv_chunks', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   chunkText: text('chunk_text').notNull(),
-  embedding: vector('embedding', { dimensions: 1536 }).notNull(),
+  embedding: vector('embedding', { dimensions: 768 }).notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   cvId: text('cv_id').notNull().references(() => cvs.id),
+});
+
+export const referees = pgTable('referees', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  email: text('email'),
+  phone: text('phone'),
+  organization: text('organization'),
+  cvId: text('cv_id').notNull().references(() => cvs.id),
+  ...timestamps,
 });
 
 export const processSteps = pgTable('process_steps', {
@@ -144,6 +154,7 @@ export const processStepTemplatesRelations = relations(processStepTemplates, ({ 
 export const cvsRelations = relations(cvs, ({ one, many }) => ({
   candidate: one(candidates),
   chunks: many(cvChunks),
+  referees: many(referees),
 }));
 
 export const cvChunksRelations = relations(cvChunks, ({ one }) => ({
@@ -166,5 +177,12 @@ export const processStepsRelations = relations(processSteps, ({ one }) => ({
     fields: [processSteps.candidateId],
     references: [candidates.id],
     relationName: 'CandidateSteps',
+  }),
+}));
+
+export const refereesRelations = relations(referees, ({ one }) => ({
+  cv: one(cvs, {
+    fields: [referees.cvId],
+    references: [cvs.id],
   }),
 }));

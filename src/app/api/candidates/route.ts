@@ -23,7 +23,18 @@ export async function GET(request: NextRequest) {
       orderBy: (table, { desc }) => desc(table.createdAt),
     });
 
-    return NextResponse.json(allCandidates);
+    // Manually construct the response to ensure all relations are included
+    const responseData = allCandidates.map(c => ({
+      ...c,
+      persona: c.persona,
+      job: c.job,
+      steps: c.steps.map(s => ({
+        ...s,
+        template: s.template,
+      })),
+    }));
+
+    return NextResponse.json(responseData);
   } catch (error) {
     console.error('Error fetching candidates:', error);
     return NextResponse.json(
