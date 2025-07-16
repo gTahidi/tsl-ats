@@ -5,9 +5,9 @@ import {
   jsonb,
   integer,
   uniqueIndex,
+  vector,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
-import { vector } from 'pgvector/drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 
 const timestamps = {

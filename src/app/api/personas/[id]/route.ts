@@ -1,4 +1,6 @@
-import { prisma } from '@/utils/db/prisma';
+import { db } from '@/db';
+import { personas } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 export async function GET(
@@ -6,9 +8,10 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const persona = await prisma.persona.findUnique({
-      where: { id: params.id },
-    });
+    const [persona] = await db
+      .select()
+      .from(personas)
+      .where(eq(personas.id, params.id));
 
     if (!persona) {
       return NextResponse.json(
@@ -33,13 +36,13 @@ export async function PUT(
 ) {
   try {
     const data = await request.json();
-    const persona = await prisma.persona.upsert({
-      where: { id: params.id },
-      update: data,
-      create: data,
-    });
+    const [updatedPersona] = await db
+      .insert(personas)
+      .values({ ...data, id: params.id })
+      .onConflictDoUpdate({ target: personas.id, set: data })
+      .returning();
 
-    return NextResponse.json(persona);
+    return NextResponse.json(updatedPersona);
   } catch (error) {
     console.error('Error updating persona:', error);
     return NextResponse.json(
@@ -54,9 +57,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.persona.delete({
-      where: { id: params.id },
-    });
+    await db.delete(personas).where(eq(personas.id, params.id));
 
     return NextResponse.json({ message: 'persona deleted successfully' });
   } catch (error) {

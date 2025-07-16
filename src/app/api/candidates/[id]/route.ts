@@ -1,37 +1,29 @@
-import { prisma } from '@/utils/db/prisma';
+import { db } from '@/db';
+import { candidates, processSteps } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-export async function GET(
-  _: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(_: Request, { params }: { params: { id: string } }) {
   try {
-    const { id } = await params;
-    const candidate = await prisma.candidate.findUnique({
-      where: {
-        id,
-      },
-      include: {
+    const { id } = params;
+    const candidate = await db.query.candidates.findFirst({
+      where: eq(candidates.id, id),
+      with: {
         persona: true,
         job: {
-          include: {
+          with: {
             processGroup: {
-              include: {
-                steps: true,
+              with: {
+                stepTemplates: true,
               },
-            }
+            },
           },
         },
         steps: {
-          include: {
-            group: {
-              include: {
-                steps: true,
-              },
-            },
+          with: {
             template: true,
-          }
-        }
+          },
+        },
       },
     });
 
@@ -42,21 +34,7 @@ export async function GET(
       );
     }
 
-    const currStep = await prisma.processStep.findFirst({
-      where: {
-        candidateId: candidate.id,
-        id: candidate.currentStepId
-      },
-      include: {
-        group: true,
-        template: true,
-      }
-    });
-
-    return NextResponse.json({
-      ...candidate,
-      currentStep: currStep
-    });
+    return NextResponse.json(candidate);
   } catch (error) {
     console.error('Error fetching candidate:', error);
     return NextResponse.json(
@@ -68,54 +46,34 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
-    const {
-      currentStep,
-      ...data
-    } = await request.json();
+    const { id } = params;
+    const { currentStep, ...data } = await request.json();
 
-    const candidate = await prisma.$transaction(async (tx) => {
+    const updatedCandidate = await db.transaction(async (tx) => {
       if (currentStep) {
         const stepId = currentStep.id || crypto.randomUUID();
 
-        await tx.processStep.upsert({
-          where: { id: stepId },
-          update: currentStep,
-          create: {
-            ...currentStep,
-            id: stepId,
-            candidate: {
-              connect: { id },
-            },
-            group: {
-              connect: { id: currentStep.groupId },
-            },
-            template: {
-              connect: { id: currentStep.templateId },
-            },
-            groupId: undefined,
-            templateId: undefined,
-          },
-        });
+        await tx
+          .insert(processSteps)
+          .values({ ...currentStep, id: stepId, candidateId: id })
+          .onConflictDoUpdate({ target: processSteps.id, set: currentStep });
 
         data.currentStepId = stepId;
       }
 
-      await tx.candidate.update({
-        where: { id },
-        data,
-      });
+      const [updated] = await tx
+        .update(candidates)
+        .set(data)
+        .where(eq(candidates.id, id))
+        .returning();
 
-
-      return prisma.candidate.findUnique({
-        where: { id },
-      });
+      return updated;
     });
 
-    return NextResponse.json(candidate);
+    return NextResponse.json(updatedCandidate);
   } catch (error) {
     console.error('Error updating candidate:', error);
     return NextResponse.json(
@@ -127,13 +85,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
-    await prisma.candidate.delete({
-      where: { id },
-    });
+    const { id } = params;
+    await db.delete(candidates).where(eq(candidates.id, id));
 
     return NextResponse.json({ message: 'Candidate deleted successfully' });
   } catch (error) {

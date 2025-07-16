@@ -1,4 +1,6 @@
-import { prisma } from '@/utils/db/prisma';
+import { db } from '@/db';
+import { jobPostings } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
 export async function GET(
@@ -6,12 +8,12 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const job = await prisma.jobPosting.findUnique({
-      where: { id: params.id },
-      include: {
+    const job = await db.query.jobPostings.findFirst({
+      where: eq(jobPostings.id, params.id),
+      with: {
         processGroup: true,
         candidates: {
-          include: {
+          with: {
             persona: true,
             steps: true,
           },
@@ -20,10 +22,7 @@ export async function GET(
     });
 
     if (!job) {
-      return NextResponse.json(
-        { error: 'Job not found' },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
     }
 
     return NextResponse.json(job);
@@ -42,13 +41,13 @@ export async function PUT(
 ) {
   try {
     const data = await request.json();
-    const job = await prisma.jobPosting.upsert({
-      where: { id: params.id },
-      update: data,
-      create: data,
-    });
+    const [updatedJob] = await db
+      .insert(jobPostings)
+      .values({ ...data, id: params.id })
+      .onConflictDoUpdate({ target: jobPostings.id, set: data })
+      .returning();
 
-    return NextResponse.json(job);
+    return NextResponse.json(updatedJob);
   } catch (error) {
     console.error('Error updating job:', error);
     return NextResponse.json(
@@ -63,9 +62,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.jobPosting.delete({
-      where: { id: params.id },
-    });
+    await db.delete(jobPostings).where(eq(jobPostings.id, params.id));
 
     return NextResponse.json({ message: 'Job deleted successfully' });
   } catch (error) {

@@ -1,47 +1,35 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/utils/db/prisma';
+import { db } from '@/db';
+import { candidates, processSteps } from '@/db/schema';
 import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
+import { eq } from 'drizzle-orm';
 
-export async function GET(
-  request: NextRequest,
-) {
+export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const jobId = searchParams.get('jobId');
 
-    const candidates = await prisma.candidate.findMany({
-      where: {
-        ...(jobId ? { jobId } : {}),
-      },
-      include: {
+    const allCandidates = await db.query.candidates.findMany({
+      where: jobId ? eq(candidates.jobId, jobId) : undefined,
+      with: {
         persona: true,
         job: true,
-        steps: true,
+        steps: {
+          with: {
+            template: true,
+          },
+        },
       },
-      orderBy: { createdAt: 'desc' },
+      orderBy: (table, { desc }) => desc(table.createdAt),
     });
 
-    const currentSteps = await prisma.processStep.findMany({
-      where: {
-        id: { in: candidates.map(c => c.currentStepId) },
-      },
-      include: {
-        template: true,
-      },
-    });
-
-    return NextResponse.json(
-      candidates.map(candidate => {
-        const currentStep = currentSteps.find(step => step.id === candidate.currentStepId);
-        return {
-          ...candidate,
-          currentStep,
-        };
-      })
-    );
+    return NextResponse.json(allCandidates);
   } catch (error) {
     console.error('Error fetching candidates:', error);
-    return NextResponse.json({ error: 'Failed to fetch candidates' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to fetch candidates' },
+      { status: 500 }
+    );
   }
 }
 
@@ -49,9 +37,7 @@ export async function POST(request: Request) {
   try {
     const data = await request.json();
 
-    const candidate = await prisma.$transaction(async (tx) => {
-      // Use the refactored function to create the candidate and initial step.
-      // This flow assumes a cvFileKey is provided for a separate upload process.
+    const newCandidate = await db.transaction(async (tx) => {
       return createCandidateWithInitialStep(tx, {
         jobId: data.jobId,
         personaId: data.personaId,
@@ -62,9 +48,12 @@ export async function POST(request: Request) {
       });
     });
 
-    return NextResponse.json(candidate);
+    return NextResponse.json(newCandidate);
   } catch (error) {
     console.error('Error creating candidate:', error);
-    return NextResponse.json({ error: 'Failed to create candidate' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Failed to create candidate' },
+      { status: 500 }
+    );
   }
 }

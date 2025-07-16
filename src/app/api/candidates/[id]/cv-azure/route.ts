@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/utils/db/prisma';
-import { getBlobUrl } from '@/lib/azure-storage';
+import { db } from '@/db';
+import { candidates } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
 export async function GET(
   _request: Request,
@@ -8,9 +9,15 @@ export async function GET(
 ) {
   try {
     const { id } = params;
-    const candidate = await prisma.candidate.findUnique({
-      where: { id },
-      select: { cvFileKey: true }
+    const candidate = await db.query.candidates.findFirst({
+      where: eq(candidates.id, id),
+      with: {
+        cv: {
+          columns: {
+            fileUrl: true,
+          },
+        },
+      },
     });
 
     if (!candidate) {
@@ -20,17 +27,15 @@ export async function GET(
       );
     }
 
-    if (!candidate.cvFileKey) {
+    if (!candidate.cv?.fileUrl) {
       return NextResponse.json({
         url: null,
       });
     }
 
-    const url = getBlobUrl(candidate.cvFileKey);
-
     return NextResponse.json({
-      url,
-      downloadUrl: url // Azure doesn't have a separate download URL
+      url: candidate.cv.fileUrl,
+      downloadUrl: candidate.cv.fileUrl,
     });
   } catch (error) {
     console.error('Error fetching candidate CV:', error);
