@@ -9,11 +9,13 @@ const containerClient = blobServiceClient.getContainerClient(containerName);
 export async function uploadFile(file: File): Promise<string> {
   const blobName = `${Date.now()}-${file.name}`;
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
-  
+
   const arrayBuffer = await file.arrayBuffer();
-  await blockBlobClient.upload(arrayBuffer, arrayBuffer.byteLength);
-  
-  return blobName;
+  await blockBlobClient.upload(arrayBuffer, arrayBuffer.byteLength, {
+    blobHTTPHeaders: { blobContentType: file.type },
+  });
+
+  return blockBlobClient.url;
 }
 
 export function getBlobUrl(blobName: string): string {

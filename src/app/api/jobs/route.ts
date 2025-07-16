@@ -1,14 +1,15 @@
-import { prisma } from '@/utils/db/prisma';
 import { NextResponse } from 'next/server';
+import { db } from '@/db';
+import { jobPostings } from '@/db/schema';
 
 export async function GET() {
   try {
-    const jobs = await prisma.jobPosting.findMany({
-      orderBy: { createdAt: 'desc' },
-      include: {
+    const jobs = await db.query.jobPostings.findMany({
+      orderBy: (table, { desc }) => desc(table.createdAt),
+      with: {
         processGroup: true,
         candidates: {
-          include: {
+          with: {
             persona: true,
             steps: true,
           },
@@ -28,9 +29,8 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const data = await request.json();
-    const job = await prisma.jobPosting.create({
-      data,
-    });
+    // Assuming data is a valid NewJobPosting object
+    const [job] = await db.insert(jobPostings).values(data).returning();
     return NextResponse.json(job);
   } catch (error) {
     console.error('Error creating job:', error);

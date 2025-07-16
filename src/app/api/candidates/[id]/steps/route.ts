@@ -1,9 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/utils/db/prisma';
+import { db } from '@/db';
+import { processSteps } from '@/db/schema';
+import { eq } from 'drizzle-orm';
 
-export async function POST(
-  request: NextRequest,
-) {
+export async function POST(request: NextRequest) {
   try {
     const { templateId, notes, groupId, candidateId } = await request.json();
 
@@ -14,28 +14,17 @@ export async function POST(
       );
     }
 
-    const step = await prisma.processStep.create({
-      data: {
+    const [newStep] = await db
+      .insert(processSteps)
+      .values({
         notes,
-        group: {
-          connect: {
-            id: groupId,
-          },
-        },
-        template: {
-          connect: {
-            id: templateId,
-          },
-        },
-        candidate: {
-          connect: {
-            id: candidateId,
-          },
-        },
-      },
-    });
+        groupId,
+        templateId,
+        candidateId,
+      })
+      .returning();
 
-    return NextResponse.json(step);
+    return NextResponse.json(newStep);
   } catch (error) {
     console.error('Error creating step:', error);
     return NextResponse.json(
@@ -50,11 +39,7 @@ export async function DELETE(
   { params }: { params: { id: string } }
 ) {
   try {
-    await prisma.processStep.delete({
-      where: {
-        id: params.id,
-      },
-    });
+    await db.delete(processSteps).where(eq(processSteps.id, params.id));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -73,14 +58,13 @@ export async function PUT(
   try {
     const data = await request.json();
 
-    const step = await prisma.processStep.update({
-      where: {
-        id: params.id,
-      },
-      data: data,
-    });
+    const [updatedStep] = await db
+      .update(processSteps)
+      .set(data)
+      .where(eq(processSteps.id, params.id))
+      .returning();
 
-    return NextResponse.json(step);
+    return NextResponse.json(updatedStep);
   } catch (error) {
     console.error('Error updating step:', error);
     return NextResponse.json(
