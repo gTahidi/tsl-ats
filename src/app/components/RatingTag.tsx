@@ -1,37 +1,33 @@
-import { Rating } from '@/types';
 import { Tag } from 'antd';
 import React from 'react';
 
 type Props = {
-  rating?: Rating;
+  rating?: number | null;
 };
 
 const RatingTag = ({ rating }: Props) => {
-  let ratingColor = "default";
-
-  if (!rating) {
-    return (
-      <Tag color="default">
-        Not rated
-      </Tag>
-    )
+  if (rating === null || rating === undefined) {
+    return <Tag color="default">Not Rated</Tag>;
   }
 
-  if (rating === "Strong no hire") {
-    ratingColor = "red";
-  } else if (rating === "No hire") {
-    ratingColor = "orange";
-  } else if (rating === "Strong hire") {
-    ratingColor = "green";
-  } else if (rating === "Hire") {
-    ratingColor = "blue";
+  let color = 'default';
+  if (rating >= 90) {
+    color = 'green';
+  } else if (rating >= 75) {
+    color = 'cyan';
+  } else if (rating >= 60) {
+    color = 'blue';
+  } else if (rating >= 40) {
+    color = 'orange';
+  } else {
+    color = 'red';
   }
 
   return (
-    <Tag color={ratingColor}>
-      {rating}
+    <Tag color={color}>
+      {Math.round(rating)}/100
     </Tag>
-  )
-}
+  );
+};
 
 export default RatingTag;

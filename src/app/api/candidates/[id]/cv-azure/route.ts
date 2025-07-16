@@ -1,12 +1,15 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { candidates } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-export async function GET(
-  _request: Request,
-  { params }: { params: { id: string } }
-) {
+interface RouteContext {
+  params: {
+    id: string;
+  };
+}
+
+export async function GET(req: NextRequest, { params }: RouteContext) {
   try {
     const { id } = params;
     const candidate = await db.query.candidates.findFirst({

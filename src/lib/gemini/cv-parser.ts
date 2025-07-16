@@ -1,124 +1,88 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { ParsedCvSchema, type ParsedCv } from './schema';
+import { ParsedCvSchema, ParsedCv } from './schema';
+import { jobPostings } from '@/db/schema';
 
-// Initialize Gemini with API key
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
-/**
- * Parses a CV file using the Gemini API with document processing
- * @param file The CV file to process
- * @returns A promise that resolves to the parsed and validated CV data
- */
-export async function parseCvWithGemini(file: File): Promise<ParsedCv> {
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-1.5-pro',
-    generationConfig: {
-      responseMimeType: 'application/json',
+const model = genAI.getGenerativeModel({
+  model: 'gemini-1.5-flash',
+  generationConfig: {
+    responseMimeType: 'application/json',
+  },
+});
+
+export async function parseAndRankCvWithGemini(
+  file: File,
+  job: typeof jobPostings.$inferSelect
+): Promise<ParsedCv> {
+  const base64File = await file.arrayBuffer().then(buffer => Buffer.from(buffer).toString('base64'));
+
+  const prompt = buildMegaPrompt(job);
+
+  const result = await model.generateContent([
+    prompt,
+    {
+      inlineData: {
+        data: base64File,
+        mimeType: file.type,
+      },
     },
-  });
+  ]);
+
+  const rawResponse = result.response.text();
+  console.log('--- Gemini Raw Response (Unified) ---');
+  console.log(rawResponse);
+  console.log('------------------------------------');
 
   try {
-    // Convert file to base64 for Gemini
-    const base64File = await new Promise<string>((resolve, reject) => {
-      const reader = new FileReader();
-      reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
-      reader.onerror = error => reject(error);
-    });
-
-    // Call Gemini with the document
-    const result = await model.generateContent({
-      contents: [{
-        role: 'user',
-        parts: [
-          {
-            fileData: {
-              mimeType: file.type || 'application/pdf',
-              data: base64File.split(',')[1] // Remove the data URL prefix
-            }
-          },
-          {
-            text: `Extract the CV information in a structured JSON format including:
-            - Personal details (name, email, phone, location, links)
-            - Work experience (company, title, dates, description, achievements)
-            - Education (institution, degree, field, dates)
-            - Skills (languages, technologies, tools, methodologies)
-            - Projects (name, description, technologies, role)
-            - Certifications (name, issuer, date)
-            
-            Format the response as a valid JSON object that matches this TypeScript interface:
-            interface ParsedCv {
-              contactInfo: {
-                name: string;
-                email: string;
-                phone?: string;
-                location?: string;
-                linkedinUrl?: string;
-                githubUrl?: string;
-                portfolioUrl?: string;
-              };
-              workExperience: Array<{
-                company: string;
-                title: string;
-                startDate: string;
-                endDate?: string;
-                current: boolean;
-                description?: string;
-                achievements?: string[];
-              }>;
-              education: Array<{
-                institution: string;
-                degree: string;
-                field: string;
-                startDate: string;
-                endDate?: string;
-                current: boolean;
-              }>;
-              skills: {
-                languages?: string[];
-                frameworks?: string[];
-                tools?: string[];
-                methodologies?: string[];
-              };
-              projects?: Array<{
-                name: string;
-                description: string;
-                technologies: string[];
-                role?: string;
-                url?: string;
-              }>;
-              certifications?: Array<{
-                name: string;
-                issuer: string;
-                date: string;
-                credentialUrl?: string;
-              }>;
-            }`
-          }
-        ]
-      }]
-    });
-
-    // Get the response text
-    const response = await result.response;
-    const responseText = response.text();
-    
-    // Parse the response as JSON
-    try {
-      // Extract JSON from markdown code block if present
-      const jsonMatch = responseText.match(/```json\n([\s\S]*?)\n```/) || 
-                       responseText.match(/```([\s\S]*?)\n([\s\S]*?)\n```/);
-      const jsonString = jsonMatch ? (jsonMatch[2] || jsonMatch[1]) : responseText;
-      const parsedJson = JSON.parse(jsonString);
-      
-      // Validate the parsed JSON against our schema
-      return ParsedCvSchema.parse(parsedJson);
-    } catch (error) {
-      console.error('Failed to parse Gemini response:', error);
-      throw new Error(`Failed to parse CV: ${error instanceof Error ? error.message : 'Unknown error'}`);
-    }
+    const parsedJson = JSON.parse(rawResponse);
+    return ParsedCvSchema.parse(parsedJson);
   } catch (error) {
-    console.error('Error processing CV with Gemini:', error);
-    throw new Error(`CV processing failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    console.error('Error parsing unified Gemini response:', error);
+    throw new Error('Failed to parse unified data from Gemini.');
   }
+}
+
+function buildMegaPrompt(job: typeof jobPostings.$inferSelect): string {
+  const jobJson = JSON.stringify({ title: job.title, description: job.description }, null, 2);
+
+  return `
+    You are an expert recruitment consultant and hiring manager with 20 years of experience.
+    Your task is to analyze the provided candidate CV against the job description and return a single, comprehensive, structured JSON object.
+
+    **Job Description:**
+    ${jobJson}
+
+    **Instructions:**
+    1.  **Extract CV Data:** Parse the document to extract the candidate's contact information. Crucially, you must separate the candidate's first name (given name) into the 'name' field and their last name (family name) into the 'surname' field. Also extract their work experience, education, skills, certifications, and a list of any professional referees mentioned.
+    2.  **Rank the Candidate:** Based on the CV and the job description, provide a ranking.
+        -   \`matchScore\`: A score from 0-100 indicating suitability.
+        -   \`summary\`: A concise explanation for the score, highlighting strengths and weaknesses.
+        -   \`questions\`: Answer the predefined interview questions based *only* on the CV content. If the answer isn't there, state that clearly.
+    3.  **Handle Missing Data:** Use 'null' for optional fields if the information is not available.
+    4.  **Format Consistently:** Ensure all dates are in a consistent format (e.g., "Month YYYY").
+
+    **Predefined Interview Questions:**
+    - "Tell us about your experience with financial reporting and compliance."
+    - "Which accounting software are you proficient in?"
+    - "Describe a time you improved an accounting process or system."
+
+    **Output Format:**
+    Return a single, valid JSON object that conforms to the schema below. Do not include any other text or markdown formatting.
+
+    **JSON Schema:**
+    {
+      "type": "object",
+      "properties": {
+        "contactInfo": { "type": "object", "properties": { "name": { "type": "string", "description": "Candidate's first name (given name)" }, "surname": { "type": "string", "description": "Candidate's last name (family name)" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "location": { "type": "string" }, "linkedinUrl": { "type": "string", "format": "uri" }, "githubUrl": { "type": "string", "format": "uri" }, "portfolioUrl": { "type": "string", "format": "uri" } } },
+        "workExperience": { "type": "array", "items": { "type": "object", "properties": { "company": { "type": "string" }, "jobTitle": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" }, "description": { "type": "string" }, "achievements": { "type": "array", "items": { "type": "string" } } } } },
+        "education": { "type": "array", "items": { "type": "object", "properties": { "institution": { "type": "string" }, "degree": { "type": "string" }, "field": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" } } } },
+        "skills": { "type": "object", "properties": { "languages": { "type": "array", "items": { "type": "string" } }, "frameworks": { "type": "array", "items": { "type": "string" } }, "tools": { "type": "array", "items": { "type": "string" } }, "methodologies": { "type": "array", "items": { "type": "string" } } } },
+        "certifications": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "issuer": { "type": "string" }, "date": { "type": "string" }, "credentialUrl": { "type": "string", "format": "uri" } } } },
+        "ranking": { "type": "object", "properties": { "matchScore": { "type": "number" }, "summary": { "type": "string" }, "questions": { "type": "array", "items": { "type": "object", "properties": { "question": { "type": "string" }, "answer": { "type": "string" } } } } } },
+        "referees": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "organization": { "type": "string" } } } }
+      },
+      "required": ["contactInfo", "workExperience", "education", "skills", "ranking"]
+    }
+  `;
 }

@@ -1,19 +1,21 @@
 import { db } from '@/db';
-import { candidates, jobPostings, processSteps, processStepTemplates } from '@/db/schema';
+import { candidates, jobPostings, processGroups, processSteps, processStepTemplates, referees } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { CvRanking, Referee } from '@/lib/gemini/schema';
 
 // This type defines the expected shape of the transaction client from Drizzle.
 // It's a bit complex, but ensures type safety within the function.
 type DrizzleTransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
-interface CandidateCreationData {
-    jobId: string;
+export interface CandidateCreationData {
+    jobId: string; // Reverted to string to match the database schema
     personaId: string;
-    cvId?: string;
+    cvId: string;
     notes?: string;
     source?: string;
-    rating?: number;
+    rating?: CvRanking;
     metadata?: any;
+    referees?: Referee[];
 }
 
 export async function createCandidateWithInitialStep(tx: DrizzleTransactionClient, data: CandidateCreationData) {
@@ -45,8 +47,7 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
         cvId: data.cvId,
         notes: data.notes,
         source: data.source,
-        // Drizzle expects rating to be a string based on schema, ensure conversion if needed
-        rating: data.rating ? String(data.rating) : undefined,
+        rating: data.rating, 
         metadata: data.metadata,
     }).returning();
 
@@ -57,6 +58,19 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
         groupId: job.processGroupId,
         status: 'PENDING',
     });
+
+    // 4. Insert referees if they exist
+    if (data.referees && data.referees.length > 0) {
+        // Ensure cvId is present before inserting referees
+        if (!data.cvId) {
+            throw new Error('cvId is required to insert referees.');
+        }
+        const refereeValues = data.referees.map(ref => ({
+            ...ref,
+            cvId: data.cvId, // Link referee to the CV
+        }));
+        await tx.insert(referees).values(refereeValues);
+    }
 
     return newCandidate;
 }

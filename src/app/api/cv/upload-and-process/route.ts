@@ -1,83 +1,96 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { cvs, personas } from '@/db/schema';
-import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
-import { parseCvWithGemini } from '@/lib/gemini/cv-parser';
+import { jobPostings, personas, cvs } from '@/db/schema';
+import { eq } from 'drizzle-orm';
+import { parseAndRankCvWithGemini } from '@/lib/gemini/cv-parser';
 import { uploadFile } from '@/lib/azure-storage';
+import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
+import { createAndStoreCvEmbeddings } from '@/utils/embedding-creation';
 
+export async function POST(req: NextRequest) {
+    try {
+        const formData = await req.formData();
+        const file = formData.get('file') as File;
+        const jobId = formData.get('jobId') as string;
 
+        if (!file || !jobId) {
+            return NextResponse.json({ error: 'File and Job ID are required' }, { status: 400 });
+        }
 
-export async function POST(request: NextRequest) {
-  try {
-    const formData = await request.formData();
-    const file = formData.get('cv') as File | null;
-    const jobId = formData.get('jobId') as string | null;
+        // 1. Fetch job details for ranking context
+        const job = await db.query.jobPostings.findFirst({
+            where: eq(jobPostings.id, jobId)
+        });
 
-    if (!file) {
-      return NextResponse.json({ error: 'No CV file provided' }, { status: 400 });
+        if (!job) {
+            return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+        }
+
+        // 2. Upload file to Azure Blob Storage
+        const fileUrl = await uploadFile(file);
+
+        // 3. Parse, Rank, and Extract Referees with the unified Gemini call
+        const unifiedResult = await parseAndRankCvWithGemini(file, job);
+        const { ranking, referees, ...parsedCv } = unifiedResult;
+
+        // 4. Validate that we have an email before proceeding
+        if (!parsedCv.contactInfo.email) {
+            throw new Error('CV parsing failed to extract a valid email address.');
+        }
+
+        // 5. Use a transaction to create all related database records
+        const { candidate, cvId } = await db.transaction(async (tx) => {
+            // 5a. Create or update the Persona
+            const personaData = {
+                name: parsedCv.contactInfo.name || 'Unknown',
+                email: parsedCv.contactInfo.email!,
+                surname: parsedCv.contactInfo.surname,
+                location: parsedCv.contactInfo.location,
+                linkedinUrl: parsedCv.contactInfo.linkedinUrl,
+            };
+
+            const [persona] = await tx.insert(personas).values(personaData).onConflictDoUpdate({
+                target: personas.email,
+                set: { ...personaData, updatedAt: new Date() },
+            }).returning();
+
+            // 5b. Create the CV record, adhering to the correct schema
+            const [newCv] = await tx.insert(cvs).values({
+                content: parsedCv,
+                fileUrl: fileUrl,
+                originalFilename: file.name,
+                fileSize: file.size,
+                mimeType: file.type,
+            }).returning();
+
+            // 5c. Create the Candidate, initial step, and referees
+            const newCandidate = await createCandidateWithInitialStep(tx, {
+                jobId: jobId,
+                personaId: persona.id,
+                cvId: newCv.id,
+                source: 'Upload',
+                rating: ranking,
+                referees: referees,
+            });
+
+            // 5d. Return the full candidate object and the new CV's ID
+            return {
+                candidate: {
+                    ...newCandidate,
+                    persona: persona,
+                },
+                cvId: newCv.id,
+            };
+        });
+
+        // Trigger the embedding process asynchronously (fire and forget)
+        createAndStoreCvEmbeddings(cvId, unifiedResult);
+
+        return NextResponse.json(candidate);
+
+    } catch (error) {
+        console.error('Error processing CV upload:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
+        return NextResponse.json({ error: 'Failed to process CV', details: errorMessage }, { status: 500 });
     }
-    if (!jobId) {
-      return NextResponse.json({ error: 'No Job ID provided' }, { status: 400 });
-    }
-
-        // --- Step 1: Upload CV to Azure Blob Storage ---
-    const fileUrl = await uploadFile(file);
-    
-    // --- Step 2: Process the CV with Gemini ---
-    const parsedCvData = await parseCvWithGemini(file);
-    
-    // Extract contact info for persona creation
-    const { contactInfo } = parsedCvData;
-    if (!contactInfo?.email) {
-      throw new Error('No email found in the CV');
-    }
-    
-    // Ensure required fields are present
-    const personaData = {
-      name: contactInfo.name || 'Unknown',
-      email: contactInfo.email,
-      surname: contactInfo.surname || '',
-      location: contactInfo.location || '',
-      linkedinUrl: contactInfo.linkedinUrl || '',
-      // Remove phone field as it's not in the schema
-    };
-
-    // --- Step 3: Use a Drizzle Transaction to Create Persona, CV, and Candidate ---
-    const candidate = await db.transaction(async (tx) => {
-      // 1. Create or update the Persona
-      const [persona] = await tx.insert(personas).values(personaData).onConflictDoUpdate({
-        target: personas.email,
-        set: personaData,
-      }).returning();
-
-      // 2. Create the CV record
-      const [newCv] = await tx.insert(cvs).values({
-        content: parsedCvData as any, // Drizzle handles JSON conversion
-        fileUrl,
-        originalFilename: file.name,
-        fileSize: file.size,
-        mimeType: file.type,
-      }).returning();
-
-      // 3. Use the refactored function to create the candidate and initial step
-      return createCandidateWithInitialStep(tx, {
-        jobId: jobId!,
-        personaId: persona.id,
-        cvId: newCv.id,
-      });
-    });
-
-    // --- Step 3: (Future) Trigger CV Chunking and Embedding ---
-    // This can be a call to another service or a background job
-    // await processCvChunks(candidate.cv.id, parsedCvData);
-
-    return NextResponse.json({
-      message: 'CV processed and candidate created successfully',
-      candidateId: candidate.id,
-    });
-
-  } catch (error) {
-    console.error('Error processing uploaded CV:', error);
-    return NextResponse.json({ error: 'Failed to process CV' }, { status: 500 });
-  }
 }

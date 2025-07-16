@@ -31,7 +31,7 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
     setMessage('Uploading file and processing with AI... This may take a moment.');
 
     const formData = new FormData();
-    formData.append('cv', selectedFile);
+    formData.append('file', selectedFile);
     formData.append('jobId', selectedJobId);
 
     try {
@@ -40,21 +40,20 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
         body: formData,
       });
 
-      const result = await response.json();
-
       if (!response.ok) {
-        throw new Error(result.error || 'An unknown error occurred.');
+        throw new Error('Failed to process CV');
       }
-      
-      setStatus('success');
-      setMessage(`Successfully created candidate: ${result.persona.name} ${result.persona.surname}`);
-      event.currentTarget.reset();
-      setSelectedFile(null);
 
+      const result = await response.json();
+      setMessage(`Successfully created candidate: ${result.persona.name} ${result.persona.surname}`);
     } catch (error: any) {
-      setStatus('error');
-      setMessage(error.message || 'Failed to process CV.');
       console.error('Upload error:', error);
+      setMessage('Upload error: ' + error.message);
+    } finally {
+      setStatus('idle');
+      setMessage('');
+      reset();
+      setSelectedFile(null);
     }
   };
 
