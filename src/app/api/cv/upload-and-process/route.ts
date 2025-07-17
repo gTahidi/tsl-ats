@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { jobPostings, personas, cvs } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { jobPostings, personas, cvs, candidates } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { parseAndRankCvWithGemini } from '@/lib/gemini/cv-parser';
 import { uploadFile } from '@/lib/azure-storage';
-import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
+import { createCandidateWithInitialStep, updateCandidateWithNewCv } from '@/utils/candidate-creation';
 import { createAndStoreCvEmbeddings } from '@/utils/embedding-creation';
 
 export async function POST(req: NextRequest) {
@@ -38,9 +38,24 @@ export async function POST(req: NextRequest) {
             throw new Error('CV parsing failed to extract a valid email address.');
         }
 
-        // 5. Use a transaction to create all related database records
+        // 5. Check if a candidate with this email already exists for this job
+        const existingPersona = await db.query.personas.findFirst({
+            where: eq(personas.email, parsedCv.contactInfo.email!)
+        });
+
+        let existingCandidate = null;
+        if (existingPersona) {
+            existingCandidate = await db.query.candidates.findFirst({
+                where: and(
+                    eq(candidates.jobId, jobId),
+                    eq(candidates.personaId, existingPersona.id)
+                )
+            });
+        }
+
+        // 6. Use a transaction to create/update all related database records
         const { candidate, cvId } = await db.transaction(async (tx) => {
-            // 5a. Create or update the Persona
+            // 6a. Create or update the Persona
             const personaData = {
                 name: parsedCv.contactInfo.name || 'Unknown',
                 email: parsedCv.contactInfo.email!,
@@ -54,7 +69,7 @@ export async function POST(req: NextRequest) {
                 set: { ...personaData, updatedAt: new Date() },
             }).returning();
 
-            // 5b. Create the CV record, adhering to the correct schema
+            // 6b. Create the new CV record
             const [newCv] = await tx.insert(cvs).values({
                 content: parsedCv,
                 fileUrl: fileUrl,
@@ -63,20 +78,32 @@ export async function POST(req: NextRequest) {
                 mimeType: file.type,
             }).returning();
 
-            // 5c. Create the Candidate, initial step, and referees
-            const newCandidate = await createCandidateWithInitialStep(tx, {
-                jobId: jobId,
-                personaId: persona.id,
-                cvId: newCv.id,
-                source: 'Upload',
-                rating: ranking,
-                referees: referees,
-            });
+            let finalCandidate;
 
-            // 5d. Return the full candidate object and the new CV's ID
+            if (existingCandidate) {
+                // 6c. If candidate exists, update them with the new CV
+                finalCandidate = await updateCandidateWithNewCv(tx, {
+                    candidateId: existingCandidate.id,
+                    cvId: newCv.id,
+                    rating: ranking,
+                    referees: referees,
+                });
+            } else {
+                // 6d. Otherwise, create a new candidate
+                finalCandidate = await createCandidateWithInitialStep(tx, {
+                    jobId: jobId,
+                    personaId: persona.id,
+                    cvId: newCv.id,
+                    source: 'Upload',
+                    rating: ranking,
+                    referees: referees,
+                });
+            }
+
+            // 6e. Return the full candidate object and the new CV's ID
             return {
                 candidate: {
-                    ...newCandidate,
+                    ...finalCandidate,
                     persona: persona,
                 },
                 cvId: newCv.id,

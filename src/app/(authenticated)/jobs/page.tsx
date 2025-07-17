@@ -20,6 +20,28 @@ export default function Page(): JSX.Element {
   }, [editingJob, modalVisible]);
 
   const {
+    mutateAsync: createJob,
+    isPending: createPending,
+  } = useMutation({
+    mutationFn: async (job: Partial<JobView>) => {
+      const response = await fetch('/api/jobs', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(job),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to create job');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['jobs'] });
+    },
+  });
+
+  const {
     mutateAsync: updateJob,
     isPending: updatePending,
   } = useMutation({
@@ -92,9 +114,13 @@ export default function Page(): JSX.Element {
     };
 
     try {
-      await updateJob(newJob);
+      if (editingJob) {
+        await updateJob(newJob);
+      } else {
+        await createJob(newJob);
+      }
     } catch (error) {
-      message.error(error instanceof Error ? error.message : 'Failed to update job');
+      message.error(error instanceof Error ? error.message : 'Failed to save job');
       return;
     }
 
@@ -107,7 +133,7 @@ export default function Page(): JSX.Element {
     await deleteJob(id);
   };
 
-  const loading = updatePending || deletePending;
+  const loading = createPending || updatePending || deletePending;
 
   return (
     <Flex gap="middle" vertical>

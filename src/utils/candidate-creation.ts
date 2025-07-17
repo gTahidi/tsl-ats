@@ -7,6 +7,13 @@ import { CvRanking, Referee } from '@/lib/gemini/schema';
 // It's a bit complex, but ensures type safety within the function.
 type DrizzleTransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
+export interface CandidateUpdateData {
+    candidateId: string;
+    cvId: string;
+    rating?: CvRanking;
+    referees?: Referee[];
+}
+
 export interface CandidateCreationData {
     jobId: string; // Reverted to string to match the database schema
     personaId: string;
@@ -41,15 +48,20 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     const initialStepTemplate = job.processGroup.stepTemplates[0];
 
     // 2. Create the new candidate.
-    const [newCandidate] = await tx.insert(candidates).values({
+    const insertPayload: Partial<typeof candidates.$inferInsert> = {
         jobId: data.jobId,
         personaId: data.personaId,
         cvId: data.cvId,
         notes: data.notes,
         source: data.source,
-        rating: data.rating, 
         metadata: data.metadata,
-    }).returning();
+    };
+
+    if (data.rating) {
+        insertPayload.rating = data.rating;
+    }
+
+    const [newCandidate] = await tx.insert(candidates).values(insertPayload).returning();
 
     // 3. Create the first process step for this candidate.
     await tx.insert(processSteps).values({
@@ -73,4 +85,40 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     }
 
     return newCandidate;
+}
+
+export async function updateCandidateWithNewCv(tx: DrizzleTransactionClient, data: CandidateUpdateData) {
+    // 1. Update the candidate's main record with the new CV and rating
+    const updatePayload: Partial<typeof candidates.$inferInsert> = {
+        cvId: data.cvId,
+        updatedAt: new Date(),
+    };
+
+    if (data.rating) {
+        updatePayload.rating = data.rating;
+    }
+
+    const [updatedCandidate] = await tx
+        .update(candidates)
+        .set(updatePayload)
+        .where(eq(candidates.id, data.candidateId))
+        .returning();
+
+    if (!updatedCandidate) {
+        throw new Error('Failed to update candidate. Candidate not found.');
+    }
+
+    // 2. Insert new referees if they exist, associated with the new CV
+    if (data.referees && data.referees.length > 0) {
+        const refereeValues = data.referees.map(ref => ({
+            ...ref,
+            cvId: data.cvId, // Link new referees to the new CV
+        }));
+        await tx.insert(referees).values(refereeValues);
+    }
+
+    // 3. Optionally, you could add logic here to re-evaluate process steps
+    //    or notify recruiters about the updated CV.
+
+    return updatedCandidate;
 }

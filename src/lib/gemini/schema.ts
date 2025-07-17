@@ -4,8 +4,8 @@ import { z } from 'zod';
 export const ContactInfoSchema = z.object({
   name: z.string().optional(),
   surname: z.string().optional(),
-  email: z.string().email().optional(),
-  phone: z.string().optional(),
+  email: z.string().email().nullable().optional(),
+  phone: z.string().nullable().optional(),
   location: z.string().nullable(),
   linkedinUrl: z.string().url().nullable(),
   githubUrl: z.string().url().nullable(),
@@ -16,8 +16,8 @@ export const ContactInfoSchema = z.object({
 export const WorkExperienceSchema = z.object({
   company: z.string(),
   jobTitle: z.string(),
-  startDate: z.string(),
-  endDate: z.string().optional(),
+  startDate: z.string().nullable(),
+  endDate: z.string().nullable().optional(),
   current: z.boolean(),
   description: z.string().nullable(),
   achievements: z.array(z.string()).optional(),
@@ -25,10 +25,10 @@ export const WorkExperienceSchema = z.object({
 
 // Schema for education
 export const EducationSchema = z.object({
-  institution: z.string(),
-  degree: z.string(),
+  institution: z.string().nullable(),
+  degree: z.string().nullable(),
   field: z.string().nullable(),
-  startDate: z.string(),
+  startDate: z.string().nullable(),
   endDate: z.string().nullable(),
   current: z.boolean(),
 });
@@ -45,7 +45,7 @@ export const SkillsSchema = z.object({
 export const CertificationSchema = z.object({
     name: z.string(),
     issuer: z.string().nullable(),
-    date: z.string(),
+    date: z.string().nullable(),
     credentialUrl: z.string().url().nullable(),
 });
 
@@ -62,8 +62,8 @@ export const CvRankingSchema = z.object({
 // Schema for Referees
 export const RefereeSchema = z.object({
     name: z.string(),
-    email: z.string().email().optional(),
-    phone: z.string().optional(),
+    email: z.string().email().nullable().optional(),
+    phone: z.string().nullable().optional(),
     organization: z.string().optional(),
 });
 

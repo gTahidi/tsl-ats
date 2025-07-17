@@ -1,117 +1,161 @@
 'use client';
 
-import { useState, FormEvent } from 'react';
+import { useState } from 'react';
+import { Select, Upload, Button, Progress, notification, message as antdMessage } from 'antd';
+import { InboxOutlined } from '@ant-design/icons';
+import type { UploadFile, UploadProps } from 'antd';
+
+const { Dragger } = Upload;
+const { Option } = Select;
 
 interface Job {
-  id: string;
-  title: string;
+    id: string;
+    title: string;
 }
 
 interface CvUploadFormProps {
-  jobs: Job[];
+    jobs: Job[];
 }
 
-type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'success' | 'error';
-
 export default function CvUploadForm({ jobs }: CvUploadFormProps) {
-  const [selectedJobId, setSelectedJobId] = useState<string>(jobs[0]?.id || '');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<UploadStatus>('idle');
-  const [message, setMessage] = useState<string>('');
+    const [selectedJobId, setSelectedJobId] = useState<string | undefined>(jobs[0]?.id);
+    const [fileList, setFileList] = useState<UploadFile[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [progress, setProgress] = useState(0);
 
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!selectedFile || !selectedJobId) {
-      setStatus('error');
-      setMessage('Please select a job and a CV file.');
-      return;
-    }
+    const handleUpload = async () => {
+        if (!selectedJobId) {
+            notification.error({ message: 'No Job Selected', description: 'Please select a job to associate the CVs with.' });
+            return;
+        }
 
-    setStatus('uploading');
-    setMessage('Uploading file and processing with AI... This may take a moment.');
+        setIsUploading(true);
+        setProgress(0);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-    formData.append('jobId', selectedJobId);
+        const totalFiles = fileList.length;
+        let processedFiles = 0;
+        const successDetails: string[] = [];
+        const errorDetails: string[] = [];
 
-    try {
-      const response = await fetch('/api/cv/upload-and-process', {
-        method: 'POST',
-        body: formData,
-      });
+        for (const file of fileList) {
+            const formData = new FormData();
+            formData.append('file', file as any);
+            formData.append('jobId', selectedJobId);
 
-      if (!response.ok) {
-        throw new Error('Failed to process CV');
-      }
+            try {
+                const response = await fetch('/api/cv/upload-and-process', {
+                    method: 'POST',
+                    body: formData,
+                });
 
-      const result = await response.json();
-      setMessage(`Successfully created candidate: ${result.persona.name} ${result.persona.surname}`);
-    } catch (error: any) {
-      console.error('Upload error:', error);
-      setMessage('Upload error: ' + error.message);
-    } finally {
-      setStatus('idle');
-      setMessage('');
-      reset();
-      setSelectedFile(null);
-    }
-  };
+                if (!response.ok) {
+                    const errorResult = await response.json();
+                    throw new Error(errorResult.details || `Server responded with status ${response.status}`);
+                }
+                const result = await response.json();
+                successDetails.push(`${file.name} processed for candidate: ${result.candidate.persona.name}`);
+            } catch (error: any) {
+                errorDetails.push(`${file.name}: ${error.message}`);
+            }
 
-  return (
-    <form onSubmit={handleSubmit} className="bg-white p-8 border rounded-lg shadow-md space-y-6">
-      <div>
-        <label htmlFor="jobId" className="block text-sm font-medium text-gray-700 mb-1">
-          Job Posting
-        </label>
-        <select
-          id="jobId"
-          name="jobId"
-          value={selectedJobId}
-          onChange={(e) => setSelectedJobId(e.target.value)}
-          disabled={status === 'uploading'}
-          className="mt-1 block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
-        >
-          {jobs.length === 0 ? (
-            <option disabled>No jobs found. Please create a job first.</option>
-          ) : (
-            jobs.map((job) => (
-              <option key={job.id} value={job.id}>
-                {job.title}
-              </option>
-            ))
-          )}
-        </select>
-      </div>
+            processedFiles++;
+            setProgress(Math.round((processedFiles / totalFiles) * 100));
 
-      <div>
-        <label htmlFor="cv" className="block text-sm font-medium text-gray-700 mb-1">
-          CV / Resume
-        </label>
-        <input
-          id="cv"
-          name="cv"
-          type="file"
-          onChange={(e) => setSelectedFile(e.target.files ? e.target.files[0] : null)}
-          disabled={status === 'uploading'}
-          className="mt-1 block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100"
-          accept=".pdf,.doc,.docx,.txt"
-        />
-      </div>
+            // Add a short delay to avoid overwhelming the API
+            if (processedFiles < totalFiles) {
+                await new Promise(resolve => setTimeout(resolve, 1000)); // 1-second delay
+            }
+        }
 
-      <button
-        type="submit"
-        disabled={status === 'uploading' || !selectedFile || !selectedJobId}
-        className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:bg-gray-400 disabled:cursor-not-allowed"
-      >
-        {status === 'uploading' ? 'Processing...' : 'Upload and Process'}
-      </button>
+        setIsUploading(false);
+        setFileList([]); // Clear file list after processing
 
-      {message && (
-        <div
-          className={`p-4 rounded-md text-sm ${status === 'error' ? 'bg-red-100 text-red-700' : ''} ${status === 'success' ? 'bg-green-100 text-green-700' : ''} ${status === 'uploading' ? 'bg-blue-100 text-blue-700' : ''}`}>
-          <p>{message}</p>
+        if (errorDetails.length > 0) {
+            notification.error({
+                message: 'Upload Process Completed with Errors',
+                description: (
+                    <div>
+                        <p>{`Successfully processed: ${successDetails.length}`}</p>
+                        <p>{`Failed: ${errorDetails.length}`}</p>
+                        <ul>
+                            {errorDetails.map((e, i) => <li key={i}>{e}</li>)}
+                        </ul>
+                    </div>
+                ),
+                duration: 0, // Keep open until user closes
+            });
+        } else {
+            notification.success({
+                message: 'All CVs Processed Successfully',
+                description: `Successfully processed ${successDetails.length} CV(s).`,
+            });
+        }
+    };
+
+    const props: UploadProps = {
+        onRemove: (file) => {
+            const index = fileList.indexOf(file);
+            const newFileList = fileList.slice();
+            newFileList.splice(index, 1);
+            setFileList(newFileList);
+        },
+        beforeUpload: (file) => {
+            setFileList((prev) => [...prev, file]);
+            return false; // Prevent antd from uploading automatically
+        },
+        fileList,
+        multiple: true,
+        accept: '.pdf,.doc,.docx',
+    };
+
+    return (
+        <div className="bg-white p-8 border rounded-lg shadow-md space-y-6">
+            <div>
+                <label htmlFor="jobId" className="block text-sm font-medium text-gray-700 mb-1">
+                    Select Job Posting
+                </label>
+                <Select
+                    style={{ width: '100%' }}
+                    placeholder="Select a job"
+                    value={selectedJobId}
+                    onChange={(value) => setSelectedJobId(value)}
+                    disabled={isUploading}
+                >
+                    {jobs.length === 0 ? (
+                        <Option value="" disabled>No jobs found. Please create one first.</Option>
+                    ) : (
+                        jobs.map((job) => (
+                            <Option key={job.id} value={job.id}>
+                                {job.title}
+                            </Option>
+                        ))
+                    )}
+                </Select>
+            </div>
+
+            <Dragger {...props}>
+                <p className="ant-upload-drag-icon">
+                    <InboxOutlined />
+                </p>
+                <p className="ant-upload-text">Click or drag files to this area to upload</p>
+                <p className="ant-upload-hint">
+                    Support for a single or bulk upload. Strictly prohibit from uploading company data or other
+                    band files. Accepted formats: .pdf, .doc, .docx
+                </p>
+            </Dragger>
+
+            {isUploading && <Progress percent={progress} />}
+
+            <Button
+                type="primary"
+                onClick={handleUpload}
+                disabled={fileList.length === 0 || isUploading || !selectedJobId}
+                loading={isUploading}
+                style={{ width: '100%' }}
+                size="large"
+            >
+                {isUploading ? 'Processing...' : `Upload and Process ${fileList.length} File(s)`}
+            </Button>
         </div>
-      )}
-    </form>
-  );
+    );
 }

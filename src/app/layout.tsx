@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import { Inter } from 'next/font/google';
 import { AntdRegistry } from '@ant-design/nextjs-registry';
+import { App } from 'antd';
 import MainLayout from './components/MainLayout';
 import { Providers } from './providers';
 import './globals.css';
@@ -22,7 +23,9 @@ export default function RootLayout({
       <body className={inter.className}>
         <AntdRegistry>
           <Providers>
-            <MainLayout>{children}</MainLayout>
+            <App>
+              <MainLayout>{children}</MainLayout>
+            </App>
           </Providers>
         </AntdRegistry>
       </body>
