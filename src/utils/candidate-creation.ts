@@ -48,18 +48,16 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     const initialStepTemplate = job.processGroup.stepTemplates[0];
 
     // 2. Create the new candidate.
-    const insertPayload: Partial<typeof candidates.$inferInsert> = {
+        const insertPayload: typeof candidates.$inferInsert = {
         jobId: data.jobId,
         personaId: data.personaId,
         cvId: data.cvId,
-        notes: data.notes,
-        source: data.source,
-        metadata: data.metadata,
     };
 
-    if (data.rating) {
-        insertPayload.rating = data.rating;
-    }
+    if (data.notes) insertPayload.notes = data.notes;
+    if (data.source) insertPayload.source = data.source;
+    if (data.metadata) insertPayload.metadata = data.metadata;
+    if (data.rating) insertPayload.rating = data.rating;
 
     const [newCandidate] = await tx.insert(candidates).values(insertPayload).returning();
 
@@ -67,8 +65,8 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     await tx.insert(processSteps).values({
         candidateId: newCandidate.id,
         templateId: initialStepTemplate.id,
-        groupId: job.processGroupId,
         status: 'PENDING',
+        groupId: job.processGroupId,
     });
 
     // 4. Insert referees if they exist

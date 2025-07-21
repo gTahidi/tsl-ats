@@ -21,7 +21,7 @@ type UpdateStepArgs = {
   data: any;
 }
 
-export default function Page(): JSX.Element {
+export default function Page() {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const [selectedStep, setSelectedStep] = useState<ProcessStepTemplate | null>(null);
@@ -78,11 +78,15 @@ export default function Page(): JSX.Element {
     [updateStep]
   );
 
+  const currentStep = useMemo(() => 
+    candidate?.steps?.find(step => step.status === 'Pending')
+  , [candidate?.steps]);
+
   useEffect(() => {
-    if (!!candidate && !selectedStep) {
-      setSelectedStep(candidate.currentStep.template);
+    if (currentStep && !selectedStep) {
+      setSelectedStep(currentStep.template);
     }
-  }, [candidate, candidate?.currentStep.templateId, selectedStep]);
+  }, [currentStep, selectedStep]);
 
   const handleTemplateSelect = (temp: ProcessStepTemplate) => {
     setSelectedStep(temp);
@@ -172,7 +176,7 @@ export default function Page(): JSX.Element {
                       title: 'Final Rating',
                       key: 'rating',
                       render: (record: CandidateView) => {
-                        return <RatingTag rating={record.rating} />;
+                        return <RatingTag rating={candidate.rating?.matchScore} />;
                       },
                     },
                     {

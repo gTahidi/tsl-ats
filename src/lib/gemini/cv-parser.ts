@@ -6,7 +6,7 @@ import { ZodError } from 'zod';
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
 const model = genAI.getGenerativeModel({
-  model: 'gemini-1.5-flash',
+  model: 'gemini-2.5-flash',
   generationConfig: {
     responseMimeType: 'application/json',
   },
@@ -16,13 +16,13 @@ export async function parseAndRankCvWithGemini(
   file: File,
   job: typeof jobPostings.$inferSelect
 ): Promise<ParsedCv> {
-  const base64File = await file
-    .arrayBuffer()
-    .then(buffer => Buffer.from(buffer).toString('base64'));
+  const fileBuffer = Buffer.from(await file.arrayBuffer());
+  const mimeType = file.type;
+
   const filePart = {
     inlineData: {
-      data: base64File,
-      mimeType: file.type,
+      data: fileBuffer.toString('base64'),
+      mimeType,
     },
   };
 
