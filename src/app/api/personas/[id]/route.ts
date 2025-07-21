@@ -5,13 +5,14 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [persona] = await db
       .select()
       .from(personas)
-      .where(eq(personas.id, params.id));
+      .where(eq(personas.id, id));
 
     if (!persona) {
       return NextResponse.json(
@@ -32,13 +33,14 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await request.json();
     const [updatedPersona] = await db
       .insert(personas)
-      .values({ ...data, id: params.id })
+      .values({ ...data, id })
       .onConflictDoUpdate({ target: personas.id, set: data })
       .returning();
 
@@ -54,10 +56,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await db.delete(personas).where(eq(personas.id, params.id));
+    const { id } = await params;
+    await db.delete(personas).where(eq(personas.id, id));
 
     return NextResponse.json({ message: 'persona deleted successfully' });
   } catch (error) {

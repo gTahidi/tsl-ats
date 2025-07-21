@@ -36,10 +36,11 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(
   _: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await db.delete(processSteps).where(eq(processSteps.id, params.id));
+    const { id } = await params;
+    await db.delete(processSteps).where(eq(processSteps.id, id));
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -53,15 +54,16 @@ export async function DELETE(
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await request.json();
 
     const [updatedStep] = await db
       .update(processSteps)
       .set(data)
-      .where(eq(processSteps.id, params.id))
+      .where(eq(processSteps.id, id))
       .returning();
 
     return NextResponse.json(updatedStep);

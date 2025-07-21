@@ -7,10 +7,10 @@ import { eq } from 'drizzle-orm';
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const candidate = await db.query.candidates.findFirst({
       where: eq(candidates.id, id),
       with: {

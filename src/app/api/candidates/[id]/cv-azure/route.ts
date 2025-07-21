@@ -3,15 +3,12 @@ import { db } from '@/db';
 import { candidates } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(req: NextRequest, { params }: RouteContext) {
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const candidate = await db.query.candidates.findFirst({
       where: eq(candidates.id, id),
       with: {

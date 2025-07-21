@@ -3,15 +3,9 @@ import { db } from '@/db';
 import { candidates } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 
-interface RouteContext {
-  params: {
-    id: string;
-  };
-}
-
-export async function GET(req: NextRequest, { params }: RouteContext) {
+export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const jobId = params.id;
+    const { id: jobId } = await params;
 
     const jobCandidates = await db.query.candidates.findMany({
       where: eq(candidates.jobId, jobId),

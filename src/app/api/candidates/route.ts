@@ -56,6 +56,7 @@ export async function POST(request: Request) {
         source: data.source,
         rating: data.rating,
         metadata: data.metadata,
+        cvId: data.cvId,
       });
     });
 

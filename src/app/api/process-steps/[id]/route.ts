@@ -5,13 +5,14 @@ import { NextResponse } from 'next/server';
 
 export async function GET(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const [processStep] = await db
       .select()
       .from(processSteps)
-      .where(eq(processSteps.id, params.id));
+      .where(eq(processSteps.id, id));
 
     if (!processStep) {
       return NextResponse.json(
@@ -32,14 +33,15 @@ export async function GET(
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
+    const { id } = await params;
     const data = await request.json();
     const [updatedStep] = await db
       .update(processSteps)
       .set(data)
-      .where(eq(processSteps.id, params.id))
+      .where(eq(processSteps.id, id))
       .returning();
 
     return NextResponse.json(updatedStep);
@@ -54,10 +56,11 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    await db.delete(processSteps).where(eq(processSteps.id, params.id));
+    const { id } = await params;
+    await db.delete(processSteps).where(eq(processSteps.id, id));
 
     return NextResponse.json({ message: 'process step deleted successfully' });
   } catch (error) {

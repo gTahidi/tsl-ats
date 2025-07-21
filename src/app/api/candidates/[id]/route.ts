@@ -3,9 +3,9 @@ import { candidates, processSteps } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const candidate = await db.query.candidates.findFirst({
       where: eq(candidates.id, id),
       with: {
@@ -46,10 +46,10 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
 
 export async function PUT(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     const { currentStep, ...data } = await request.json();
 
     const updatedCandidate = await db.transaction(async (tx) => {
@@ -85,10 +85,10 @@ export async function PUT(
 
 export async function DELETE(
   _request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = params;
+    const { id } = await params;
     await db.delete(candidates).where(eq(candidates.id, id));
 
     return NextResponse.json({ message: 'Candidate deleted successfully' });
