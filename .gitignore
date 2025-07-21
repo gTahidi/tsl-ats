@@ -64,3 +64,9 @@ logs
 *~
 /uploads/*
 !/uploads/.gitkeep
+.csv
+.csv**
+
+# Sentry
+sentry.properties
+.csv
