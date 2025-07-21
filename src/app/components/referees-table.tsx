@@ -66,6 +66,7 @@ const RefereesTable: React.FC = () => {
     } finally {
       setLoading(false);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pagination.current, pagination.pageSize, sorter, filters]);
 
   useEffect(() => {
@@ -83,10 +84,13 @@ const RefereesTable: React.FC = () => {
   };
 
   const debouncedFilterChange = useCallback(
-    debounce((name: keyof typeof filters, value: string) => {
-      setFilters(prev => ({ ...prev, [name]: value }));
-      setPagination(prev => ({ ...prev, current: 1 }));
-    }, 500),
+    (name: keyof typeof filters, value: string) => {
+      const debouncedFn = debounce(() => {
+        setFilters(prev => ({ ...prev, [name]: value }));
+        setPagination(prev => ({ ...prev, current: 1 }));
+      }, 500);
+      debouncedFn();
+    },
     []
   );
 

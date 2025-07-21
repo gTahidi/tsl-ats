@@ -10,7 +10,7 @@ import { useParams, useRouter } from 'next/navigation'
 import { useState } from "react";
 
 
-export default function Page(): JSX.Element {
+export default function Page(): React.JSX.Element {
   const params = useParams<{ id: string }>();
   const router = useRouter();
   const qc = useQueryClient();

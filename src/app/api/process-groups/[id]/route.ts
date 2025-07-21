@@ -5,10 +5,10 @@ import { NextResponse } from 'next/server';
 
 export async function PUT(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
         const data = await request.json();
 
         const groupData: any = { ...data };
@@ -80,10 +80,10 @@ export async function PUT(
 
 export async function DELETE(
     request: Request,
-    { params }: { params: { id: string } }
+    { params }: { params: Promise<{ id: string }> }
 ) {
     try {
-        const { id } = params;
+        const { id } = await params;
 
         await db.transaction(async (tx) => {
             await tx.delete(processStepTemplates).where(eq(processStepTemplates.groupId, id));

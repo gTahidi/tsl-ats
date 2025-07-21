@@ -8,7 +8,7 @@ import ProcessGroupModal from '../../components/ProcessGroupModal';
 import type { ProcessGroup } from '../../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-export default function Page(): JSX.Element {
+export default function Page(): React.JSX.Element {
     const [modalVisible, setModalVisible] = useState(false);
     const [editingProcessGroup, setEditingProcessGroup] = useState<ProcessGroup | null>(null);
     const qc = useQueryClient();

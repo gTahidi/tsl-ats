@@ -8,7 +8,7 @@ import JobModal from '../../components/JobModal';
 import type { JobView } from '../../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-export default function Page(): JSX.Element {
+export default function Page(): React.JSX.Element {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingJob, setEditingJob] = useState<JobView | null>(null);
   const qc = useQueryClient();
