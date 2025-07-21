@@ -51,7 +51,7 @@ export default function StepModal({ visible, onClose, step }: StepModalProps) {
       onOk={handleSubmit}
       onCancel={() => onClose()}
       confirmLoading={loading}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

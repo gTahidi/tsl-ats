@@ -1,11 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Popconfirm } from 'antd';
+import { Table, Button, Popconfirm, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { Persona } from '../../../types';
 import { useQuery } from '@tanstack/react-query';
+import PersonaCvsButton from '../persona-cvs-button';
+
+const { Title } = Typography;
 
 interface PersonasTableProps {
   loading?: boolean;
@@ -91,19 +94,25 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
           >
             <Button type="text" danger icon={<DeleteOutlined />} disabled={!externalOnDelete} />
           </Popconfirm>
+          <PersonaCvsButton personaId={record.id} buttonText="View CVs" />
         </div>
       ),
     },
   ];
 
   return (
-    <Table
-      dataSource={personas || []}
-      columns={columns}
-      rowKey="id"
-      loading={externalLoading || isLoading}
-      pagination={{ pageSize: 10 }}
-    />
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Personas ({personas?.length || 0})
+      </Title>
+      <Table
+        dataSource={personas || []}
+        columns={columns}
+        rowKey="id"
+        loading={externalLoading || isLoading}
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
   );
 };
 

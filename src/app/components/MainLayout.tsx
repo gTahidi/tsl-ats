@@ -1,12 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { Button, Flex, Layout, Menu, Typography } from 'antd';
-import {
-  UserOutlined,
-  SnippetsOutlined,
-  TeamOutlined,
+import { App, Button, Flex, Layout, Menu, Typography } from 'antd';
+import { 
+  UserOutlined, 
+  SnippetsOutlined, 
+  TeamOutlined, 
   OrderedListOutlined,
+  HomeOutlined, 
+  FileTextOutlined, 
+  SolutionOutlined, 
+  DatabaseOutlined,
+  UploadOutlined 
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 
@@ -40,10 +45,25 @@ const MainLayout = ({ children }: Props) => {
       label: 'Candidates',
     },
     {
+      key: '/cv-upload',
+      icon: <UploadOutlined />,
+      label: 'Upload CV',
+    },
+    {
       key: '/process-groups',
       icon: <OrderedListOutlined />,
       label: 'Process Groups',
     },
+    {
+      key: '/legacy-dashboard',
+      icon: <DatabaseOutlined />,
+      label: 'Legacy Candidates',
+    },
+    {
+      key: '/referees',
+      icon: <SolutionOutlined />,
+      label: 'Referees',
+    }
   ];
 
   const handleMenuClick = (key: string) => {
@@ -67,7 +87,7 @@ const MainLayout = ({ children }: Props) => {
           <Flex vertical>
             <Flex justify={"center"} align="center" style={{ padding: '24px' }}>
               <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
-                {collapsed ? 'ATS' : 'The OSS ATS'}
+                {collapsed ? 'Q' : 'Qchungi 0.0.1'}
               </Typography.Title>
             </Flex>
             <Menu
@@ -89,8 +109,8 @@ const MainLayout = ({ children }: Props) => {
         </Flex>
       </Sider>
       <Layout>
-        <Content style={{ margin: '24px 16px', minHeight: 280 }}>
-          {children}
+        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280 }}>
+          <App>{children}</App>
         </Content>
       </Layout>
     </Layout>

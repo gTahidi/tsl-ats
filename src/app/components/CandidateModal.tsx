@@ -74,7 +74,7 @@ const CandidateModal: React.FC<CandidateModalProps> = ({
       open={visible}
       onOk={handleSubmit}
       onCancel={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form
         form={form}

@@ -6,6 +6,7 @@ import {
   integer,
   uniqueIndex,
   vector,
+  serial,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
@@ -143,13 +144,26 @@ export const processGroupsRelations = relations(processGroups, ({ many }) => ({
   processSteps: many(processSteps),
 }));
 
-export const processStepTemplatesRelations = relations(processStepTemplates, ({ one, many }) => ({
-  group: one(processGroups, {
-    fields: [processStepTemplates.groupId],
-    references: [processGroups.id],
-  }),
-  steps: many(processSteps),
-}));
+// Staging table for raw data from the legacy Excel file
+export const legacyCandidates = pgTable('legacy_candidates', {
+  id: serial('id').primaryKey(),
+  name: text('name'),
+  phoneNo: text('phone_no'),
+  email: text('email'),
+  paymentStatus: text('payment_status'),
+  gender: text('gender'),
+  yearsOfExperience: text('years_of_experience'),
+  positionApplying1: text('position_applying_1'),
+  positionApplying2: text('position_applying_2'),
+  positionApplying3: text('position_applying_3'),
+  dateOfReceivingCv: text('date_of_receiving_cv'),
+  highestEducation: text('highest_education'),
+  qualifications: text('qualifications'),
+  universityOrInstitution: text('university_or_institution'),
+  interviews: text('interviews'),
+  createdAt: timestamp('created_at').defaultNow(),
+  updatedAt: timestamp('updated_at').defaultNow(),
+});
 
 export const cvsRelations = relations(cvs, ({ one, many }) => ({
   candidate: one(candidates),
@@ -162,6 +176,14 @@ export const cvChunksRelations = relations(cvChunks, ({ one }) => ({
     fields: [cvChunks.cvId],
     references: [cvs.id],
   }),
+}));
+
+export const processStepTemplatesRelations = relations(processStepTemplates, ({ one, many }) => ({
+  group: one(processGroups, {
+    fields: [processStepTemplates.groupId],
+    references: [processGroups.id],
+  }),
+  steps: many(processSteps),
 }));
 
 export const processStepsRelations = relations(processSteps, ({ one }) => ({

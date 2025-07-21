@@ -14,6 +14,7 @@ interface LoginFormData {
 
 export default function LoginPage() {
   const [loading, setLoading] = useState(false);
+  const [form] = Form.useForm();
   const router = useRouter();
 
   const onFinish = async (values: LoginFormData) => {
@@ -45,14 +46,21 @@ export default function LoginPage() {
   return (
     <Flex justify="center" align="center" vertical gap="middle" style={{ height: '100vh' }}>
       <Typography.Title level={2}>
-        The OSS ATS Platform
+        Qchungi 0.0.1
       </Typography.Title>
-      <Image src={Logo} alt="OSS ATS Logo" width={300} height={300} />
+      <Typography.Text style={{ fontSize: '18px', fontWeight: 500, color: '#7B8C98', marginBottom: '16px' }}>
+        Helping you find hidden gems
+      </Typography.Text>
+      <Image src={Logo} alt="Qchungi Logo" width={300} height={300} />
       <Typography.Text>
         Enter your admin password to access the platform!
       </Typography.Text>
+      <Typography.Text type="secondary" style={{ textAlign: 'center', marginTop: '8px' }}>
+        The login page above (with OTP) is a demo
+      </Typography.Text>
       <Flex vertical style={{ minWidth: '30%' }} gap={2}>
         <Form
+          form={form}
           name="login"
           onFinish={onFinish}
           layout="vertical"

@@ -9,8 +9,8 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'The OSS ATS',
-  description: 'The Open Source Applicant Tracking System',
+  title: 'Qchungi 0.0.1',
+  description: 'Helping you find hidden gems - The Open Source Applicant Tracking System',
 };
 
 export default function RootLayout({

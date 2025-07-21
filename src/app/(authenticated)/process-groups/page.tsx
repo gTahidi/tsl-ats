@@ -38,7 +38,6 @@ export default function Page(): JSX.Element {
         },
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ['processGroups'] });
-            qc.invalidateQueries({ queryKey: ['jobs'] });
             qc.invalidateQueries({ queryKey: ['candidates'] });
         },
     });

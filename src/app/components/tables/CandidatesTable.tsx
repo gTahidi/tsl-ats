@@ -1,13 +1,16 @@
 'use client';
 
-import React from 'react';
-import { Table, Button, Popconfirm, message } from 'antd';
+import React, { useState } from 'react';
+import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, EyeOutlined, DownloadOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import RatingTag from '../RatingTag';
+import RatingModal from '../RatingModal';
+import CvViewerButton from '../cv-viewer-button';
+
+const { Title } = Typography;
 
 interface CandidatesTableProps {
   jobId?: string;
@@ -86,10 +89,7 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
       title: 'CV',
       key: 'cvUrl',
       render: (record: CandidateView) => {
-        if (!record.cvFileKey) {
-          return '-';
-        }
-
+        // Always show the CV button - the API endpoint will handle cases where CV isn't available
         return <CVButton id={record.id} />
       }
     },
@@ -130,10 +130,15 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
         return !record.rating;
       },
       render: (record: CandidateView) => {
-        if (!record.rating) {
-          return <RatingTag rating={null} />;
-        }
-        return <RatingTag rating={record.rating.matchScore} />;
+        // Use RatingModal instead of RatingTag to allow users to click and see details
+        // Pass the entire rating object directly to avoid additional API calls
+        return (
+          <RatingModal 
+            candidateId={record.id} 
+            initialRating={record.rating?.matchScore || null}
+            ratingObject={record.rating || null}
+          />
+        );
       },
     },
     {
@@ -188,54 +193,33 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
   ];
 
   return (
-    <Table
-      dataSource={fetchedCandidates || []}
-      columns={columns}
-      rowKey="id"
-      loading={isLoading || deleteCandidateMutation.isPending}
-      pagination={{
-        defaultPageSize: 25,
-        showSizeChanger: true,
-        showTotal: (total) => `Total ${total} candidates`,
-      }}
-    />
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Candidates ({fetchedCandidates?.length || 0})
+      </Title>
+      <Table
+        dataSource={fetchedCandidates || []}
+        columns={columns}
+        rowKey="id"
+        loading={isLoading || deleteCandidateMutation.isPending}
+        pagination={{
+          defaultPageSize: 25,
+          showSizeChanger: true,
+          showTotal: (total) => `Total ${total} candidates`,
+        }}
+      />
+    </div>
   );
 };
 
 const CVButton = ({ id }: { id: string }) => {
-  const {
-    data: cvData,
-    isPending,
-    error,
-  } = useQuery<{ url: string | null }>({
-    queryKey: ['candidate-cv', id],
-    queryFn: async () => {
-      const response = await fetch(`/api/candidates/${id}/cv-azure`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch CV');
-      }
-      return response.json();
-    },
-  });
-
-  const handleDownload = () => {
-    if (cvData?.url) {
-      window.open(cvData.url, '_blank');
-    } else if (error) {
-      message.error('Failed to load CV');
-    } else {
-      message.info('No CV available');
-    }
-  };
-
   return (
-    <Button
-      type="link"
-      loading={isPending}
-      onClick={handleDownload}
-      icon={<DownloadOutlined />}
+    <CvViewerButton
+      apiEndpoint={`/api/candidates/${id}/cv-azure`}
+      buttonText="View"
+      tooltipText="View CV"
     />
-  )
+  );
 }
 
 export default CandidatesTable;

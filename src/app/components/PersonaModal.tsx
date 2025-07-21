@@ -34,7 +34,7 @@ const PersonaModal: React.FC<PersonaModalProps> = ({
       open={visible}
       onOk={() => form.validateFields().then(onSubmit)}
       onCancel={onClose}
-      destroyOnClose
+      destroyOnHidden
     >
       <Form form={form} layout="vertical">
         <Form.Item
