@@ -1,11 +1,13 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Popconfirm } from 'antd';
+import { Table, Button, Popconfirm, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { ProcessGroup } from '../../../types';
 import { useQuery } from '@tanstack/react-query';
+
+const { Title } = Typography;
 
 interface groupsTableProps {
   loading?: boolean;
@@ -59,13 +61,18 @@ const GroupsTable: React.FC<groupsTableProps> = ({
   ];
 
   return (
-    <Table
-      dataSource={groups || []}
-      columns={columns}
-      rowKey="id"
-      loading={externalLoading || isLoading}
-      pagination={{ pageSize: 10 }}
-    />
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Process Groups ({groups?.length || 0})
+      </Title>
+      <Table
+        dataSource={groups || []}
+        columns={columns}
+        rowKey="id"
+        loading={externalLoading || isLoading}
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
   );
 };
 

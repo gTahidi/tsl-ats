@@ -1,11 +1,13 @@
 'use client';
 
-import { Table, Space, Button, Tag, Tooltip } from 'antd';
+import { Table, Space, Button, Tag, Tooltip, Typography } from 'antd';
 import { CheckOutlined, EyeOutlined } from '@ant-design/icons';
 import type { ColumnType } from 'antd/es/table';
 import { CandidateView, ProcessStep, ProcessStepTemplate } from '@/types';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import RatingTag from '../RatingTag';
+
+const { Title } = Typography;
 
 interface ProcessStepsTableProps {
   candidateId: string;
@@ -159,12 +161,17 @@ export default function ProcessStepsTable({
   ];
 
   return (
-    <Table
-      columns={columns}
-      dataSource={groupSteps}
-      rowKey="id"
-      loading={isLoading}
-      pagination={{ pageSize: 10 }}
-    />
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Process Steps ({groupSteps?.length || 0})
+      </Title>
+      <Table
+        columns={columns}
+        dataSource={groupSteps}
+        rowKey="id"
+        loading={isLoading}
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
   );
 }

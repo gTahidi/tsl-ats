@@ -1,12 +1,14 @@
 'use client';
 
 import React from 'react';
-import { Table, Button, Popconfirm, Tag } from 'antd';
+import { Table, Button, Popconfirm, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
 import type { JobView } from '../../../types';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
+
+const { Title } = Typography;
 
 interface JobsTableProps {
   loading?: boolean;
@@ -95,13 +97,18 @@ const JobsTable: React.FC<JobsTableProps> = ({
   ];
 
   return (
-    <Table
-      dataSource={jobs || []}
-      columns={columns}
-      rowKey="id"
-      loading={externalLoading || isLoading}
-      pagination={{ pageSize: 10 }}
-    />
+    <div>
+      <Title level={4} style={{ marginBottom: 16 }}>
+        Jobs ({jobs?.length || 0})
+      </Title>
+      <Table
+        dataSource={jobs || []}
+        columns={columns}
+        rowKey="id"
+        loading={externalLoading || isLoading}
+        pagination={{ pageSize: 10 }}
+      />
+    </div>
   );
 };
 

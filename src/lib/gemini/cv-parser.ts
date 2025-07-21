@@ -113,42 +113,72 @@ function buildMegaPrompt(job: typeof jobPostings.$inferSelect): string {
   const jobJson = JSON.stringify({ title: job.title, description: job.description }, null, 2);
 
   return `
-    You are an expert recruitment consultant and hiring manager with 20 years of experience.
-    Your task is to analyze the provided candidate CV against the job description and return a single, comprehensive, structured JSON object.
+**CONTEXT - JOB REQUIREMENTS:**
+${jobJson}
 
-    **Job Description:**
-    ${jobJson}
+**SCORING EXAMPLES FOR REFERENCE:**
+- 95/100: Candidate exceeds all requirements + bonus skills (e.g., 8+ years experience when 5+ required, advanced certifications)
+- 85/100: Strong match - meets most key requirements well with solid experience
+- 65/100: Partial match - meets some requirements but has notable gaps  
+- 45/100: Weak match - missing several key requirements
+- 25/100: Poor match - lacks most basic requirements
 
-    **Instructions:**
-    1.  **Extract CV Data:** Parse the document to extract the candidate's contact information. Crucially, you must separate the candidate's first name (given name) into the 'name' field and their last name (family name) into the 'surname' field. Also extract their work experience, education, skills, certifications, and a list of any professional referees mentioned.
-    2.  **Rank the Candidate:** Based on the CV and the job description, provide a ranking.
-        -   \`matchScore\`: A score from 0-100 indicating suitability.
-        -   \`summary\`: A concise explanation for the score, highlighting strengths and weaknesses.
-        -   \`questions\`: Answer the predefined interview questions based *only* on the CV content. If the answer isn't there, state that clearly.
-    3.  **Handle Missing Data:** Use 'null' for optional fields if the information is not available.
-    4.  **Format Consistently:** Ensure all dates are in a consistent format (e.g., "Month YYYY").
+**ROLE:**
+You are a DECISIVE senior recruitment expert with 20 years of experience. You must create CLEAR DISTINCTIONS between candidates - avoid giving similar scores to different people.
 
-    **Predefined Interview Questions:**
-    - "Tell us about your experience with financial reporting and compliance."
-    - "Which accounting software are you proficient in?"
-    - "Describe a time you improved an accounting process or system."
+**CRITICAL RATING INSTRUCTIONS:**
 
-    **Output Format:**
-    Return a single, valid JSON object that conforms to the schema below. Do not include any other text or markdown formatting.
+**WEIGHTED SCORING BREAKDOWN:**
+1. **Experience Relevance (30 points):** Years of relevant experience, seniority level, industry match
+2. **Skills & Technical Match (25 points):** Required technologies, tools, methodologies  
+3. **Education & Certifications (20 points):** Degree requirements, professional certifications
+4. **Additional Qualifications (15 points):** Leadership, achievements, special projects
+5. **Role-Specific Fit (10 points):** Communication, cultural indicators, soft skills
 
-    **JSON Schema:**
-    {
-      "type": "object",
-      "properties": {
-        "contactInfo": { "type": "object", "properties": { "name": { "type": "string", "description": "Candidate's first name (given name)" }, "surname": { "type": "string", "description": "Candidate's last name (family name)" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "location": { "type": "string" }, "linkedinUrl": { "type": "string", "format": "uri" }, "githubUrl": { "type": "string", "format": "uri" }, "portfolioUrl": { "type": "string", "format": "uri" } } },
-        "workExperience": { "type": "array", "items": { "type": "object", "properties": { "company": { "type": "string" }, "jobTitle": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" }, "description": { "type": "string" }, "achievements": { "type": "array", "items": { "type": "string" } } } } },
-        "education": { "type": "array", "items": { "type": "object", "properties": { "institution": { "type": "string" }, "degree": { "type": "string" }, "field": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" } } } },
-        "skills": { "type": "object", "properties": { "languages": { "type": "array", "items": { "type": "string" } }, "frameworks": { "type": "array", "items": { "type": "string" } }, "tools": { "type": "array", "items": { "type": "string" } }, "methodologies": { "type": "array", "items": { "type": "string" } } } },
-        "certifications": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "issuer": { "type": "string" }, "date": { "type": "string" }, "credentialUrl": { "type": "string", "format": "uri" } } } },
-        "ranking": { "type": "object", "properties": { "matchScore": { "type": "number" }, "summary": { "type": "string" }, "questions": { "type": "array", "items": { "type": "object", "properties": { "question": { "type": "string" }, "answer": { "type": "string" } } } } } },
-        "referees": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "organization": { "type": "string" } } } }
-      },
-      "required": ["contactInfo", "workExperience", "education", "skills", "ranking"]
+**DECISIVE SCORING RULES:**
+- If missing 2+ critical requirements → Score BELOW 60
+- If exceeds most expectations → Score ABOVE 85  
+- NEVER give similar scores (within 5 points) to different candidates
+- Be harsh on missing key skills, generous on exceptional qualifications
+- Use the FULL range 0-100, avoid clustering around 70-80 and multiples of 5
+
+**SUMMARY FORMAT:**
+Write a concise, professional summary (max 150 words):
+- **Assessment:** Brief verdict on candidate fit
+- **Strengths:** Top 2 strengths with examples
+- **Concerns:** Key gaps/weaknesses  
+- **Score:** Why this specific score
+- **Recommendation:** Hire/Don't hire
+
+**TASK:**
+1. **Extract CV Data:** Parse the document to extract the candidate's contact information. Crucially, you must separate the candidate's first name (given name) into the 'name' field and their last name (family name) into the 'surname' field. Also extract their work experience, education, skills, certifications, and a list of any professional referees mentioned.
+2. **Rank the Candidate:** Analyze the CV against job requirements and provide a decisive matchScore with detailed markdown summary.
+3. **Handle Missing Data:** Use 'null' for optional fields if the information is not available.
+4. **Format Consistently:** Ensure all dates are in a consistent format (e.g., "Month YYYY").
+
+**CV SCREENING QUESTIONS:**
+- "How many years of relevant work experience does this candidate have in the required field?"
+- "What specific technical skills, software, or certifications mentioned on the CV match the job requirements?"
+- "What is the candidate's highest level of education and is it relevant to this position?"
+- "What measurable achievements, quantified results, or career progression indicators are evident on the CV?"
+- "Are there any red flags such as employment gaps, job hopping, or missing critical qualifications?"
+
+**OUTPUT FORMAT:**
+Return a single, valid JSON object that conforms to the schema below. Do not include any other text or markdown formatting.
+
+**JSON Schema:**
+{
+    "type": "object",
+    "properties": {
+       "contactInfo": { "type": "object", "properties": { "name": { "type": "string", "description": "Candidate's first name (given name)" }, "surname": { "type": "string", "description": "Candidate's last name (family name)" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "location": { "type": "string" }, "linkedinUrl": { "type": "string", "format": "uri" }, "githubUrl": { "type": "string", "format": "uri" }, "portfolioUrl": { "type": "string", "format": "uri" } } },
+       "workExperience": { "type": "array", "items": { "type": "object", "properties": { "company": { "type": "string" }, "jobTitle": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" }, "description": { "type": "string" }, "achievements": { "type": "array", "items": { "type": "string" } } } } },
+       "education": { "type": "array", "items": { "type": "object", "properties": { "institution": { "type": "string" }, "degree": { "type": "string" }, "field": { "type": "string" }, "startDate": { "type": "string" }, "endDate": { "type": "string" }, "current": { "type": "boolean" } } } },
+       "skills": { "type": "object", "properties": { "languages": { "type": "array", "items": { "type": "string" } }, "frameworks": { "type": "array", "items": { "type": "string" } }, "tools": { "type": "array", "items": { "type": "string" } }, "methodologies": { "type": "array", "items": { "type": "string" } } } },
+       "certifications": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "issuer": { "type": "string" }, "date": { "type": "string" }, "credentialUrl": { "type": "string", "format": "uri" } } } },
+       "ranking": { "type": "object", "properties": { "matchScore": { "type": "number" }, "summary": { "type": "string" }, "questions": { "type": "array", "items": { "type": "object", "properties": { "question": { "type": "string" }, "answer": { "type": "string" } } } } } },
+       "referees": { "type": "array", "items": { "type": "object", "properties": { "name": { "type": "string" }, "email": { "type": "string", "format": "email" }, "phone": { "type": "string" }, "organization": { "type": "string" } } } }
+     },
+     "required": ["contactInfo", "workExperience", "education", "skills", "ranking"]
     }
   `;
 }

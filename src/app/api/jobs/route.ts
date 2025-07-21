@@ -16,7 +16,38 @@ export async function GET() {
         },
       },
     });
-    return NextResponse.json(jobs);
+
+    const serializableJobs = jobs.map(job => ({
+      ...job,
+      createdAt: job.createdAt.toISOString(),
+      updatedAt: job.updatedAt.toISOString(),
+      processGroup: job.processGroup ? {
+        ...job.processGroup,
+        createdAt: job.processGroup.createdAt.toISOString(),
+        updatedAt: job.processGroup.updatedAt.toISOString(),
+        deletedAt: job.processGroup.deletedAt ? job.processGroup.deletedAt.toISOString() : null,
+      } : null,
+      candidates: job.candidates.map(candidate => ({
+        ...candidate,
+        createdAt: candidate.createdAt.toISOString(),
+        updatedAt: candidate.updatedAt.toISOString(),
+        deletedAt: candidate.deletedAt ? candidate.deletedAt.toISOString() : null,
+        persona: candidate.persona ? {
+          ...candidate.persona,
+          createdAt: candidate.persona.createdAt.toISOString(),
+          updatedAt: candidate.persona.updatedAt.toISOString(),
+          deletedAt: candidate.persona.deletedAt ? candidate.persona.deletedAt.toISOString() : null,
+        } : null,
+        steps: candidate.steps.map(step => ({
+          ...step,
+          createdAt: step.createdAt.toISOString(),
+          updatedAt: step.updatedAt.toISOString(),
+          deletedAt: step.deletedAt ? step.deletedAt.toISOString() : null,
+        }))
+      }))
+    }));
+
+    return NextResponse.json(serializableJobs);
   } catch (error) {
     console.error('Error fetching jobs:', error);
     return NextResponse.json(
@@ -39,10 +70,6 @@ export async function POST(request: Request) {
       processGroupId: body.processGroupId,
       createdAt: new Date(),
       updatedAt: new Date(),
-      // Explicitly set closingDate to null if it's not a valid string
-      closingDate: (body.closingDate && typeof body.closingDate === 'string') 
-        ? new Date(body.closingDate) 
-        : null,
     };
 
     const [job] = await db.insert(jobPostings).values(payload).returning();

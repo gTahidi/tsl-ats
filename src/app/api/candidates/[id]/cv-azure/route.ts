@@ -15,6 +15,7 @@ export async function GET(
         cv: {
           columns: {
             fileUrl: true,
+            originalFilename: true,
           },
         },
       },
@@ -36,6 +37,7 @@ export async function GET(
     return NextResponse.json({
       url: candidate.cv.fileUrl,
       downloadUrl: candidate.cv.fileUrl,
+      filename: candidate.cv.originalFilename || 'CV Document',
     });
   } catch (error) {
     console.error('Error fetching candidate CV:', error);
