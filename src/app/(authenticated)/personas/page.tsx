@@ -8,7 +8,7 @@ import PersonaModal from '../../components/PersonaModal';
 import type { Persona } from '../../../types';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 
-export default function Page(): JSX.Element {
+export default function Page(): React.JSX.Element {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingPersona, setEditingPersona] = useState<Persona | null>(null);
   const qc = useQueryClient();

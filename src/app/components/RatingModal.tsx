@@ -65,7 +65,7 @@ const SummaryDisplay: React.FC<{ summary: string }> = ({ summary }) => {
           <Text strong style={{ color: '#fa8c16' }}>Recommendation:</Text>
           <Paragraph style={{ marginTop: '4px', marginBottom: '0' }}>
             <Text strong style={{ 
-              color: recommendation.toLowerCase().includes('hire') && !recommendation.toLowerCase().includes("don't") ? '#52c41a' : '#ff4d4f' 
+              color: recommendation.toLowerCase().includes("don't") || recommendation.toLowerCase().includes('not') ? '#ff4d4f' : '#52c41a'
             }}>
               {recommendation}
             </Text>
@@ -89,7 +89,9 @@ interface Question {
 interface RatingData {
   matchScore: number;
   summary: string;
-  questions: Question[];
+  questions?: Question[];
+  pros?: string[];
+  cons?: string[];
 }
 
 interface RatingModalProps {
@@ -99,7 +101,9 @@ interface RatingModalProps {
   ratingObject?: {
     matchScore: number;
     summary: string;
-    questions: Question[];
+    questions?: Question[];
+    pros?: string[];
+    cons?: string[];
   } | null;
 }
 
@@ -166,20 +170,24 @@ const RatingModal: React.FC<RatingModalProps> = ({ candidateId, initialRating, r
             <Divider orientation="left">Summary</Divider>
             <SummaryDisplay summary={ratingData.summary} />
             
-            <Divider orientation="left">Interview Questions & Answers</Divider>
-            <List
-              itemLayout="vertical"
-              dataSource={ratingData.questions || []}
-              renderItem={(item, index) => (
-                <Card 
-                  style={{ marginBottom: 16 }} 
-                  title={`Question ${index + 1}`}
-                >
-                  <Paragraph strong>{item.question}</Paragraph>
-                  <Paragraph>{item.answer}</Paragraph>
-                </Card>
-              )}
-            />
+            {ratingData.questions && ratingData.questions.length > 0 && (
+              <>
+                <Divider orientation="left">Interview Questions & Answers</Divider>
+                <List
+                  itemLayout="vertical"
+                  dataSource={ratingData.questions}
+                  renderItem={(item, index) => (
+                    <Card 
+                      style={{ marginBottom: 16 }} 
+                      title={`Question ${index + 1}`}
+                    >
+                      <Paragraph strong>{item.question}</Paragraph>
+                      <Paragraph>{item.answer}</Paragraph>
+                    </Card>
+                  )}
+                />
+              </>
+            )}
           </div>
         ) : (
           <div style={{ textAlign: 'center', padding: '20px' }}>

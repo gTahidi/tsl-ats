@@ -8,7 +8,7 @@ import CandidateModal from '../../components/CandidateModal';
 import type { CandidateView } from '@/types';
 import { useQueryClient } from '@tanstack/react-query';
 
-export default function Page(): JSX.Element {
+export default function Page(): React.JSX.Element {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<CandidateView | null>(null);
   const qc = useQueryClient();

@@ -8,8 +8,9 @@ export async function validatePassword(password: string): Promise<boolean> {
   return password === AUTH_PASSWORD;
 }
 
-export function setAuthCookie(): void {
-  cookies().set(AUTH_COOKIE, 'authenticated', {
+export async function setAuthCookie(): Promise<void> {
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_COOKIE, 'authenticated', {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'strict',

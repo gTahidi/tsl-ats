@@ -63,7 +63,14 @@ export default function ProcessStepsTable({
   });
 
   const groupSteps = candidate?.job.processGroup?.steps || [];
-  const currStep = candidate?.currentStep;
+  
+  // Determine current step: find the first pending step or the last completed step
+  const currStep = candidate?.steps ? (
+    candidate.steps.find(step => step.status === 'Pending') ||
+    candidate.steps
+      .filter(step => step.status === 'Completed')
+      .sort((a, b) => b.template.order - a.template.order)[0]
+  ) : null;
 
   const columns: ColumnType<ProcessStepTemplate>[] = [
     {
@@ -99,14 +106,15 @@ export default function ProcessStepsTable({
       key: 'rating',
       render: (record: ProcessStepTemplate) => {
         const step = candidate?.steps?.find(step => step.templateId === record.id);
-        return <RatingTag rating={step?.rating} />;
+        return <RatingTag rating={step?.rating?.matchScore || null} />;
       },
       sorter: (a, b) => {
         const stepA = candidate?.steps?.find(step => step.templateId === a.id);
         const stepB = candidate?.steps?.find(step => step.templateId === b.id);
 
-        const ratings = ['Not rated', 'Strong no hire', 'No hire', 'Maybe', 'Hire', 'Strong hire'];
-        return ratings.indexOf(stepA?.rating || 'Not rated') - ratings.indexOf(stepB?.rating || 'Not rated');
+        const ratingA = stepA?.rating?.matchScore || 0;
+        const ratingB = stepB?.rating?.matchScore || 0;
+        return ratingA - ratingB;
       },
       filters: [
         { text: 'Not rated', value: 'Not rated' },
@@ -118,7 +126,27 @@ export default function ProcessStepsTable({
       ],
       onFilter: (value, record) => {
         const step = candidate?.steps?.find(step => step.templateId === record.id);
-        return step?.rating === value;
+        const rating = step?.rating?.matchScore;
+        
+        if (!rating) {
+          return value === 'Not rated';
+        }
+        
+        // Convert numeric rating to category
+        let category = 'Not rated';
+        if (rating >= 90) {
+          category = 'Strong hire';
+        } else if (rating >= 75) {
+          category = 'Hire';
+        } else if (rating >= 60) {
+          category = 'Maybe';
+        } else if (rating >= 40) {
+          category = 'No hire';
+        } else {
+          category = 'Strong no hire';
+        }
+        
+        return category === value;
       }
     },
     {
