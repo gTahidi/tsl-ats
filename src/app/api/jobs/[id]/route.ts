@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { jobPostings } from '@/db/schema';
+import { jobPostings, candidates, processSteps, cvs, cvChunks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
@@ -87,7 +87,38 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    await db.delete(jobPostings).where(eq(jobPostings.id, id));
+    
+    // Use transaction to handle cascading deletes
+    await db.transaction(async (tx) => {
+      // Get all candidates for this job
+      const jobCandidates = await tx.select({ id: candidates.id, cvId: candidates.cvId })
+        .from(candidates)
+        .where(eq(candidates.jobId, id));
+      
+      // Delete all related data for each candidate
+      for (const candidate of jobCandidates) {
+        // Delete process steps for this candidate
+        await tx.delete(processSteps).where(eq(processSteps.candidateId, candidate.id));
+        
+        // Delete CV and CV chunks if they exist
+        if (candidate.cvId) {
+          // First, nullify the cvId to remove the foreign key reference
+          await tx.update(candidates)
+            .set({ cvId: null })
+            .where(eq(candidates.id, candidate.id));
+          
+          // Now we can safely delete CV chunks and CV
+          await tx.delete(cvChunks).where(eq(cvChunks.cvId, candidate.cvId));
+          await tx.delete(cvs).where(eq(cvs.id, candidate.cvId));
+        }
+      }
+      
+      // Delete all candidates for this job
+      await tx.delete(candidates).where(eq(candidates.jobId, id));
+      
+      // Finally, delete the job posting
+      await tx.delete(jobPostings).where(eq(jobPostings.id, id));
+    });
 
     return NextResponse.json({ message: 'Job deleted successfully' });
   } catch (error) {
