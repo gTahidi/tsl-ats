@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { processGroups, processStepTemplates } from '@/db/schema';
+import { processGroups, processStepTemplates, jobPostings, candidates, processSteps, cvs, cvChunks } from '@/db/schema';
 import { and, eq, notInArray } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 
@@ -86,15 +86,59 @@ export async function DELETE(
         const { id } = await params;
 
         await db.transaction(async (tx) => {
+            // Get all jobs for this process group
+            const groupJobs = await tx.select({ id: jobPostings.id })
+                .from(jobPostings)
+                .where(eq(jobPostings.processGroupId, id));
+            
+            // Delete all related data for each job
+            for (const job of groupJobs) {
+                // Get all candidates for this job
+                const jobCandidates = await tx.select({ id: candidates.id, cvId: candidates.cvId })
+                    .from(candidates)
+                    .where(eq(candidates.jobId, job.id));
+                
+                // Delete all related data for each candidate
+                for (const candidate of jobCandidates) {
+                    // Delete process steps for this candidate
+                    await tx.delete(processSteps).where(eq(processSteps.candidateId, candidate.id));
+                    
+                    // Delete CV and CV chunks if they exist
+                    if (candidate.cvId) {
+                        // First, nullify the cvId to remove the foreign key reference
+                        await tx.update(candidates)
+                            .set({ cvId: null })
+                            .where(eq(candidates.id, candidate.id));
+                        
+                        // Now we can safely delete CV chunks and CV
+                        await tx.delete(cvChunks).where(eq(cvChunks.cvId, candidate.cvId));
+                        await tx.delete(cvs).where(eq(cvs.id, candidate.cvId));
+                    }
+                }
+                
+                // Delete all candidates for this job
+                await tx.delete(candidates).where(eq(candidates.jobId, job.id));
+            }
+            
+            // Delete all jobs for this process group
+            await tx.delete(jobPostings).where(eq(jobPostings.processGroupId, id));
+            
+            // Delete any remaining process steps for this group
+            await tx.delete(processSteps).where(eq(processSteps.groupId, id));
+            
+            // Delete process step templates for this group
             await tx.delete(processStepTemplates).where(eq(processStepTemplates.groupId, id));
+            
+            // Finally, delete the process group
             await tx.delete(processGroups).where(eq(processGroups.id, id));
         });
 
         return NextResponse.json({ message: 'Process group deleted successfully' });
     } catch (error) {
         console.error('Error deleting process group:', error);
+        const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
         return NextResponse.json(
-            { error: 'Failed to delete process group' },
+            { error: 'Failed to delete process group', details: errorMessage },
             { status: 500 }
         );
     }
