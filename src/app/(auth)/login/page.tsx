@@ -1,12 +1,11 @@
 'use client';
 
 import { useState } from 'react';
-import { Form, Input, Button, message, Flex, Typography } from 'antd';
+import { Form, Input, Button, message, Typography } from 'antd';
 import { useRouter } from 'next/navigation';
 import Cookies from 'js-cookie';
-import Logo from "@/public/ats-oss.png"
-import Image from 'next/image'
-
+import Image from 'next/image';
+import ATSImage from '@/public/ats.jpg';
 
 interface LoginFormData {
   password: string;
@@ -44,54 +43,87 @@ export default function LoginPage() {
   };
 
   return (
-    <Flex justify="center" align="center" vertical gap="middle" style={{ height: '100vh' }}>
-      <Typography.Title level={2}>
-        Qchungi 0.0.1
-      </Typography.Title>
-      <Typography.Text style={{ fontSize: '18px', fontWeight: 500, color: '#7B8C98', marginBottom: '16px' }}>
-        Helping you find hidden gems
-      </Typography.Text>
-      <Image src={Logo} alt="Qchungi Logo" width={300} height={300} />
-      <Typography.Text>
-        Enter your admin password to access the platform!
-      </Typography.Text>
-      <Typography.Text type="secondary" style={{ textAlign: 'center', marginTop: '8px' }}>
-        The login page above (with OTP) is a demo
-      </Typography.Text>
-      <Flex vertical style={{ minWidth: '30%' }} gap={2}>
-        <Form
-          form={form}
-          name="login"
-          onFinish={onFinish}
-          layout="vertical"
-        >
-          <Form.Item
-            name="password"
-            rules={[{ required: true, message: 'Please enter your password' }]}
+    <div style={{ height: '100vh', display: 'flex' }}>
+      {/* Left Side - Image */}
+      <div 
+        style={{
+          flex: 1,
+          position: 'relative',
+        }}
+      >
+        <Image 
+          src={ATSImage} 
+          alt="ATS Platform background"
+          fill
+          style={{ objectFit: 'cover' }}
+          priority
+        />
+      </div>
+
+      {/* Right Side - Login Form */}
+      <div 
+        style={{
+          flex: 1,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '2rem',
+          backgroundColor: '#ffffff'
+        }}
+      >
+        <div style={{ width: '100%', maxWidth: '400px' }}>
+          <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
+            <Typography.Title level={3} style={{ marginBottom: '0.5rem', fontWeight: '600' }}>
+              Find Your Next Golden Hire
+            </Typography.Title>
+          </div>
+
+          <Form
+            form={form}
+            name="login"
+            onFinish={onFinish}
+            layout="vertical"
+            size="large"
+            requiredMark={false}
           >
-            <Input.Password
-              size="large"
-              placeholder="Password"
-            />
-          </Form.Item>
+            <Form.Item
+              name="password"
+              label={<Typography.Text strong>Password</Typography.Text>}
+              rules={[{ required: true, message: 'Please enter your password' }]}
+            >
+              <Input.Password
+                placeholder="Enter your password"
+                style={{ borderRadius: '8px', padding: '10px' }}
+              />
+            </Form.Item>
 
-          <Typography.Text type="secondary">
-            For testing purposes, the password is <Typography.Text code copyable>admin</Typography.Text>
-          </Typography.Text>
-
-          <Flex justify="end">
             <Form.Item>
               <Button
                 type="primary"
                 htmlType="submit"
                 loading={loading}
+                block
+                style={{
+                  height: '48px',
+                  borderRadius: '8px',
+                  fontSize: '16px',
+                  fontWeight: '600',
+                  background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                  border: 'none'
+                }}
               >
-                Sign in
+                Sign In
               </Button>
             </Form.Item>
-          </Flex>
-        </Form>
-      </Flex>
-    </Flex>
+          </Form>
+
+          <div style={{ textAlign: 'center', marginTop: '1.5rem' }}>
+            <Typography.Text type="secondary" style={{ fontSize: '12px' }}>
+              © {new Date().getFullYear()} ATS Platform. All rights reserved.
+            </Typography.Text>
+          </div>
+        </div>
+      </div>
+    </div>
   );
 }
