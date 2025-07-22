@@ -62,11 +62,12 @@ export async function DELETE(
     const { id } = await params;
     await db.delete(processSteps).where(eq(processSteps.id, id));
 
-    return NextResponse.json({ message: 'process step deleted successfully' });
+    return NextResponse.json({ message: 'Process step deleted successfully' });
   } catch (error) {
-    console.error('Error deleting processs step:', error);
+    console.error('Error deleting process step:', error);
+    const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
     return NextResponse.json(
-      { error: 'Failed to delete processs tep' },
+      { error: 'Failed to delete process step', details: errorMessage },
       { status: 500 }
     );
   }

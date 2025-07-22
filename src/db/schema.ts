@@ -93,6 +93,7 @@ export const referees = pgTable('referees', {
   phone: text('phone'),
   organization: text('organization'),
   cvId: text('cv_id').notNull().references(() => cvs.id),
+  candidateId: text('candidate_id').notNull().references(() => candidates.id),
   ...timestamps,
 });
 
