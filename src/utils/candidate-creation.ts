@@ -1,3 +1,4 @@
+
 import { db } from '@/db';
 import { candidates, jobPostings, processGroups, processSteps, processStepTemplates, referees } from '@/db/schema';
 import { eq } from 'drizzle-orm';
@@ -15,7 +16,7 @@ export interface CandidateUpdateData {
 }
 
 export interface CandidateCreationData {
-    jobId: string; // Reverted to string to match the database schema
+    jobId: string;
     personaId: string;
     cvId: string;
     notes?: string;
@@ -48,7 +49,7 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     const initialStepTemplate = job.processGroup.stepTemplates[0];
 
     // 2. Create the new candidate.
-        const insertPayload: typeof candidates.$inferInsert = {
+    const insertPayload: typeof candidates.$inferInsert = {
         jobId: data.jobId,
         personaId: data.personaId,
         cvId: data.cvId,
@@ -78,6 +79,7 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
         const refereeValues = data.referees.map(ref => ({
             ...ref,
             cvId: data.cvId, // Link referee to the CV
+            candidateId: newCandidate.id, // FIX: Link referee to the new candidate
         }));
         await tx.insert(referees).values(refereeValues);
     }
@@ -111,6 +113,7 @@ export async function updateCandidateWithNewCv(tx: DrizzleTransactionClient, dat
         const refereeValues = data.referees.map(ref => ({
             ...ref,
             cvId: data.cvId, // Link new referees to the new CV
+            candidateId: data.candidateId, // FIX: Link referee to the updated candidate
         }));
         await tx.insert(referees).values(refereeValues);
     }
