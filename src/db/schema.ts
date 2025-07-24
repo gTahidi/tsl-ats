@@ -7,6 +7,7 @@ import {
   uniqueIndex,
   vector,
   serial,
+  pgEnum,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
@@ -207,5 +208,103 @@ export const refereesRelations = relations(referees, ({ one }) => ({
   cv: one(cvs, {
     fields: [referees.cvId],
     references: [cvs.id],
+  }),
+  candidate: one(candidates, {
+    fields: [referees.candidateId],
+    references: [candidates.id],
+  }),
+}));
+
+// RBAC Tables
+export const users = pgTable('users', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  email: text('email').unique().notNull(),
+  passwordHash: text('password_hash').notNull(),
+  firstName: text('first_name').notNull(),
+  lastName: text('last_name').notNull(),
+  isActive: text('is_active').default('true').notNull(),
+  lastLoginAt: timestamp('last_login_at'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  ...timestamps,
+});
+
+export const roles = pgTable('roles', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').unique().notNull(),
+  description: text('description'),
+  isSystem: text('is_system').default('false').notNull(), // System roles can't be deleted
+  metadata: jsonb('metadata').default({}).notNull(),
+  ...timestamps,
+});
+
+export const permissions = pgTable('permissions', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').unique().notNull(),
+  resource: text('resource').notNull(), // e.g., 'jobs', 'candidates', 'users'
+  action: text('action').notNull(), // e.g., 'create', 'read', 'update', 'delete'
+  description: text('description'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  ...timestamps,
+});
+
+export const userRoles = pgTable('user_roles', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+  roleId: text('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  assignedBy: text('assigned_by').references(() => users.id),
+  assignedAt: timestamp('assigned_at').defaultNow().notNull(),
+  ...timestamps,
+}, (table) => ({
+  userRoleUnique: uniqueIndex('user_role_unique').on(table.userId, table.roleId),
+}));
+
+export const rolePermissions = pgTable('role_permissions', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  roleId: text('role_id').notNull().references(() => roles.id, { onDelete: 'cascade' }),
+  permissionId: text('permission_id').notNull().references(() => permissions.id, { onDelete: 'cascade' }),
+  ...timestamps,
+}, (table) => ({
+  rolePermissionUnique: uniqueIndex('role_permission_unique').on(table.roleId, table.permissionId),
+}));
+
+// RBAC Relations
+export const usersRelations = relations(users, ({ many }) => ({
+  userRoles: many(userRoles),
+  assignedRoles: many(userRoles, { relationName: 'AssignedBy' }),
+}));
+
+export const rolesRelations = relations(roles, ({ many }) => ({
+  userRoles: many(userRoles),
+  rolePermissions: many(rolePermissions),
+}));
+
+export const permissionsRelations = relations(permissions, ({ many }) => ({
+  rolePermissions: many(rolePermissions),
+}));
+
+export const userRolesRelations = relations(userRoles, ({ one }) => ({
+  user: one(users, {
+    fields: [userRoles.userId],
+    references: [users.id],
+  }),
+  role: one(roles, {
+    fields: [userRoles.roleId],
+    references: [roles.id],
+  }),
+  assignedByUser: one(users, {
+    fields: [userRoles.assignedBy],
+    references: [users.id],
+    relationName: 'AssignedBy',
+  }),
+}));
+
+export const rolePermissionsRelations = relations(rolePermissions, ({ one }) => ({
+  role: one(roles, {
+    fields: [rolePermissions.roleId],
+    references: [roles.id],
+  }),
+  permission: one(permissions, {
+    fields: [rolePermissions.permissionId],
+    references: [permissions.id],
   }),
 }));

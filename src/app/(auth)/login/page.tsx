@@ -8,6 +8,7 @@ import Image from 'next/image';
 import ATSImage from '@/public/ats.jpg';
 
 interface LoginFormData {
+  email: string;
   password: string;
 }
 
@@ -27,16 +28,17 @@ export default function LoginPage() {
         body: JSON.stringify(values),
       });
 
+      const data = await response.json();
+
       if (!response.ok) {
-        throw new Error('Invalid password');
+        throw new Error(data.error || 'Login failed');
       }
 
-      Cookies.set('auth', 'true', { expires: 7 });
       message.success('Login successful');
       router.push('/jobs');
     } catch (error) {
       console.error('Login error:', error);
-      message.error('Invalid password');
+      message.error(error instanceof Error ? error.message : 'Invalid credentials');
     } finally {
       setLoading(false);
     }
@@ -86,6 +88,20 @@ export default function LoginPage() {
             size="large"
             requiredMark={false}
           >
+            <Form.Item
+              name="email"
+              label={<Typography.Text strong>Email</Typography.Text>}
+              rules={[
+                { required: true, message: 'Please enter your email' },
+                { type: 'email', message: 'Please enter a valid email' }
+              ]}
+            >
+              <Input
+                placeholder="Enter your email"
+                style={{ borderRadius: '8px', padding: '10px' }}
+              />
+            </Form.Item>
+
             <Form.Item
               name="password"
               label={<Typography.Text strong>Password</Typography.Text>}
