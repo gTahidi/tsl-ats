@@ -132,3 +132,82 @@ export type ProcessStep = {
 
   metadata: Record<string, string>;
 };
+
+// RBAC Types
+export type User = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isActive: boolean;
+  lastLoginAt?: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  metadata: Record<string, string>;
+  roles?: string[];
+};
+
+export type Role = {
+  id: string;
+  name: string;
+  description?: string | null;
+  isSystem: boolean;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  metadata: Record<string, string>;
+  permissions?: string[];
+  users?: UserRole[];
+};
+
+export type Permission = {
+  id: string;
+  name: string;
+  resource: string;
+  action: string;
+  description?: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  metadata: Record<string, string>;
+};
+
+export type UserRole = {
+  id: string;
+  userId: string;
+  roleId: string;
+  assignedBy?: string | null;
+  assignedAt: Date;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  user?: User;
+  role?: Role;
+  assignedByUser?: User;
+};
+
+export type RolePermission = {
+  id: string;
+  roleId: string;
+  permissionId: string;
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date | null;
+  role?: Role;
+  permission?: Permission;
+};
+
+export type AuthUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  roles: string[];
+  permissions: string[];
+};
+
+export type PermissionCheck = {
+  resource: string;
+  action: string;
+};

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { App, Button, Flex, Layout, Menu, Typography } from 'antd';
+import { App, Button, Flex, Layout, Menu, Spin, Typography } from 'antd';
 import { 
   UserOutlined, 
   SnippetsOutlined, 
@@ -11,9 +11,12 @@ import {
   FileTextOutlined, 
   SolutionOutlined, 
   DatabaseOutlined,
-  UploadOutlined 
+  UploadOutlined,
+  SettingOutlined,
+  SafetyOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
+import { useUser } from '../contexts/UserContext';
 
 const { Sider, Content } = Layout;
 
@@ -22,54 +25,76 @@ interface Props {
 }
 
 const MainLayout = ({ children }: Props) => {
+  const { user, loading, hasPermission } = useUser();
   const router = useRouter();
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
   const isLogin = pathname === '/login';
 
-  const menuItems = [
-    {
+    const menuItems = [
+        {
       key: '/jobs',
       icon: <SnippetsOutlined />,
       label: 'Jobs',
+      permission: 'jobs:read',
     },
-    {
+        {
       key: '/personas',
       icon: <UserOutlined />,
       label: 'Personas',
+      permission: 'personas:read',
     },
-    {
+        {
       key: '/candidates',
       icon: <TeamOutlined />,
       label: 'Candidates',
+      permission: 'candidates:read',
     },
-    {
+        {
       key: '/cv-upload',
       icon: <UploadOutlined />,
       label: 'Upload CV',
+      permission: 'cv:upload',
     },
-    {
+        {
       key: '/process-groups',
       icon: <OrderedListOutlined />,
       label: 'Process Groups',
+      permission: 'process_groups:read',
     },
-    {
+        {
       key: '/legacy-dashboard',
       icon: <DatabaseOutlined />,
       label: 'Legacy Candidates',
+      permission: 'legacy_candidates:read',
     },
-    {
+            {
       key: '/referees',
       icon: <SolutionOutlined />,
       label: 'Referees',
+      permission: 'referees:read',
+    },
+    {
+      key: '/users',
+      icon: <SettingOutlined />,
+      label: 'User Management',
+      permission: 'users:read',
     }
   ];
 
-  const handleMenuClick = (key: string) => {
+    const handleMenuClick = (key: string) => {
     router.push(key);
   };
 
+  const filteredMenuItems = menuItems.filter(
+    (item) => !item.permission || hasPermission(item.permission)
+  );
+
+
+    if (loading) {
+    return <Spin size="large" fullscreen />;
+  }
 
   if (isLogin) {
     return children;
@@ -94,7 +119,7 @@ const MainLayout = ({ children }: Props) => {
               theme="light"
               selectedKeys={[pathname]}
               mode="inline"
-              items={menuItems}
+              items={filteredMenuItems}
               onClick={({ key }) => handleMenuClick(key)}
             />
           </Flex>
