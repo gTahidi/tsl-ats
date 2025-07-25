@@ -1,17 +1,30 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Button, Flex, Typography, message } from 'antd';
+import { Button, Flex, Typography, message, Select } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import CandidatesTable from '../../components/tables/CandidatesTable';
 import CandidateModal from '../../components/CandidateModal';
-import type { CandidateView } from '@/types';
-import { useQueryClient } from '@tanstack/react-query';
+import type { CandidateView, JobView } from '@/types';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function Page(): React.JSX.Element {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingCandidate, setEditingCandidate] = useState<CandidateView | null>(null);
   const qc = useQueryClient();
+  const [selectedJobId, setSelectedJobId] = useState<string | undefined>();
+
+  const { data: jobs, isLoading: isLoadingJobs } = useQuery<JobView[]>({
+    queryKey: ['jobs'],
+    queryFn: async () => {
+      const response = await fetch('/api/jobs');
+      if (!response.ok) {
+        throw new Error('Failed to fetch jobs');
+      }
+      const data = await response.json();
+      return data.jobs;
+    },
+  });
 
   const handleCreateOrUpdate = async (values: Partial<CandidateView>) => {
     try {
@@ -81,16 +94,28 @@ export default function Page(): React.JSX.Element {
         <Typography.Title level={3}>
           Candidates
         </Typography.Title>
-        <Button
-          type="primary"
-          icon={<PlusOutlined />}
-          onClick={() => setModalVisible(true)}
-        >
-          Add Candidate
-        </Button>
+        <Flex align="center" gap="middle">
+          <Select
+            placeholder="Filter by job"
+            style={{ width: 250 }}
+            allowClear
+            loading={isLoadingJobs}
+            onChange={setSelectedJobId}
+            options={jobs?.map((job) => ({ label: job.title, value: job.id }))}
+            value={selectedJobId}
+          />
+          {/* <Button
+            type="primary"
+            icon={<PlusOutlined />}
+            onClick={() => setModalVisible(true)}
+          >
+            Add Candidate
+          </Button> */}
+        </Flex>
       </Flex>
 
       <CandidatesTable
+        jobId={selectedJobId}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />
