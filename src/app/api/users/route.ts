@@ -22,8 +22,8 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const hasReadPermission = await hasPermission(authUser.id as string, { resource: 'users', action: 'read' });
-    if (!hasReadPermission) {
+    const canManageUsers = await hasPermission(authUser.id as string, { resource: 'users', action: 'manage' });
+    if (!canManageUsers) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
@@ -79,8 +79,8 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const hasCreatePermission = await hasPermission(authUser.id as string, { resource: 'users', action: 'create' });
-    if (!hasCreatePermission) {
+    const canManageUsers = await hasPermission(authUser.id as string, { resource: 'users', action: 'manage' });
+    if (!canManageUsers) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 

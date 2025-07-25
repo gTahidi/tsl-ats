@@ -49,6 +49,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@radix-ui/react-slot": "^1.1.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/js-cookie": "^3.0.6",
     "@types/lodash": "^4.17.20",
@@ -57,7 +58,6 @@
     "@types/pg": "^8.11.0",
     "@types/react": "^19.1.8",
     "@types/react-dom": "^19.1.6",
-    "@radix-ui/react-slot": "^1.1.0",
     "csv-parse": "^5.5.6",
     "drizzle-kit": "^0.23.0",
     "eslint": "^9.30.1",

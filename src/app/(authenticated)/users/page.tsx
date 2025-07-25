@@ -130,7 +130,7 @@ export default function UsersPage() {
       key: 'actions',
       render: (record: User) => (
         <Space>
-          <PermissionGuard permission={{ resource: 'users', action: 'update' }}>
+          <PermissionGuard permission={{ resource: 'users', action: 'manage' }}>
             <Button
               type="text"
               icon={<EditOutlined />}
@@ -146,7 +146,7 @@ export default function UsersPage() {
     <div style={{ padding: '24px' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
         <h1>User Management</h1>
-        <PermissionGuard permission={{ resource: 'users', action: 'create' }}>
+        <PermissionGuard permission={{ resource: 'users', action: 'manage' }}>
           <Button type="primary" icon={<PlusOutlined />} onClick={handleCreateUser}>
             Add User
           </Button>

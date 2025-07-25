@@ -52,9 +52,8 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
   }, [router]);
 
   const hasPermission = (permission: string) => {
-    if (!user) return false;
-    // Ensure permissions exist and is an array before checking
-    return Array.isArray(user.permissions) && user.permissions.includes(permission);
+    if (!user || !user.permissions) return false;
+    return user.permissions.includes(permission);
   };
 
   return (
