@@ -111,13 +111,13 @@ export default function Page(): React.JSX.Element {
         <Typography.Title level={3}>
           Personas
         </Typography.Title>
-        <Button
+        {/* <Button
           type="primary"
           icon={<PlusOutlined />}
           onClick={() => setModalVisible(true)}
         >
           Add Persona
-        </Button>
+        </Button> */}
       </Flex>
 
       <PersonasTable
