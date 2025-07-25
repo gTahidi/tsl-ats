@@ -70,3 +70,6 @@ logs
 # Sentry
 sentry.properties
 .csv
+
+
+seed-rbac.ts

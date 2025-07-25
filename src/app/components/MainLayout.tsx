@@ -55,31 +55,31 @@ const MainLayout = ({ children }: Props) => {
       key: '/cv-upload',
       icon: <UploadOutlined />,
       label: 'Upload CV',
-      permission: 'cv:upload',
+      permission: 'candidates:create', // Placeholder, assuming CV upload is part of creating candidates
     },
         {
       key: '/process-groups',
       icon: <OrderedListOutlined />,
       label: 'Process Groups',
-      permission: 'process_groups:read',
+      permission: 'process-groups:read',
     },
         {
       key: '/legacy-dashboard',
       icon: <DatabaseOutlined />,
       label: 'Legacy Candidates',
-      permission: 'legacy_candidates:read',
+      permission: 'candidates:read', // Placeholder, assuming legacy is part of reading candidates
     },
             {
       key: '/referees',
       icon: <SolutionOutlined />,
       label: 'Referees',
-      permission: 'referees:read',
+      permission: 'candidates:read', // Placeholder, assuming referees are part of reading candidates
     },
     {
       key: '/users',
       icon: <SettingOutlined />,
       label: 'User Management',
-      permission: 'users:read',
+      permission: 'users:manage',
     }
   ];
 
