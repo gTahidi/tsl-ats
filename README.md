@@ -25,6 +25,7 @@
   ```bash
   cp .env.example .env
   ```
+  Update the `.env` file with your specific configuration values.
 
 3. Start local services (Postgres and Minio)
   ```bash
@@ -40,3 +41,18 @@
   ```bash
   pnpm dev
   ```
+
+## Grafana Faro Observability
+
+This project includes Grafana Faro for frontend observability. To configure it:
+
+1. Create a Frontend Observability application in your Grafana Cloud instance
+2. Copy the collector URL from the Web SDK Configuration page
+3. Update the `NEXT_PUBLIC_FARO_URL` in your `.env` file with this URL
+4. Adjust other Faro-related environment variables as needed
+
+The Faro integration includes:
+- Frontend monitoring via `@grafana/faro-web-sdk`
+- Tracing instrumentation via `@grafana/faro-web-tracing`
+- Backend correlation through middleware
+- OpenTelemetry integration for backend services
