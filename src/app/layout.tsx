@@ -11,7 +11,7 @@ const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
   title: 'Qchungi 0.0.1',
-  description: 'Helping you find hidden gems - The Open Source Applicant Tracking System',
+  description: 'Helping you find hidden gems - Task Savvy ATS',
 };
 
 export default function RootLayout({
