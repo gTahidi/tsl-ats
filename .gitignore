@@ -73,3 +73,5 @@ sentry.properties
 
 
 seed-rbac.ts
+# Sentry Config File
+.env.sentry-build-plugin
