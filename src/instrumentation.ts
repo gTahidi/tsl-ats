@@ -1,6 +1,6 @@
 import * as Sentry from '@sentry/nextjs';
 import { Context } from '@opentelemetry/api';
-import { ReadableSpan, Span, SpanProcessor } from '@opentelemetry/sdk-trace-node';
+import { Span as SpanInterface, SpanProcessor } from '@opentelemetry/sdk-trace-base';
 import { registerOTel } from '@vercel/otel';
 
 /**
@@ -12,14 +12,15 @@ class SpanNameProcessor implements SpanProcessor {
   forceFlush(): Promise<void> {
     return Promise.resolve();
   }
-  onStart(span: Span, parentContext: Context): void {
+  onStart(span: SpanInterface, parentContext: Context): void {
+    // Reduce cardinality of span names for static assets
     if (span.name.startsWith('GET /_next/static')) {
       span.updateName('GET /_next/static');
     } else if (span.name.startsWith('GET /_next/data')) {
       span.updateName('GET /_next/data');
     }
   }
-  onEnd(span: ReadableSpan): void {}
+  onEnd(): void {}
   shutdown(): Promise<void> {
     return Promise.resolve();
   }
