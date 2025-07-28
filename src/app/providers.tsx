@@ -4,6 +4,7 @@ import React from 'react';
 import { ConfigProvider, App } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import FrontendObservability from './components/frontend-observability';
 
 const theme = {
   token: {
@@ -60,6 +61,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
       <StyleProvider hashPriority="high">
         <ConfigProvider theme={theme}>
           <App>
+            <FrontendObservability />
             {children}
           </App>
         </ConfigProvider>
