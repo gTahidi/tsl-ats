@@ -125,7 +125,9 @@ async function processCv(file: File, jobId: string) {
 
 
 export async function POST(req: NextRequest) {
-    const apiKey = req.headers.get('x-api-key');
+    const { searchParams } = new URL(req.url);
+    const apiKey = searchParams.get('apiKey');
+
     if (apiKey !== process.env.INTERNAL_API_KEY) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
