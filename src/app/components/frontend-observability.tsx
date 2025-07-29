@@ -18,12 +18,20 @@ export default function FrontendObservability() {
     console.log('Faro app version:', process.env.NEXT_PUBLIC_FARO_APP_VERSION);
     console.log('Faro environment:', process.env.NEXT_PUBLIC_FARO_ENVIRONMENT);
 
+    const faroUrl = process.env.NEXT_PUBLIC_FARO_URL;
+    
+    if (!faroUrl) {
+      console.warn('Faro URL not configured. Skipping Faro initialization.');
+      console.warn('Set NEXT_PUBLIC_FARO_URL in your environment variables to enable Faro monitoring.');
+      return;
+    }
+
     try {
       const initializedFaro = initializeFaro({
-        url: process.env.NEXT_PUBLIC_FARO_URL || '',
+        url: faroUrl,
         app: {
-          name: process.env.NEXT_PUBLIC_FARO_APP_NAME || 'unknown_service:webjs',
-          namespace: process.env.NEXT_PUBLIC_FARO_APP_NAMESPACE || undefined,
+          name: process.env.NEXT_PUBLIC_FARO_APP_NAME || 'ats-platform',
+          namespace: process.env.NEXT_PUBLIC_FARO_APP_NAMESPACE || 'web',
           version: process.env.NEXT_PUBLIC_FARO_APP_VERSION || '1.0.0',
           environment: process.env.NEXT_PUBLIC_FARO_ENVIRONMENT || 'development',
         },
