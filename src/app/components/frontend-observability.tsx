@@ -4,6 +4,23 @@ import { faro, getWebInstrumentations, initializeFaro } from '@grafana/faro-web-
 import { TracingInstrumentation } from '@grafana/faro-web-tracing';
 
 export default function FrontendObservability() {
+  // 🔍 DEBUG: Log execution environment
+  console.log('🔍 FARO DEBUG: Component executing in environment:', {
+    isServer: typeof window === 'undefined',
+    isBrowser: typeof window !== 'undefined',
+    windowExists: typeof window,
+    navigatorExists: typeof navigator,
+    documentExists: typeof document,
+    processEnv: typeof process !== 'undefined' ? 'defined' : 'undefined',
+    timestamp: new Date().toISOString(),
+  });
+
+  // 🔍 DEBUG: Check if we're in browser environment
+  if (typeof window === 'undefined') {
+    console.log('🔍 FARO DEBUG: Running on server-side, skipping initialization');
+    return null;
+  }
+
   // skip if already initialized
   if (faro.api) {
     console.log('🔍 FARO DEBUG: Already initialized, skipping');
