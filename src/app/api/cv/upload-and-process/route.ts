@@ -67,10 +67,17 @@ async function findJobBySubject(subject: string): Promise<string | null> {
       normalizedSubject.includes(word)
     );
     
-    // If most of the job title words are in the subject, it's a match
-    const matchRatio = matchingWords.length / titleWords.length;
-    if (matchRatio >= 0.5 && matchingWords.length >= 1) { // Lowered to 50% for more flexibility
-      return job.id;
+    // If at least one significant word matches, it's a potential match
+    if (matchingWords.length >= 1) {
+      // Special handling for sales-related positions
+      if (matchingWords.some(word => ['sales', 'marketing', 'representative', 'executive'].includes(word))) {
+        return job.id;
+      }
+      // For other positions, require at least 40% match
+      const matchRatio = matchingWords.length / titleWords.length;
+      if (matchRatio >= 0.4) {
+        return job.id;
+      }
     }
   }
 
@@ -241,16 +248,9 @@ export async function POST(req: NextRequest) {
             const matchedJobId = await findJobBySubject(Subject || '');
             
             if (!matchedJobId) {
-                console.log('No job match found, using default fallback job ID');
-                // You can either:
-                // 1. Use a default job ID
-                jobId = 'hp3g5hcw8bpyjnrmb8qk3eq0';
-                // 2. Or return an error requiring manual processing
-                // return NextResponse.json({ 
-                //     error: 'Could not match email subject to any open job position', 
-                //     emailSubject: Subject,
-                //     suggestion: 'Please include job title or description in email subject'
-                // }, { status: 422 });
+                console.log('No job match found, using General job as fallback');
+                // Use the General job for unmatched applications
+                jobId = 'wpx5injoqsa3dhtca3jh15no';
             } else {
                 jobId = matchedJobId;
                 console.log(`Processing CV against matched job: ${jobId}`);
