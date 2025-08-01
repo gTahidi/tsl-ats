@@ -18,8 +18,65 @@ const attachmentSchema = z.object({
 
 const postmarkWebhookSchema = z.object({
   Attachments: z.array(attachmentSchema).optional(),
-  ToFull: z.array(z.object({ Email: z.string() })).optional(), // To extract potential metadata
+  ToFull: z.array(z.object({ Email: z.string() })).optional(),
+  Subject: z.string().optional(), // To extract job description for matching
 });
+
+// --- Job Matching Logic ---
+
+async function findJobBySubject(subject: string): Promise<string | null> {
+  if (!subject || subject.trim().length === 0) {
+    return null;
+  }
+
+  // Get all active jobs from the database
+  const jobs = await db.query.jobPostings.findMany({
+    where: eq(jobPostings.status, 'Open')
+  });
+
+  if (jobs.length === 0) {
+    return null;
+  }
+
+  // Clean and normalize the subject for matching
+  const normalizedSubject = subject.toLowerCase().trim();
+  
+  // Strategy 1: Exact title match in subject
+  for (const job of jobs) {
+    const normalizedTitle = job.title.toLowerCase();
+    if (normalizedSubject.includes(normalizedTitle)) {
+      console.log(`Job matched by title: "${job.title}" (ID: ${job.id})`);
+      return job.id;
+    }
+  }
+
+  // Strategy 2: Key words from job description match
+  for (const job of jobs) {
+    if (job.description) {
+      // Extract key terms from job description (first 100 words)
+      const descriptionWords = job.description
+        .toLowerCase()
+        .replace(/[^a-z0-9\s]/g, ' ')
+        .split(/\s+/)
+        .filter(word => word.length > 3) // Filter out short words
+        .slice(0, 20); // Take first 20 meaningful words
+      
+      // Count matches between subject and job description keywords
+      const matchCount = descriptionWords.filter(word => 
+        normalizedSubject.includes(word)
+      ).length;
+      
+      // If we have significant keyword overlap, consider it a match
+      if (matchCount >= 2) {
+        console.log(`Job matched by description keywords: "${job.title}" (ID: ${job.id}, matches: ${matchCount})`);
+        return job.id;
+      }
+    }
+  }
+
+  console.log(`No job match found for subject: "${subject}"`);
+  return null;
+}
 
 // --- Core CV Processing Logic --- 
 
@@ -147,7 +204,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: 'Invalid Postmark payload', details: parsedData.error }, { status: 400 });
             }
 
-            const { Attachments } = parsedData.data;
+            const { Attachments, Subject } = parsedData.data;
             if (!Attachments || Attachments.length === 0) {
                 return NextResponse.json({ message: 'No attachments to process.' });
             }
@@ -159,9 +216,27 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ message: 'No valid CV attachment found.' });
             }
 
+            // Find job by matching email subject against job titles/descriptions
+            const matchedJobId = await findJobBySubject(Subject || '');
+            
+            if (!matchedJobId) {
+                console.log('No job match found, using default fallback job ID');
+                // You can either:
+                // 1. Use a default job ID
+                jobId = 'hp3g5hcw8bpyjnrmb8qk3eq0';
+                // 2. Or return an error requiring manual processing
+                // return NextResponse.json({ 
+                //     error: 'Could not match email subject to any open job position', 
+                //     emailSubject: Subject,
+                //     suggestion: 'Please include job title or description in email subject'
+                // }, { status: 422 });
+            } else {
+                jobId = matchedJobId;
+                console.log(`Processing CV against matched job: ${jobId}`);
+            }
+
             const fileBuffer = Buffer.from(cvAttachment.Content, 'base64');
             file = new File([fileBuffer], cvAttachment.Name, { type: cvAttachment.ContentType });
-            jobId = 'hp3g5hcw8bpyjnrmb8qk3eq0'; // Default Job ID for webhook uploads
 
         // --- Handle FormData from UI ---
         } else if (contentType.includes('multipart/form-data')) {
