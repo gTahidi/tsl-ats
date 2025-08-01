@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RatingModal from '../RatingModal';
 import CvViewerButton from '../cv-viewer-button';
+import JobSelector from '../JobSelector';
 
 const { Title } = Typography;
 
@@ -81,7 +82,22 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
         {
           title: 'Job',
           key: 'jobTitle',
-          render: (record: CandidateView) => record.job?.title,
+          width: 280, // Set fixed width to prevent overlapping
+          render: (record: CandidateView) => {
+            if (!record.job) return '-';
+            return (
+              <div onClick={(e) => e.stopPropagation()}>
+                <JobSelector
+                  candidateId={record.id}
+                  currentJobId={record.job.id}
+                  currentJobTitle={record.job.title}
+                  onSuccess={() => {
+                    // Table will auto-refresh due to query invalidation in JobSelector
+                  }}
+                />
+              </div>
+            );
+          },
         },
       ] : []
     ),
