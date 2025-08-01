@@ -39,42 +39,63 @@ async function findJobBySubject(subject: string): Promise<string | null> {
   }
 
   // Clean and normalize the subject for matching
-  const normalizedSubject = subject.toLowerCase().trim();
+  const normalizedSubject = subject
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, ' ') // Replace punctuation with spaces
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .trim();
   
   // Strategy 1: Exact title match in subject
   for (const job of jobs) {
     const normalizedTitle = job.title.toLowerCase();
     if (normalizedSubject.includes(normalizedTitle)) {
-      console.log(`Job matched by title: "${job.title}" (ID: ${job.id})`);
       return job.id;
     }
   }
 
-  // Strategy 2: Key words from job description match
+  // Strategy 2: Flexible keyword matching from job titles
   for (const job of jobs) {
-    if (job.description) {
-      // Extract key terms from job description (first 100 words)
-      const descriptionWords = job.description
-        .toLowerCase()
-        .replace(/[^a-z0-9\s]/g, ' ')
-        .split(/\s+/)
-        .filter(word => word.length > 3) // Filter out short words
-        .slice(0, 20); // Take first 20 meaningful words
-      
-      // Count matches between subject and job description keywords
-      const matchCount = descriptionWords.filter(word => 
-        normalizedSubject.includes(word)
-      ).length;
-      
-      // If we have significant keyword overlap, consider it a match
-      if (matchCount >= 2) {
-        console.log(`Job matched by description keywords: "${job.title}" (ID: ${job.id}, matches: ${matchCount})`);
-        return job.id;
-      }
+    const titleWords = job.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2); // Keep words longer than 2 characters
+    
+    // Count how many title words appear in the subject
+    const matchingWords = titleWords.filter(word => 
+      normalizedSubject.includes(word)
+    );
+    
+    // If most of the job title words are in the subject, it's a match
+    const matchRatio = matchingWords.length / titleWords.length;
+    if (matchRatio >= 0.5 && matchingWords.length >= 1) { // Lowered to 50% for more flexibility
+      return job.id;
     }
   }
 
-  console.log(`No job match found for subject: "${subject}"`);
+  // Strategy 3: Partial word matching for common abbreviations
+  for (const job of jobs) {
+    const titleWords = job.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2);
+    
+    // Check for partial matches (useful for abbreviations like "adm" for "admin")
+    const partialMatches = titleWords.filter(word => {
+      // Check if the word appears as part of a larger word in subject
+      return normalizedSubject.split(' ').some(subjectWord => 
+        subjectWord.includes(word) || word.includes(subjectWord)
+      );
+    });
+    
+    const partialMatchRatio = partialMatches.length / titleWords.length;
+    if (partialMatchRatio >= 0.5 && partialMatches.length >= 1) {
+      return job.id;
+    }
+  }
+
   return null;
 }
 
