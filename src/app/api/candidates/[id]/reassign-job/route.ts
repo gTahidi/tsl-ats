@@ -11,10 +11,10 @@ const reassignJobSchema = z.object({
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const candidateId = params.id;
+    const { id: candidateId } = await params;
     const body = await req.json();
     
     const validatedData = reassignJobSchema.parse(body);
