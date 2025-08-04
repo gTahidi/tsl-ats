@@ -34,16 +34,10 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
 
   const columns: ColumnsType<Persona> = [
     {
-      title: 'Name',
-      dataIndex: 'name',
-      key: 'name',
-      sorter: (a, b) => a.name.localeCompare(b.name),
-    },
-    {
-      title: 'Surname',
-      dataIndex: 'surname',
-      key: 'surname',
-      sorter: (a, b) => a.surname.localeCompare(b.surname),
+      title: 'Full Name',
+      key: 'fullName',
+      sorter: (a, b) => `${a.name} ${a.surname}`.localeCompare(`${b.name} ${b.surname}`),
+      render: (_, record) => `${record.name} ${record.surname}`,
     },
     {
       title: 'Email',
@@ -51,6 +45,12 @@ const PersonasTable: React.FC<PersonasTableProps> = ({
       key: 'email',
       sorter: (a, b) => a.email.localeCompare(b.email),
       ellipsis: true,
+    },
+    {
+      title: 'Phone',
+      dataIndex: 'phone',
+      key: 'phone',
+      render: (phone) => phone || '-',
     },
     {
       title: 'Location',

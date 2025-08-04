@@ -35,6 +35,7 @@ export const personas = pgTable('personas', {
   surname: text('surname'),
   location: text('location'),
   email: text('email').unique().notNull(),
+  phone: text('phone'),
   linkedinUrl: text('linkedin_url'),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,

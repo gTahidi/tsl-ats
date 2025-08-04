@@ -110,37 +110,15 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
       }
     },
     {
-      title: 'Step',
-      key: 'step',
-      sorter: (a, b) => {
-        const stepA = a.steps?.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
-        const stepB = b.steps?.sort((x, y) => new Date(y.createdAt).getTime() - new Date(x.createdAt).getTime())[0];
-        return (stepA?.template?.order || 0) - (stepB?.template?.order || 0);
-      },
-      render: (record: CandidateView) => {
-        const currentStep = record.steps?.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())[0];
-
-        if (!currentStep) {
-          return '-';
-        }
-
-        return (
-          <span>
-            {currentStep.template.order} - {currentStep.template.name}
-          </span>
-        );
-      }
-    },
-    {
       title: 'Rating',
       key: 'rating',
       sorter: (a, b) => (a.rating?.matchScore || 0) - (b.rating?.matchScore || 0),
       filters: [
-        { text: 'Rated', value: true },
-        { text: 'Not Rated', value: false },
+        { text: 'Rated', value: 'true' },
+        { text: 'Not Rated', value: 'false' },
       ],
       onFilter: (value, record) => {
-        if (value === true) {
+        if (value === 'true') {
           return !!record.rating;
         }
         return !record.rating;
@@ -156,11 +134,6 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
           />
         );
       },
-    },
-    {
-      title: 'Source',
-      dataIndex: 'source',
-      key: 'source',
     },
     {
       title: 'Updated',
