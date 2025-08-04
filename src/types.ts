@@ -24,6 +24,7 @@ export type Persona = {
   name: string;
   surname: string;
   email: string;
+  phone?: string | null;
 
   location?: string | null;
 

@@ -151,7 +151,7 @@ Write a concise, professional summary (max 150 words):
 - **Recommendation:** Hire/Don't hire
 
 **TASK:**
-1. **Extract CV Data:** Parse the document to extract the candidate's contact information. Crucially, you must separate the candidate's first name (given name) into the 'name' field and their last name (family name) into the 'surname' field. Also extract their work experience, education, skills, certifications, and a list of any professional referees mentioned.
+1. **Extract CV Data:** Parse the document to extract the candidate's contact information (including their phone number, email, and location). Crucially, you must separate the candidate's first name (given name) into the 'name' field and their last name (family name) into the 'surname' field. Also extract their work experience, education, skills, certifications, and a list of any professional referees mentioned.
 2. **Rank the Candidate:** Analyze the CV against job requirements and provide a decisive matchScore with detailed markdown summary.
 3. **Handle Missing Data:** Use 'null' for optional fields if the information is not available.
 4. **Format Consistently:** Ensure all dates are in a consistent format (e.g., "Month YYYY").
