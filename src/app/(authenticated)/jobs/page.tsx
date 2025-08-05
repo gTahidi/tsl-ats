@@ -23,13 +23,10 @@ export default function Page(): React.JSX.Element {
     mutateAsync: createJob,
     isPending: createPending,
   } = useMutation({
-    mutationFn: async (job: Partial<JobView>) => {
+    mutationFn: async (formData: FormData) => {
       const response = await fetch('/api/jobs', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(job),
+        body: formData,
       });
       if (!response.ok) {
         throw new Error('Failed to create job');
@@ -45,13 +42,10 @@ export default function Page(): React.JSX.Element {
     mutateAsync: updateJob,
     isPending: updatePending,
   } = useMutation({
-    mutationFn: async (job: JobView) => {
-      const response = await fetch(`/api/jobs/${job.id}`, {
+    mutationFn: async ({ id, formData }: { id: string, formData: FormData }) => {
+      const response = await fetch(`/api/jobs/${id}`, {
         method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(job),
+        body: formData,
       });
       if (!response.ok) {
         throw new Error('Failed to update job');
@@ -85,48 +79,40 @@ export default function Page(): React.JSX.Element {
     },
   });
 
-  const handleCreateOrUpdate = async (values: Partial<JobView>) => {
-    if (!values.title) {
-      message.error('Title is required');
+  const handleCreateOrUpdate = async (values: Partial<JobView> & { jdFile?: File }) => {
+    if (!values.title || !values.processGroupId) {
+      message.error('Title and Process Group are required');
       return;
     }
 
-    const now = new Date();
+    const formData = new FormData();
 
-    const newJob: JobView = editingJob ? {
-      ...editingJob,
-      ...values,
-      updatedAt: now,
-      candidates: undefined,
-      processGroup: undefined,
-    } : {
-      id: crypto.randomUUID(),
-      title: values.title,
-      description: values.description,
-      linkedinUrl: values.linkedinUrl,
-      status: values.status || 'Open',
-      processGroupId: values.processGroupId,
-      processGroup: undefined,
-      createdAt: now,
-      updatedAt: now,
-      candidates: undefined,
-      metadata: {},
-    };
+    // Append all simple key-value pairs from the form values
+    Object.entries(values).forEach(([key, value]) => {
+      if (key !== 'jdFile' && value !== undefined && value !== null) {
+        formData.append(key, value as string);
+      }
+    });
+
+    // Append the file if it exists
+    if (values.jdFile) {
+      formData.append('jdFile', values.jdFile);
+    }
 
     try {
       if (editingJob) {
-        await updateJob(newJob);
+        // For updates, we pass the ID separately
+        await updateJob({ id: editingJob.id, formData });
       } else {
-        await createJob(newJob);
+        await createJob(formData);
       }
+
+      message.success(`Job ${editingJob ? 'updated' : 'created'} successfully`);
+      setModalVisible(false);
+      setEditingJob(null);
     } catch (error) {
       message.error(error instanceof Error ? error.message : 'Failed to save job');
-      return;
     }
-
-    message.success(`Job ${editingJob ? 'updated' : 'created'} successfully`);
-    setModalVisible(false);
-    setEditingJob(null);
   };
 
   const handleDelete = async (id: string) => {

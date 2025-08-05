@@ -1,14 +1,15 @@
 'use client';
 
-import React, { useEffect } from 'react';
-import { Modal, Form, Input, Select } from 'antd';
+import React, { useEffect, useState } from 'react';
+import { Modal, Form, Input, Select, Upload, Button } from 'antd';
+import { UploadOutlined } from '@ant-design/icons';
 import type { JobView, ProcessGroup } from '../../types';
 import { useQuery } from '@tanstack/react-query';
 
 interface JobModalProps {
   visible: boolean;
   onClose: () => void;
-  onSubmit: (values: Partial<JobView>) => void;
+  onSubmit: (values: Partial<JobView> & { jdFile?: File }) => void;
   job?: JobView | null;
 }
 
@@ -19,6 +20,7 @@ const JobModal: React.FC<JobModalProps> = ({
   job,
 }) => {
   const [form] = Form.useForm();
+  const [jdFile, setJdFile] = useState<File | null>(null);
 
   useEffect(() => {
     if (!job) {
@@ -43,11 +45,20 @@ const JobModal: React.FC<JobModalProps> = ({
     },
   });
 
+  const handleOk = async () => {
+    try {
+      const values = await form.validateFields();
+      onSubmit({ ...values, jdFile });
+    } catch (info) {
+      console.log('Validate Failed:', info);
+    }
+  };
+
   return (
     <Modal
       title={job ? 'Edit Job' : 'Add Job'}
       open={visible}
-      onOk={() => form.validateFields().then(onSubmit)}
+      onOk={handleOk}
       onCancel={onClose}
       destroyOnHidden
     >
@@ -66,6 +77,22 @@ const JobModal: React.FC<JobModalProps> = ({
           rules={[{ required: false, message: 'Please enter the job description' }]}
         >
           <Input.TextArea rows={4} placeholder="Enter job description" />
+        </Form.Item>
+
+        <Form.Item label="Job Description Document">
+          <Upload
+            accept=".pdf,.docx"
+            beforeUpload={(file) => {
+              setJdFile(file);
+              return false; // Prevent automatic upload
+            }}
+            onRemove={() => {
+              setJdFile(null);
+            }}
+            maxCount={1}
+          >
+            <Button icon={<UploadOutlined />}>Select PDF</Button>
+          </Upload>
         </Form.Item>
 
         <Form.Item

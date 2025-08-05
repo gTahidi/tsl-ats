@@ -3,7 +3,7 @@
 import React from 'react';
 import { Table, Button, Popconfirm, Tag, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { EditOutlined, DeleteOutlined, EyeOutlined, FileTextOutlined } from '@ant-design/icons';
 import type { JobView } from '../../../types';
 import { useRouter } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
@@ -44,6 +44,18 @@ const JobsTable: React.FC<JobsTableProps> = ({
       dataIndex: 'title',
       key: 'title',
       sorter: (a, b) => a.title.localeCompare(b.title),
+    },
+    {
+      title: 'JD',
+      key: 'jd',
+      render: (_, record: JobView) => {
+        if (!record.jdFileUrl) return null;
+        return (
+          <a href={record.jdFileUrl} target="_blank" rel="noopener noreferrer">
+            <FileTextOutlined />
+          </a>
+        );
+      },
     },
     {
       title: 'Status',
