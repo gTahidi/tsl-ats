@@ -79,7 +79,8 @@ function buildCorrectionPrompt(
   previousResponse: string,
   error: ZodError
 ): string {
-  const jobJson = JSON.stringify({ title: job.title, description: job.description }, null, 2);
+  const jobDescription = job.jdText || job.description;
+  const jobJson = JSON.stringify({ title: job.title, description: jobDescription }, null, 2);
   const errorJson = JSON.stringify(error.errors, null, 2);
 
   return `
@@ -110,7 +111,8 @@ function buildCorrectionPrompt(
 }
 
 function buildMegaPrompt(job: typeof jobPostings.$inferSelect): string {
-  const jobJson = JSON.stringify({ title: job.title, description: job.description }, null, 2);
+  const jobDescription = job.jdText || job.description;
+  const jobJson = JSON.stringify({ title: job.title, description: jobDescription }, null, 2);
 
   return `
 **CONTEXT - JOB REQUIREMENTS:**

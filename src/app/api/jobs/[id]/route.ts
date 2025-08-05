@@ -2,6 +2,8 @@ import { db } from '@/db';
 import { jobPostings, candidates, processSteps, cvs, cvChunks } from '@/db/schema';
 import { eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { uploadFile } from '@/lib/azure-storage';
+import { extractTextWithGemini } from '@/lib/gemini/text-extractor';
 
 export async function GET(
   _request: Request,
@@ -43,20 +45,31 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
+    const formData = await request.formData();
 
-    // Build a clean and validated payload to prevent bad data
     const updatePayload: { [key: string]: any } = {
       updatedAt: new Date(),
     };
 
-    if (body.title) updatePayload.title = body.title;
-    if (body.description) updatePayload.description = body.description;
-    if (body.linkedinUrl) updatePayload.linkedinUrl = body.linkedinUrl;
-    if (body.status) updatePayload.status = body.status;
-    if (body.processGroupId) updatePayload.processGroupId = body.processGroupId;
-    if (body.closingDate) {
-      updatePayload.closingDate = new Date(body.closingDate);
+    if (formData.has('title')) updatePayload.title = formData.get('title');
+    if (formData.has('description')) updatePayload.description = formData.get('description');
+    if (formData.has('linkedinUrl')) updatePayload.linkedinUrl = formData.get('linkedinUrl');
+    if (formData.has('status')) updatePayload.status = formData.get('status');
+    if (formData.has('processGroupId')) updatePayload.processGroupId = formData.get('processGroupId');
+    if (formData.has('closingDate')) {
+      updatePayload.closingDate = new Date(formData.get('closingDate') as string);
+    }
+
+    const jdFile = formData.get('jdFile') as File | null;
+
+    if (jdFile) {
+      const jdFileUrl = await uploadFile(jdFile);
+            const jdText = await extractTextWithGemini(jdFile);
+
+      updatePayload.jdFileUrl = jdFileUrl;
+      if (jdText) {
+        updatePayload.jdText = jdText;
+      }
     }
 
     const [updatedJob] = await db

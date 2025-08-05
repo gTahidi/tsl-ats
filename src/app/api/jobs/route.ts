@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { jobPostings } from '@/db/schema';
+import { uploadFile } from '@/lib/azure-storage';
+import { extractTextWithGemini } from '@/lib/gemini/text-extractor';
 
 export async function GET() {
   try {
@@ -59,15 +61,33 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const body = await request.json();
+    const formData = await request.formData();
+    const title = formData.get('title') as string;
+    const description = formData.get('description') as string;
+    const linkedinUrl = formData.get('linkedinUrl') as string;
+    const status = formData.get('status') as string;
+    const processGroupId = formData.get('processGroupId') as string;
+    const jdFile = formData.get('jdFile') as File | null;
 
-    // Build a clean and validated payload, explicitly handling dates
+    let jdFileUrl: string | undefined;
+    let jdText: string | undefined;
+
+    if (jdFile) {
+      // 1. Upload file to Azure
+      jdFileUrl = await uploadFile(jdFile);
+
+      // 2. Parse text content using the utility function
+            jdText = await extractTextWithGemini(jdFile);
+    }
+
     const payload: Omit<typeof jobPostings.$inferInsert, 'id' | 'metadata'> = {
-      title: body.title,
-      description: body.description,
-      linkedinUrl: body.linkedinUrl,
-      status: body.status,
-      processGroupId: body.processGroupId,
+      title,
+      description,
+      linkedinUrl,
+      status,
+      processGroupId,
+      jdFileUrl,
+      jdText,
       createdAt: new Date(),
       updatedAt: new Date(),
     };

@@ -22,6 +22,8 @@ export const jobPostings = pgTable('job_postings', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   title: text('title').notNull(),
   description: text('description'),
+  jdFileUrl: text('jd_file_url'),
+  jdText: text('jd_text'),
   linkedinUrl: text('linkedin_url'),
   status: text('status').default('Open').notNull(),
   processGroupId: text('process_group_id').notNull().references(() => processGroups.id),

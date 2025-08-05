@@ -5,6 +5,8 @@ export type JobView = {
   description?: string | null;
   linkedinUrl?: string | null;
   status: "Open" | "Closed" | "Draft";
+  jdFileUrl?: string | null;
+  jdText?: string | null;
 
   createdAt: Date;
   updatedAt: Date;
