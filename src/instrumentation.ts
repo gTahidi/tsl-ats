@@ -5,11 +5,8 @@ import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
 import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
-import { BatchLogRecordProcessor } from '@opentelemetry/sdk-logs';
+import { BatchLogRecordProcessor, LoggerProvider as SDKLoggerProvider } from '@opentelemetry/sdk-logs';
 import { logs } from '@opentelemetry/api-logs';
-import { Resource } from '@opentelemetry/resources';
-import { ATTR_SERVICE_NAME, ATTR_SERVICE_VERSION } from '@opentelemetry/semantic-conventions';
-import { LoggerProvider as SDKLoggerProvider } from '@opentelemetry/sdk-logs';
 
 let sdk: NodeSDK | undefined;
 
@@ -20,16 +17,7 @@ export async function register() {
     // Initialize OpenTelemetry SDK for backend instrumentation
     if (!sdk && process.env.GRAFANA_CLOUD_API_KEY && process.env.GRAFANA_CLOUD_INSTANCE_ID) {
       const serviceName = process.env.OTEL_SERVICE_NAME || 'tsl-ats-backend';
-      const serviceVersion = process.env.OTEL_SERVICE_VERSION || '1.0.0';
       
-      // Create resource with service information
-      const resourceAttributes: Record<string, string> = {};
-      resourceAttributes[ATTR_SERVICE_NAME] = serviceName;
-      resourceAttributes[ATTR_SERVICE_VERSION] = serviceVersion;
-      resourceAttributes['deployment.environment'] = process.env.NODE_ENV || 'development';
-      
-      const resource = Resource.default().merge(new Resource(resourceAttributes));
-
       // Create authentication header for Grafana Cloud
       const authHeader = `Basic ${Buffer.from(`${process.env.GRAFANA_CLOUD_INSTANCE_ID}:${process.env.GRAFANA_CLOUD_API_KEY}`).toString('base64')}`;
 
@@ -61,7 +49,7 @@ export async function register() {
         : undefined;
 
       sdk = new NodeSDK({
-        resource,
+        serviceName,
         
         // Auto-instrumentations for common libraries
         instrumentations: [getNodeAutoInstrumentations({
@@ -100,10 +88,8 @@ export async function register() {
         });
         
         const logProcessor = new BatchLogRecordProcessor(logExporter);
-        const loggerProvider = new SDKLoggerProvider({
-          resource,
-          processors: [logProcessor]
-        });
+        const loggerProvider = new SDKLoggerProvider();
+        (loggerProvider as any).addLogRecordProcessor(logProcessor);
         logs.setGlobalLoggerProvider(loggerProvider);
         console.log('OpenTelemetry logging configured for Grafana Cloud Loki');
       }
