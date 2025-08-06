@@ -17,6 +17,8 @@ RUN --mount=type=cache,id=pnpm,target=/pnpm/store pnpm install --no-frozen-lockf
 # 2. Builder stage: Build the application
 FROM node:20-slim AS builder
 
+RUN npm install -g pnpm
+
 WORKDIR /app
 
 # Copy dependencies from the deps stage
@@ -41,6 +43,8 @@ RUN mkdir -p /app/public
 
 # 3. Runner stage: Run the application
 FROM node:20-slim AS runner
+
+RUN npm install -g pnpm
 
 WORKDIR /app
 
