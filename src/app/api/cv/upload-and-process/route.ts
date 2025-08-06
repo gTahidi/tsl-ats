@@ -18,8 +18,93 @@ const attachmentSchema = z.object({
 
 const postmarkWebhookSchema = z.object({
   Attachments: z.array(attachmentSchema).optional(),
-  ToFull: z.array(z.object({ Email: z.string() })).optional(), // To extract potential metadata
+  ToFull: z.array(z.object({ Email: z.string() })).optional(),
+  Subject: z.string().optional(), // To extract job description for matching
 });
+
+// --- Job Matching Logic ---
+
+async function findJobBySubject(subject: string): Promise<string | null> {
+  if (!subject || subject.trim().length === 0) {
+    return null;
+  }
+
+  // Get all active jobs from the database
+  const jobs = await db.query.jobPostings.findMany({
+    where: eq(jobPostings.status, 'Open')
+  });
+
+  if (jobs.length === 0) {
+    return null;
+  }
+
+  // Clean and normalize the subject for matching
+  const normalizedSubject = subject
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9\s]/g, ' ') // Replace punctuation with spaces
+    .replace(/\s+/g, ' ') // Normalize multiple spaces
+    .trim();
+  
+  // Strategy 1: Exact title match in subject
+  for (const job of jobs) {
+    const normalizedTitle = job.title.toLowerCase();
+    if (normalizedSubject.includes(normalizedTitle)) {
+      return job.id;
+    }
+  }
+
+  // Strategy 2: Flexible keyword matching from job titles
+  for (const job of jobs) {
+    const titleWords = job.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2); // Keep words longer than 2 characters
+    
+    // Count how many title words appear in the subject
+    const matchingWords = titleWords.filter(word => 
+      normalizedSubject.includes(word)
+    );
+    
+    // If at least one significant word matches, it's a potential match
+    if (matchingWords.length >= 1) {
+      // Special handling for sales-related positions
+      if (matchingWords.some(word => ['sales', 'marketing', 'representative', 'executive'].includes(word))) {
+        return job.id;
+      }
+      // For other positions, require at least 40% match
+      const matchRatio = matchingWords.length / titleWords.length;
+      if (matchRatio >= 0.4) {
+        return job.id;
+      }
+    }
+  }
+
+  // Strategy 3: Partial word matching for common abbreviations
+  for (const job of jobs) {
+    const titleWords = job.title
+      .toLowerCase()
+      .replace(/[^a-z0-9\s]/g, ' ')
+      .split(/\s+/)
+      .filter(word => word.length > 2);
+    
+    // Check for partial matches (useful for abbreviations like "adm" for "admin")
+    const partialMatches = titleWords.filter(word => {
+      // Check if the word appears as part of a larger word in subject
+      return normalizedSubject.split(' ').some(subjectWord => 
+        subjectWord.includes(word) || word.includes(subjectWord)
+      );
+    });
+    
+    const partialMatchRatio = partialMatches.length / titleWords.length;
+    if (partialMatchRatio >= 0.5 && partialMatches.length >= 1) {
+      return job.id;
+    }
+  }
+
+  return null;
+}
 
 // --- Core CV Processing Logic --- 
 
@@ -155,7 +240,7 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ error: 'Invalid Postmark payload', details: parsedData.error }, { status: 400 });
             }
 
-            const { Attachments } = parsedData.data;
+            const { Attachments, Subject } = parsedData.data;
             if (!Attachments || Attachments.length === 0) {
                 return NextResponse.json({ message: 'No attachments to process.' });
             }
@@ -167,9 +252,20 @@ export async function POST(req: NextRequest) {
                 return NextResponse.json({ message: 'No valid CV attachment found.' });
             }
 
+            // Find job by matching email subject against job titles/descriptions
+            const matchedJobId = await findJobBySubject(Subject || '');
+            
+            if (!matchedJobId) {
+                console.log('No job match found, using General job as fallback');
+                // Use the General job for unmatched applications
+                jobId = 'wpx5injoqsa3dhtca3jh15no';
+            } else {
+                jobId = matchedJobId;
+                console.log(`Processing CV against matched job: ${jobId}`);
+            }
+
             const fileBuffer = Buffer.from(cvAttachment.Content, 'base64');
             file = new File([fileBuffer], cvAttachment.Name, { type: cvAttachment.ContentType });
-            jobId = 'hp3g5hcw8bpyjnrmb8qk3eq0'; // Default Job ID for webhook uploads
 
         // --- Handle FormData from UI ---
         } else if (contentType.includes('multipart/form-data')) {
