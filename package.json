@@ -38,7 +38,6 @@
     "@sentry/nextjs": "^9.42.0",
     "@tanstack/react-query": "^5.82.0",
     "@vercel/blob": "^1.1.1",
-    "@vercel/otel": "^1.13.0",
     "antd": "^5.26.4",
     "bcryptjs": "^3.0.2",
     "clsx": "^2.1.1",
