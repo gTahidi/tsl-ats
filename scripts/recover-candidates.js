@@ -115,13 +115,15 @@ class CvRecoveryProcessor {
 
   async listCvFiles() {
     const cvFiles = [];
-    const allowedExtensions = ['.pdf', '.doc', '.docx'];
+    // ONLY process PDF files - Gemini doesn't support .docx/.doc
+    const allowedExtensions = ['.pdf'];
     
-    console.log('🔍 Listing blobs from container...');
+    console.log('🔍 Listing blobs from container (PDF files only)...');
     
     try {
       // Use the simplest possible approach - just like your working azure-storage.ts
       let blobCount = 0;
+      let docxCount = 0;
       for await (const blob of this.containerClient.listBlobsFlat()) {
         blobCount++;
         if (blobCount % 100 === 0) {
@@ -129,6 +131,12 @@ class CvRecoveryProcessor {
         }
         
         const extension = path.extname(blob.name).toLowerCase();
+        
+        // Count skipped .docx/.doc files
+        if (['.doc', '.docx'].includes(extension)) {
+          docxCount++;
+        }
+        
         if (allowedExtensions.includes(extension)) {
           cvFiles.push({
             name: blob.name,
@@ -139,7 +147,9 @@ class CvRecoveryProcessor {
         }
       }
       
-      console.log(`✅ Found ${blobCount} total blobs, ${cvFiles.length} CV files`);
+      console.log(`✅ Found ${blobCount} total blobs`);
+      console.log(`📝 ${cvFiles.length} PDF files (will process)`);
+      console.log(`⚠️  ${docxCount} Word documents (skipped - Gemini doesn't support .docx/.doc)`);
       
     } catch (error) {
       console.error('❌ Error listing blobs:', error);
