@@ -2,7 +2,7 @@ import * as Sentry from '@sentry/nextjs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { BatchLogRecordProcessor, LoggerProvider as SDKLoggerProvider } from '@opentelemetry/sdk-logs';
 import { logs } from '@opentelemetry/api-logs';
-import { resourceFromAttributes } from '@opentelemetry/resources';
+import { Resource } from '@opentelemetry/resources';
 
 let initialized = false;
 
@@ -37,14 +37,14 @@ export async function register() {
         });
         
         const loggerProvider = new SDKLoggerProvider({
-          processors: [logProcessor],
-          resource: resourceFromAttributes({
+          resource: new Resource({
             'service.name': serviceName,
             'service.namespace': serviceNamespace,
             'service.version': process.env.NEXT_PUBLIC_FARO_APP_VERSION || '1.0.0',
             'deployment.environment': process.env.NEXT_PUBLIC_FARO_ENVIRONMENT || 'production',
           }),
         });
+        loggerProvider.addLogRecordProcessor(logProcessor);
         logs.setGlobalLoggerProvider(loggerProvider);
 
         console.log('OpenTelemetry logging configured for Grafana Cloud OTLP Gateway');
