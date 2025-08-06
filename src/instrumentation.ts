@@ -2,6 +2,7 @@ import * as Sentry from '@sentry/nextjs';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
 import { BatchLogRecordProcessor, LoggerProvider as SDKLoggerProvider } from '@opentelemetry/sdk-logs';
 import { logs } from '@opentelemetry/api-logs';
+import { resourceFromAttributes } from '@opentelemetry/resources';
 
 let initialized = false;
 
@@ -11,30 +12,44 @@ export async function register() {
     
     // Initialize OpenTelemetry with minimal setup to avoid gRPC issues
     if (!initialized && process.env.OTEL_EXPORTER_OTLP_ENDPOINT && process.env.OTEL_EXPORTER_OTLP_HEADERS) {
-      const serviceName = process.env.OTEL_SERVICE_NAME || 'tsl-ats-backend';
+      const serviceName = process.env.OTEL_SERVICE_NAME || 'tsl-ats';
+      const serviceNamespace = process.env.OTEL_SERVICE_NAMESPACE || 'tsl-grp';
       const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
       const otlpHeaders = parseOtlpHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS);
       
       console.log('Initializing OpenTelemetry with Grafana Cloud OTLP Gateway');
       console.log('Service Name:', serviceName);
+      console.log('Service Namespace:', serviceNamespace);
       console.log('OTLP Endpoint:', otlpEndpoint);
 
       try {
-        // Configure log exporter to Grafana Cloud OTLP Gateway (most important for our use case)
+        // Configure log exporter to Grafana Cloud OTLP Gateway with optimized settings
         const logExporter = new OTLPLogExporter({
           url: `${otlpEndpoint}/v1/logs`,
           headers: otlpHeaders,
+          timeoutMillis: 10000, // 10 second timeout
         });
 
-        const logProcessor = new BatchLogRecordProcessor(logExporter);
+        const logProcessor = new BatchLogRecordProcessor(logExporter, {
+          maxQueueSize: 1000,
+          exportTimeoutMillis: 5000,
+          scheduledDelayMillis: 2000, // Export every 2 seconds
+        });
+        
         const loggerProvider = new SDKLoggerProvider({
-          processors: [logProcessor]
+          processors: [logProcessor],
+          resource: resourceFromAttributes({
+            'service.name': serviceName,
+            'service.namespace': serviceNamespace,
+            'service.version': process.env.NEXT_PUBLIC_FARO_APP_VERSION || '1.0.0',
+            'deployment.environment': process.env.NEXT_PUBLIC_FARO_ENVIRONMENT || 'production',
+          }),
         });
         logs.setGlobalLoggerProvider(loggerProvider);
 
         console.log('OpenTelemetry logging configured for Grafana Cloud OTLP Gateway');
         
-        // Use Vercel's built-in OTel for tracing to avoid module issues
+        // Use Vercel's built-in OTel for tracing with enhanced configuration
         const { registerOTel } = await import('@vercel/otel');
         registerOTel({
           serviceName,
@@ -42,7 +57,7 @@ export async function register() {
         });
         
         initialized = true;
-        console.log('OpenTelemetry initialized successfully with hybrid setup');
+        console.log('OpenTelemetry initialized successfully with optimized setup');
         
       } catch (error) {
         console.warn('Failed to initialize OpenTelemetry logging, falling back to Vercel OTel only:', error);
@@ -62,7 +77,7 @@ export async function register() {
       // Fallback to basic Vercel OTel for development
       const { registerOTel } = await import('@vercel/otel');
       registerOTel({
-        serviceName: process.env.OTEL_SERVICE_NAME || 'tsl-ats-backend',
+        serviceName: process.env.OTEL_SERVICE_NAME || 'tsl-ats',
         spanProcessors: ['auto'],
       });
       initialized = true;
