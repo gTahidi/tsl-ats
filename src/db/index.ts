@@ -9,5 +9,9 @@ if (!process.env.POSTGRES_URL_NON_POOLING) {
 
 // The connection string from Azure already contains the sslmode=require parameter,
 // so we can rely on the postgres library to handle the SSL connection automatically.
-export const client = postgres(process.env.POSTGRES_URL_NON_POOLING);
+// Explicitly enabling SSL in the connection options is more robust for Azure.
+// This ensures the library uses TLS, which Azure requires.
+export const client = postgres(process.env.POSTGRES_URL_NON_POOLING, {
+  ssl: 'require',
+});
 export const db = drizzle(client, { schema });
