@@ -49,38 +49,15 @@ export async function register() {
 
         console.log('OpenTelemetry logging configured for Grafana Cloud OTLP Gateway');
         
-        // Use Vercel's built-in OTel for tracing with enhanced configuration
-        const { registerOTel } = await import('@vercel/otel');
-        registerOTel({
-          serviceName,
-          spanProcessors: ['auto'],
-        });
-        
         initialized = true;
         console.log('OpenTelemetry initialized successfully with optimized setup');
         
       } catch (error) {
-        console.warn('Failed to initialize OpenTelemetry logging, falling back to Vercel OTel only:', error);
-        
-        // Complete fallback to basic Vercel OTel
-        const { registerOTel } = await import('@vercel/otel');
-        registerOTel({
-          serviceName,
-          spanProcessors: ['auto'],
-        });
-        initialized = true;
+        console.error('Failed to initialize OpenTelemetry logging:', error);
       }
       
-    } else if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT && !initialized) {
-      console.warn('Grafana Cloud OTLP Gateway credentials not found. Falling back to basic Vercel OTel.');
-      
-      // Fallback to basic Vercel OTel for development
-      const { registerOTel } = await import('@vercel/otel');
-      registerOTel({
-        serviceName: process.env.OTEL_SERVICE_NAME || 'tsl-ats',
-        spanProcessors: ['auto'],
-      });
-      initialized = true;
+    } else if (!initialized) {
+      console.warn('OpenTelemetry environment variables not found. Skipping initialization.');
     }
     
     // Graceful shutdown for Node.js environment
