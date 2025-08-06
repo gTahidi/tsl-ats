@@ -64,6 +64,13 @@
       "when": 1754479189781,
       "tag": "0008_familiar_sunspot",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1754484842825,
+      "tag": "0009_redundant_maginty",
+      "breakpoints": true
     }
   ]
 }

@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,9 +15,10 @@ const { Title } = Typography;
 
 interface CandidatesTableProps {
   jobId?: string;
+  onQualify?: (candidate: CandidateView) => void;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -32,6 +33,29 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId }) => {
       return response.json();
     },
 
+  });
+
+  const qualifyCandidateMutation = useMutation({
+    mutationFn: async ({ candidateId, qualified }: { candidateId: string, qualified: boolean }) => {
+      const response = await fetch(`/api/candidates/${candidateId}/qualify`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ qualified }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update qualification status');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates', jobId] });
+      message.success('Candidate qualification status updated');
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Failed to update qualification status');
+    },
   });
 
   const deleteCandidateMutation = useMutation({
@@ -147,11 +171,28 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId }) => {
       key: 'actions',
       render: (_, record) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => handleRowClick(record)}
-          />
+          <Tooltip title="View candidate details">
+            <Button
+              type="text"
+              icon={<EyeOutlined />}
+              onClick={() => handleRowClick(record)}
+            />
+          </Tooltip>
+          <Tooltip title={record.qualified ? 'Qualified for interview' : 'Qualify for interview'}>
+            <Button
+              type="text"
+              icon={<CheckOutlined style={{ color: record.qualified ? '#52c41a' : undefined }} />}
+              onClick={(e) => {
+                e.stopPropagation();
+                qualifyCandidateMutation.mutate({ 
+                  candidateId: record.id, 
+                  qualified: !record.qualified 
+                });
+              }}
+              loading={qualifyCandidateMutation.isPending && 
+                      qualifyCandidateMutation.variables?.candidateId === record.id}
+            />
+          </Tooltip>
         </div>
       ),
     },

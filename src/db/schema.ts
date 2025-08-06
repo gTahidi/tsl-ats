@@ -52,6 +52,7 @@ export const candidates = pgTable('candidates', {
   currentStepId: text('current_step_id'),
   rating: jsonb('rating'),
   source: text('source'),
+  qualified: text('qualified').default('false').notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
 });
