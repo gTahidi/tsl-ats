@@ -13,7 +13,8 @@ import {
   DatabaseOutlined,
   UploadOutlined,
   SettingOutlined,
-  SafetyOutlined
+  SafetyOutlined,
+  VideoCameraOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
@@ -50,6 +51,12 @@ const MainLayout = ({ children }: Props) => {
       icon: <TeamOutlined />,
       label: 'Candidates',
       permission: 'candidates:read',
+    },
+    {
+      key: '/interviews',
+      icon: <VideoCameraOutlined />,
+      label: 'Interviews',
+      permission: 'interviews:read',
     },
         {
       key: '/cv-upload',
