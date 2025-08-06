@@ -11,7 +11,7 @@ export async function register() {
     await import('../sentry.server.config');
     
     // Initialize OpenTelemetry with minimal setup to avoid gRPC issues
-    if (!initialized && process.env.OTEL_EXPORTER_OTLP_ENDPOINT && process.env.OTEL_EXPORTER_OTLP_HEADERS) {
+    if (process.env.NODE_ENV !== 'development' && !initialized && process.env.OTEL_EXPORTER_OTLP_ENDPOINT && process.env.OTEL_EXPORTER_OTLP_HEADERS) {
       const serviceName = process.env.OTEL_SERVICE_NAME || 'tsl-ats';
       const serviceNamespace = process.env.OTEL_SERVICE_NAMESPACE || 'tsl-grp';
       const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
@@ -57,7 +57,7 @@ export async function register() {
       }
       
     } else if (!initialized) {
-      console.warn('OpenTelemetry environment variables not found. Skipping initialization.');
+      console.log('Skipping OpenTelemetry initialization in development mode or due to missing configuration.');
     }
     
     // Graceful shutdown for Node.js environment

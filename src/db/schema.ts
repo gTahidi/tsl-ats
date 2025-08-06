@@ -227,8 +227,39 @@ export const users = pgTable('users', {
   lastName: text('last_name').notNull(),
   isActive: text('is_active').default('true').notNull(),
   lastLoginAt: timestamp('last_login_at'),
+  calComUsername: text('cal_com_username').unique(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
+});
+
+export const interviewRooms = pgTable('interview_rooms', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull().unique(),
+  location: text('location'),
+  is_active: text('is_active').default('true'),
+});
+
+export const interviews = pgTable('interviews', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  applicationId: text('application_id').notNull(),
+  roomId: text('room_id').references(() => interviewRooms.id),
+  calComBookingId: text('cal_com_booking_id').unique(),
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+});
+
+export const interviewers = pgTable('interviewers', {
+  interviewId: text('interview_id').notNull().references(() => interviews.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: uniqueIndex().on(table.interviewId, table.userId),
+}));
+
+export const idempotencyKeys = pgTable('idempotency_keys', {
+    id: text('id').primaryKey(),
+    status: text('status').notNull(),
+    response: jsonb('response'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const roles = pgTable('roles', {
@@ -279,6 +310,29 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const rolesRelations = relations(roles, ({ many }) => ({
   userRoles: many(userRoles),
   rolePermissions: many(rolePermissions),
+}));
+
+export const interviewRoomsRelations = relations(interviewRooms, ({ many }) => ({
+  interviews: many(interviews),
+}));
+
+export const interviewsRelations = relations(interviews, ({ one, many }) => ({
+  room: one(interviewRooms, {
+    fields: [interviews.roomId],
+    references: [interviewRooms.id],
+  }),
+  interviewers: many(interviewers),
+}));
+
+export const interviewersRelations = relations(interviewers, ({ one }) => ({
+  interview: one(interviews, {
+    fields: [interviewers.interviewId],
+    references: [interviews.id],
+  }),
+  user: one(users, {
+    fields: [interviewers.userId],
+    references: [users.id],
+  }),
 }));
 
 export const permissionsRelations = relations(permissions, ({ many }) => ({

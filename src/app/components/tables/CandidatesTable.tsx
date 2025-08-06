@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -15,11 +15,9 @@ const { Title } = Typography;
 
 interface CandidatesTableProps {
   jobId?: string;
-  onEdit?: (candidate: CandidateView) => void;
-  onDelete?: (candidate: CandidateView) => void;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDelete }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -154,28 +152,6 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
             icon={<EyeOutlined />}
             onClick={() => handleRowClick(record)}
           />
-          {onEdit && (
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => onEdit?.(record)}
-            />
-          )}
-          {onDelete && (
-            <Popconfirm
-              title="Delete candidate"
-              description="Are you sure?"
-              onConfirm={() => onDelete?.(record)}
-              okText="Yes"
-              cancelText="No"
-            >
-              <Button
-                type="text"
-                danger
-                icon={<DeleteOutlined />}
-              />
-            </Popconfirm>
-          )}
         </div>
       ),
     },
