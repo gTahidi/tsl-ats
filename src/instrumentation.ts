@@ -1,100 +1,63 @@
 import * as Sentry from '@sentry/nextjs';
-import { NodeSDK } from '@opentelemetry/sdk-node';
-import { getNodeAutoInstrumentations } from '@opentelemetry/auto-instrumentations-node';
-import { OTLPTraceExporter } from '@opentelemetry/exporter-trace-otlp-http';
 import { OTLPLogExporter } from '@opentelemetry/exporter-logs-otlp-http';
-import { OTLPMetricExporter } from '@opentelemetry/exporter-metrics-otlp-http';
-import { PeriodicExportingMetricReader } from '@opentelemetry/sdk-metrics';
 import { BatchLogRecordProcessor, LoggerProvider as SDKLoggerProvider } from '@opentelemetry/sdk-logs';
 import { logs } from '@opentelemetry/api-logs';
 
-let sdk: NodeSDK | undefined;
+let initialized = false;
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('../sentry.server.config');
     
-    // Initialize OpenTelemetry SDK for backend instrumentation
-    if (!sdk && process.env.GRAFANA_CLOUD_API_KEY && process.env.GRAFANA_CLOUD_INSTANCE_ID) {
+    // Initialize OpenTelemetry with minimal setup to avoid gRPC issues
+    if (!initialized && process.env.OTEL_EXPORTER_OTLP_ENDPOINT && process.env.OTEL_EXPORTER_OTLP_HEADERS) {
       const serviceName = process.env.OTEL_SERVICE_NAME || 'tsl-ats-backend';
+      const otlpEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+      const otlpHeaders = parseOtlpHeaders(process.env.OTEL_EXPORTER_OTLP_HEADERS);
       
-      // Create authentication header for Grafana Cloud
-      const authHeader = `Basic ${Buffer.from(`${process.env.GRAFANA_CLOUD_INSTANCE_ID}:${process.env.GRAFANA_CLOUD_API_KEY}`).toString('base64')}`;
+      console.log('Initializing OpenTelemetry with Grafana Cloud OTLP Gateway');
+      console.log('Service Name:', serviceName);
+      console.log('OTLP Endpoint:', otlpEndpoint);
 
-      // Configure trace exporter to Grafana Cloud Tempo
-      const traceExporter = process.env.GRAFANA_CLOUD_TEMPO_ENDPOINT 
-        ? new OTLPTraceExporter({
-            url: `${process.env.GRAFANA_CLOUD_TEMPO_ENDPOINT}/v1/traces`,
-            headers: {
-              'Authorization': authHeader,
-            },
-          })
-        : undefined;
-
-      // Configure metrics exporter to Grafana Cloud Prometheus
-      const metricsExporter = process.env.GRAFANA_CLOUD_PROMETHEUS_ENDPOINT
-        ? new OTLPMetricExporter({
-            url: process.env.GRAFANA_CLOUD_PROMETHEUS_ENDPOINT,
-            headers: {
-              'Authorization': authHeader,
-            },
-          })
-        : undefined;
-
-      const metricReader = metricsExporter 
-        ? new PeriodicExportingMetricReader({
-            exporter: metricsExporter,
-            exportIntervalMillis: 30000, // Export metrics every 30 seconds
-          })
-        : undefined;
-
-      sdk = new NodeSDK({
-        serviceName,
-        
-        // Auto-instrumentations for common libraries
-        instrumentations: [getNodeAutoInstrumentations({
-          // Disable noisy instrumentations
-          '@opentelemetry/instrumentation-fs': {
-            enabled: false,
-          },
-          '@opentelemetry/instrumentation-dns': {
-            enabled: false,
-          },
-          // Enable HTTP instrumentation for API routes
-          '@opentelemetry/instrumentation-http': {
-            enabled: true,
-          },
-          // Enable database instrumentation
-          '@opentelemetry/instrumentation-pg': {
-            enabled: true,
-          },
-        })],
-        
-        traceExporter,
-        metricReader,
-      });
-
-      // Initialize the SDK
-      sdk.start();
-      console.log('OpenTelemetry SDK initialized successfully');
-      
-      // Set up log exporter to Grafana Cloud Loki
-      if (process.env.GRAFANA_CLOUD_LOKI_ENDPOINT) {
+      try {
+        // Configure log exporter to Grafana Cloud OTLP Gateway (most important for our use case)
         const logExporter = new OTLPLogExporter({
-          url: process.env.GRAFANA_CLOUD_LOKI_ENDPOINT,
-          headers: {
-            'Authorization': authHeader,
-          },
+          url: `${otlpEndpoint}/v1/logs`,
+          headers: otlpHeaders,
+        });
+
+        const logProcessor = new BatchLogRecordProcessor(logExporter);
+        const loggerProvider = new SDKLoggerProvider({
+          processors: [logProcessor]
+        });
+        logs.setGlobalLoggerProvider(loggerProvider);
+
+        console.log('OpenTelemetry logging configured for Grafana Cloud OTLP Gateway');
+        
+        // Use Vercel's built-in OTel for tracing to avoid module issues
+        const { registerOTel } = await import('@vercel/otel');
+        registerOTel({
+          serviceName,
+          spanProcessors: ['auto'],
         });
         
-        const logProcessor = new BatchLogRecordProcessor(logExporter);
-        const loggerProvider = new SDKLoggerProvider();
-        (loggerProvider as any).addLogRecordProcessor(logProcessor);
-        logs.setGlobalLoggerProvider(loggerProvider);
-        console.log('OpenTelemetry logging configured for Grafana Cloud Loki');
+        initialized = true;
+        console.log('OpenTelemetry initialized successfully with hybrid setup');
+        
+      } catch (error) {
+        console.warn('Failed to initialize OpenTelemetry logging, falling back to Vercel OTel only:', error);
+        
+        // Complete fallback to basic Vercel OTel
+        const { registerOTel } = await import('@vercel/otel');
+        registerOTel({
+          serviceName,
+          spanProcessors: ['auto'],
+        });
+        initialized = true;
       }
-    } else if (!process.env.GRAFANA_CLOUD_API_KEY || !process.env.GRAFANA_CLOUD_INSTANCE_ID) {
-      console.warn('Grafana Cloud credentials not found. OpenTelemetry will not be initialized. Please set GRAFANA_CLOUD_API_KEY and GRAFANA_CLOUD_INSTANCE_ID environment variables.');
+      
+    } else if (!process.env.OTEL_EXPORTER_OTLP_ENDPOINT && !initialized) {
+      console.warn('Grafana Cloud OTLP Gateway credentials not found. Falling back to basic Vercel OTel.');
       
       // Fallback to basic Vercel OTel for development
       const { registerOTel } = await import('@vercel/otel');
@@ -102,6 +65,7 @@ export async function register() {
         serviceName: process.env.OTEL_SERVICE_NAME || 'tsl-ats-backend',
         spanProcessors: ['auto'],
       });
+      initialized = true;
     }
   }
 
@@ -110,12 +74,37 @@ export async function register() {
   }
 }
 
+/**
+ * Parse OTLP headers from environment variable format
+ * Format: "key1=value1,key2=value2"
+ */
+function parseOtlpHeaders(headersString: string): Record<string, string> {
+  const headers: Record<string, string> = {};
+  
+  if (!headersString) {
+    return headers;
+  }
+  
+  // Split by comma and parse key=value pairs
+  const pairs = headersString.split(',');
+  for (const pair of pairs) {
+    const [key, ...valueParts] = pair.split('=');
+    if (key && valueParts.length > 0) {
+      const value = valueParts.join('='); // Rejoin in case value contains '='
+      headers[key.trim()] = value.trim();
+    }
+  }
+  
+  return headers;
+}
+
 export const onRequestError = Sentry.captureRequestError;
 
-// Graceful shutdown
+// Graceful shutdown - simplified since we're not using NodeSDK
 process.on('SIGTERM', () => {
-  sdk?.shutdown()
-    .then(() => console.log('OpenTelemetry SDK terminated'))
-    .catch((error) => console.log('Error terminating OpenTelemetry SDK', error))
-    .finally(() => process.exit(0));
+  if (initialized) {
+    // Manual cleanup of providers if needed
+    console.log('OpenTelemetry shutting down');
+  }
+  process.exit(0);
 });

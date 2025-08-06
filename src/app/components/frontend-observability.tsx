@@ -32,8 +32,7 @@ export default function FrontendObservability() {
     url: process.env.NEXT_PUBLIC_FARO_URL,
     appName: process.env.NEXT_PUBLIC_FARO_APP_NAME,
     namespace: process.env.NEXT_PUBLIC_FARO_APP_NAMESPACE,
-    environment: process.env.NEXT_PUBLIC_FARO_ENVIRONMENT, // Fixed typo
-    environmentTypo: process.env.NEXT_PUBLIC_FARO_ENVIRONMNENT, // Show the typo value
+    environment: process.env.NEXT_PUBLIC_FARO_ENVIRONMENT,
   });
 
   try {

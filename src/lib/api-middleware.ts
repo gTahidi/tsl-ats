@@ -1,0 +1,171 @@
+import { NextRequest, NextResponse } from 'next/server';
+import { trace } from '@opentelemetry/api';
+import { createRequestLogger } from './logger';
+
+export interface APIContext {
+  logger: ReturnType<typeof createRequestLogger>;
+  startTime: number;
+}
+
+/**
+ * API Request logging middleware for Next.js API routes
+ * Provides consistent logging and tracing across all API endpoints
+ */
+export function withAPILogging<T = any>(
+  handler: (request: NextRequest | Request, context: APIContext) => Promise<NextResponse<T>>,
+  options: {
+    operation: string;
+    tracerName?: string;
+    spanName?: string;
+  }
+) {
+  const { operation, tracerName = 'api-routes', spanName } = options;
+  const tracer = trace.getTracer(tracerName, '1.0.0');
+  const finalSpanName = spanName || operation.replace('_', '-');
+
+  return async function(request: NextRequest | Request): Promise<NextResponse<T>> {
+    // Create request-specific logger with context
+    const requestLogger = createRequestLogger(request, {
+      'api.operation': operation,
+    });
+
+    return tracer.startActiveSpan(finalSpanName, async (span) => {
+      const startTime = Date.now();
+      const url = new URL(request.url);
+      
+      // Set initial span attributes
+      span.setAttributes({
+        'http.method': request.method,
+        'http.route': url.pathname,
+        'http.url': request.url,
+        'api.operation': operation,
+      });
+
+      // Log the incoming request
+      requestLogger.info(`Processing ${request.method} ${url.pathname} request`, {
+        'request.method': request.method,
+        'request.path': url.pathname,
+        'request.query': url.search,
+        'request.user_agent': request.headers.get('user-agent') || 'unknown',
+        'request.content_type': request.headers.get('content-type') || undefined,
+      });
+
+      const context: APIContext = {
+        logger: requestLogger,
+        startTime,
+      };
+
+      try {
+        // Call the actual handler
+        const response = await handler(request, context);
+        const duration = Date.now() - startTime;
+        
+        // Log successful response
+        requestLogger.info(`${request.method} ${url.pathname} request completed successfully`, {
+          'response.status': response.status,
+          'response.duration_ms': duration,
+          'response.content_type': response.headers.get('content-type') || undefined,
+        });
+
+        // Set success metrics on span
+        span.setAttributes({
+          'response.status_code': response.status,
+          'response.duration_ms': duration,
+          'success': true,
+        });
+
+        return response;
+      } catch (error) {
+        const duration = Date.now() - startTime;
+        
+        // Log the error with full context
+        requestLogger.error(`Failed to process ${request.method} ${url.pathname}`, error as Error, {
+          'error.duration_ms': duration,
+          'response.status': 500,
+        });
+
+        // Record exception in span
+        span.recordException(error as Error);
+        span.setAttributes({
+          'error': true,
+          'response.status_code': 500,
+          'response.duration_ms': duration,
+        });
+
+        // Return error response
+        return NextResponse.json(
+          { error: 'Internal server error' },
+          { status: 500 }
+        ) as NextResponse<T>;
+      } finally {
+        span.end();
+      }
+    });
+  };
+}
+
+/**
+ * Simple wrapper for API routes that only need basic logging without custom context
+ */
+export function withSimpleAPILogging<T = any>(
+  handler: (request: NextRequest | Request) => Promise<NextResponse<T>>,
+  operation: string
+) {
+  return withAPILogging(
+    async (request, context) => {
+      return handler(request);
+    },
+    { operation }
+  );
+}
+
+/**
+ * Middleware for database operations within API routes
+ */
+export function logDatabaseOperation(
+  context: APIContext,
+  operation: string,
+  table?: string,
+  additionalAttributes?: Record<string, any>
+) {
+  const dbLogger = context.logger.child({
+    'db.operation': operation,
+    'db.table': table,
+    'db.system': 'postgresql',
+    ...additionalAttributes,
+  });
+  
+  return {
+    info: (message: string, attributes?: Record<string, any>) =>
+      dbLogger.info(message, attributes),
+    error: (message: string, error?: Error, attributes?: Record<string, any>) =>
+      dbLogger.error(message, error, attributes),
+    warn: (message: string, attributes?: Record<string, any>) =>
+      dbLogger.warn(message, attributes),
+  };
+}
+
+/**
+ * Middleware for external API calls within API routes
+ */
+export function logExternalAPI(
+  context: APIContext,
+  service: string,
+  endpoint: string,
+  additionalAttributes?: Record<string, any>
+) {
+  const extLogger = context.logger.child({
+    'external.service': service,
+    'external.endpoint': endpoint,
+    ...additionalAttributes,
+  });
+  
+  return {
+    info: (message: string, attributes?: Record<string, any>) =>
+      extLogger.info(message, attributes),
+    error: (message: string, error?: Error, attributes?: Record<string, any>) =>
+      extLogger.error(message, error, attributes),
+    warn: (message: string, attributes?: Record<string, any>) =>
+      extLogger.warn(message, attributes),
+  };
+}
