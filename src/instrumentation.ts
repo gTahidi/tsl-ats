@@ -82,6 +82,15 @@ export async function register() {
       });
       initialized = true;
     }
+    
+    // Graceful shutdown for Node.js environment
+    process.on('SIGTERM', () => {
+      if (initialized) {
+        // Manual cleanup of providers if needed
+        console.log('OpenTelemetry shutting down');
+      }
+      process.exit(0);
+    });
   }
 
   if (process.env.NEXT_RUNTIME === 'edge') {
@@ -114,12 +123,3 @@ function parseOtlpHeaders(headersString: string): Record<string, string> {
 }
 
 export const onRequestError = Sentry.captureRequestError;
-
-// Graceful shutdown - simplified since we're not using NodeSDK
-process.on('SIGTERM', () => {
-  if (initialized) {
-    // Manual cleanup of providers if needed
-    console.log('OpenTelemetry shutting down');
-  }
-  process.exit(0);
-});
