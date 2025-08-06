@@ -34,7 +34,7 @@ ENV AZURE_STORAGE_CONNECTION_STRING=$AZURE_STORAGE_CONNECTION_STRING
 ENV AZURE_STORAGE_CONTAINER_NAME=$AZURE_STORAGE_CONTAINER_NAME
 
 # Build the Next.js application
-RUN npm run build
+RUN pnpm run build
 
 # Create an empty public directory if it doesn't exist to prevent copy errors
 RUN mkdir -p /app/public
@@ -52,9 +52,10 @@ COPY --from=builder /app/public ./public
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./
+COPY --from=builder /app/src ./src
 
 # Expose the port the app runs on
 EXPOSE 3000
 
 # Start the application
-CMD ["npm", "start"]
+CMD ["pnpm", "start"]
