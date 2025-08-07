@@ -5,13 +5,15 @@
   "main": "recover-candidates.js",
   "scripts": {
     "recover": "node recover-candidates.js",
-    "recover:help": "node recover-candidates.js --help"
+    "recover:help": "node recover-candidates.js --help",
+    "create-admin": "tsx create-admin-user.ts"
   },
   "dependencies": {
     "@azure/storage-blob": "^12.17.0",
     "node-fetch": "^2.7.0",
     "dotenv": "^16.3.1",
-    "form-data": "^4.0.0"
+    "form-data": "^4.0.0",
+    "tsx": "^4.0.0"
   },
   "engines": {
     "node": ">=16.0.0"

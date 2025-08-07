@@ -66,6 +66,10 @@ class CvRecoveryProcessor {
     this.processedCount = 0;
     this.errorCount = 0;
     this.results = [];
+    this.report = {
+      succeeded: [],
+      failed: [],
+    };
   }
 
   async run() {
@@ -102,7 +106,9 @@ class CvRecoveryProcessor {
 
       // Step 2: Process CVs in batches
       console.log(`🔄 Processing CVs in batches of ${CONFIG.batchSize}...`);
-      await this.processCvsInBatches(cvFiles);
+      // Pass only the names to avoid race conditions with the file object
+      const cvFileNames = cvFiles.map(f => f.name);
+      await this.processCvsInBatches(cvFileNames);
 
       // Step 3: Generate summary report
       this.generateReport();
@@ -140,162 +146,119 @@ class CvRecoveryProcessor {
         if (allowedExtensions.includes(extension)) {
           cvFiles.push({
             name: blob.name,
-            url: this.containerClient.getBlobClient(blob.name).url,
-            size: blob.properties.contentLength || 0,
-            lastModified: blob.properties.lastModified || new Date(),
+            lastModified: blob.properties.lastModified,
           });
         }
       }
       
       console.log(`✅ Found ${blobCount} total blobs`);
       console.log(`📝 ${cvFiles.length} PDF files (will process)`);
-      console.log(`⚠️  ${docxCount} Word documents (skipped - Gemini doesn't support .docx/.doc)`);
-      
+      if (docxCount > 0) {
+        console.log(`⚠️  ${docxCount} Word documents (skipped - Gemini doesn't support .docx/.doc)`);
+      }
+
     } catch (error) {
-      console.error('❌ Error listing blobs:', error);
-      throw error;
+      console.error('❌ Failed to list blobs from Azure:', error);
+      throw error; // Rethrow to stop the script
     }
 
+    // Sort by date and take the most recent ones as defined by maxFiles
     return cvFiles.sort((a, b) => new Date(b.lastModified) - new Date(a.lastModified));
   }
 
-  async processCvsInBatches(cvFiles) {
-    const batches = this.createBatches(cvFiles, CONFIG.batchSize);
-    
-    for (let i = 0; i < batches.length; i++) {
-      const batch = batches[i];
-      console.log(`\n📦 Processing Batch ${i + 1}/${batches.length} (${batch.length} files)`);
-      
-      // Process batch in parallel
-      const batchPromises = batch.map(cvFile => this.processSingleCv(cvFile));
-      const batchResults = await Promise.allSettled(batchPromises);
-      
-      // Handle batch results
-      batchResults.forEach((result, index) => {
-        const cvFile = batch[index];
-        if (result.status === 'fulfilled') {
+  async processCvsInBatches(cvFileNames) {
+    for (let i = 0; i < cvFileNames.length; i += CONFIG.batchSize) {
+      const batch = cvFileNames.slice(i, i + CONFIG.batchSize);
+      const batchNum = Math.floor(i / CONFIG.batchSize) + 1;
+      const totalBatches = Math.ceil(cvFileNames.length / CONFIG.batchSize);
+
+      console.log(`\n📦 Processing Batch ${batchNum}/${totalBatches} (${batch.length} files)`);
+
+      const promises = batch.map(fileName => this.processSingleCv(fileName));
+      const batchResults = await Promise.all(promises);
+
+      // Process results atomically after each batch to avoid race conditions
+      batchResults.forEach(result => {
+        if (result.status === 'success') {
           this.processedCount++;
-          this.results.push({
-            file: cvFile.name,
-            status: 'success',
-            candidate: result.value,
-          });
-          console.log(`  ✅ ${cvFile.name} - Processed successfully`);
+          this.report.succeeded.push({ name: result.fileName });
         } else {
           this.errorCount++;
-          this.results.push({
-            file: cvFile.name,
-            status: 'error',
-            error: result.reason.message,
-          });
-          console.log(`  ❌ ${cvFile.name} - Error: ${result.reason.message}`);
+          this.report.failed.push({ name: result.fileName, reason: result.reason });
         }
+        this.results.push(result);
       });
 
-      // Delay between batches to respect rate limits
-      if (i < batches.length - 1) {
+      if (i + CONFIG.batchSize < cvFileNames.length) {
         console.log(`⏳ Waiting ${CONFIG.delayBetweenBatches}ms before next batch...`);
-        await this.delay(CONFIG.delayBetweenBatches);
+        await new Promise(resolve => setTimeout(resolve, CONFIG.delayBetweenBatches));
       }
     }
   }
 
-  async processSingleCv(cvFile) {
+  async processSingleCv(fileName, attempt = 1) {
+    if (attempt > CONFIG.maxRetries) {
+      console.error(`  ❌ ${fileName} - Failed after ${CONFIG.maxRetries} attempts.`);
+      return { status: 'error', fileName, reason: 'Max retries reached' };
+    }
+
     let tempFilePath = null;
-    
     try {
-      // Step 1: Download CV file from Azure
-      tempFilePath = await this.downloadCvFile(cvFile);
-      
+      // Step 1: Download the file from Azure
+      tempFilePath = path.join(CONFIG.tempDir, fileName);
+      const blobClient = this.containerClient.getBlobClient(fileName);
+      await blobClient.downloadToFile(tempFilePath);
+      const fileBuffer = fs.readFileSync(tempFilePath);
+
       // Step 2: Create FormData for API call
       const formData = new FormData();
-      const fileBuffer = fs.readFileSync(tempFilePath);
-      
-      formData.append('file', fileBuffer, {
-        filename: cvFile.name,
-        contentType: this.getMimeType(cvFile.name),
-      });
-      formData.append('jobId', this.determineJobId(cvFile.name));
+      formData.append('file', fileBuffer, { filename: fileName });
+      formData.append('jobId', CONFIG.defaultJobId);
 
       // Step 3: Call the upload-and-process endpoint
-      const response = await this.callProcessingEndpoint(formData, cvFile.name);
-      
-      return response;
-      
-    } catch (error) {
-      console.error(`Error processing ${cvFile.name}:`, error);
-      throw error;
-    } finally {
-      // Clean up temp file
-      if (tempFilePath && fs.existsSync(tempFilePath)) {
-        fs.unlinkSync(tempFilePath);
-      }
-    }
-  }
-
-  async downloadCvFile(cvFile) {
-    const tempFilePath = path.join(CONFIG.tempDir, cvFile.name);
-    
-    try {
-      const blobClient = this.containerClient.getBlobClient(cvFile.name);
-      await blobClient.downloadToFile(tempFilePath);
-      return tempFilePath;
-    } catch (error) {
-      console.error(`Error downloading ${cvFile.name}:`, error);
-      throw error;
-    }
-  }
-
-  async callProcessingEndpoint(formData, fileName = 'unknown', retryCount = 0) {
-    try {
-      const url = `${CONFIG.apiBaseUrl}/api/cv/upload-and-process?apiKey=${CONFIG.internalApiKey}`;
-      
-      // CV processing can take 30-60 seconds with Gemini API
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minute timeout
-      
-      const response = await fetch(url, {
+
+      const response = await fetch(`${CONFIG.apiBaseUrl}/api/cv/upload-and-process?apiKey=${CONFIG.internalApiKey}`, {
         method: 'POST',
         body: formData,
-        headers: {
-          ...formData.getHeaders(),
-        },
+        headers: formData.getHeaders(),
         signal: controller.signal,
       });
       
       clearTimeout(timeoutId);
 
       if (!response.ok) {
-        const errorText = await response.text();
-        const error = new Error(`API call failed: ${response.status} - ${errorText}`);
+        const errorBody = await response.text();
+        const error = new Error(`API call failed: ${response.status} - ${errorBody}`);
         error.status = response.status;
-        error.responseText = errorText;
         throw error;
       }
 
       const result = await response.json();
-      return result;
-      
+      console.log(`  ✅ ${fileName} - Processed successfully`);
+      return { status: 'success', fileName, candidate: result };
+
     } catch (error) {
-      // Add debug logging to see what's actually happening
-      console.log(`  🔍 ${fileName} - Debug: Error type: ${error.name}, Status: ${error.status}, Message: ${error.message}`);
-      
+      console.log(`  🔍 ${fileName} - Debug: Error type: ${error.constructor.name}, Status: ${error.status}, Message: ${error.message}`);
+
       // Don't retry certain errors that won't be fixed by retrying
       const nonRetryableErrors = [400, 401, 403, 415, 422]; // Bad Request, Unauthorized, Forbidden, Unsupported Media Type, Unprocessable Entity
-      
       if (error.status && nonRetryableErrors.includes(error.status)) {
-        console.log(`  ⚠️  ${fileName} - Non-retryable error (${error.status}), skipping...`);
-        throw error;
+        const reason = `Non-retryable error: ${error.status}`;
+        console.error(`  ⚠️  ${fileName} - ${reason}, skipping.`);
+        return { status: 'error', fileName, reason };
       }
-      
-      if (retryCount < CONFIG.maxRetries) {
-        console.log(`  🔄 ${fileName} - Retrying... (${retryCount + 1}/${CONFIG.maxRetries})`);
-        await this.delay(1000 * (retryCount + 1)); // Exponential backoff
-        return this.callProcessingEndpoint(formData, fileName, retryCount + 1);
+
+      // Retry for other errors
+      console.log(`  🔄 ${fileName} - Retrying... (${attempt}/${CONFIG.maxRetries})`);
+      await new Promise(resolve => setTimeout(resolve, 1000 * attempt)); // Exponential backoff
+      return this.processSingleCv(fileName, attempt + 1);
+    } finally {
+      // Clean up temp file
+      if (tempFilePath && fs.existsSync(tempFilePath)) {
+        fs.unlinkSync(tempFilePath);
       }
-      
-      console.log(`  ❌ ${fileName} - Max retries exceeded, giving up`);
-      throw error;
     }
   }
 
@@ -333,13 +296,16 @@ class CvRecoveryProcessor {
     console.log('='.repeat(60));
     console.log(`✅ Successfully Processed: ${this.processedCount}`);
     console.log(`❌ Errors: ${this.errorCount}`);
-    console.log(`📈 Success Rate: ${((this.processedCount / (this.processedCount + this.errorCount)) * 100).toFixed(1)}%`);
+    
+    const totalProcessed = this.processedCount + this.errorCount;
+    if (totalProcessed > 0) {
+      const successRate = ((this.processedCount / totalProcessed) * 100).toFixed(1);
+      console.log(`📈 Success Rate: ${successRate}%`);
+    }
     
     if (this.errorCount > 0) {
-      console.log('\n❌ ERRORS:');
-      this.results
-        .filter(r => r.status === 'error')
-        .forEach(r => console.log(`  • ${r.file}: ${r.error}`));
+      console.log('\n❌ FAILED FILES:');
+      this.report.failed.forEach(r => console.log(`  • ${r.name}: ${r.reason}`));
     }
 
     // Save detailed report to file
@@ -349,7 +315,8 @@ class CvRecoveryProcessor {
       summary: {
         processed: this.processedCount,
         errors: this.errorCount,
-        successRate: ((this.processedCount / (this.processedCount + this.errorCount)) * 100).toFixed(1) + '%',
+        total: totalProcessed,
+        successRate: totalProcessed > 0 ? `${((this.processedCount / totalProcessed) * 100).toFixed(1)}%` : 'N/A',
       },
       results: this.results,
     }, null, 2));

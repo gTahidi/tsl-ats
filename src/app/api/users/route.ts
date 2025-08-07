@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { users, userRoles, roles } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { hashPassword, hasPermission } from '@/lib/rbac';
+import { hashPassword, hasPermission, hasAnyPermission } from '@/lib/rbac';
 import { verifyJWT } from '@/lib/jwt';
 import { cookies } from 'next/headers';
 
