@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { interviews, interviewRooms, candidates, personas, jobPostings } from '@/db/schema';
 import { eq, desc } from 'drizzle-orm';
+import { getInterviewStatus, getMeetingUrl } from '@/lib/interview-utils';
 
 export async function GET(request: NextRequest) {
   try {
@@ -58,24 +59,4 @@ export async function GET(request: NextRequest) {
   }
 }
 
-function getInterviewStatus(startTime: Date, endTime: Date): 'scheduled' | 'in_progress' | 'completed' | 'cancelled' {
-  const now = new Date();
-  const start = new Date(startTime);
-  const end = new Date(endTime);
 
-  if (now < start) {
-    return 'scheduled';
-  } else if (now >= start && now <= end) {
-    return 'in_progress';
-  } else {
-    return 'completed';
-  }
-}
-
-async function getMeetingUrl(calComBookingId: string | null): Promise<string | null> {
-  if (!calComBookingId) return null;
-  
-  // In a real implementation, you might fetch this from Cal.com API
-  // For now, we'll return a placeholder or stored URL
-  return `https://meet.google.com/generated-from-calcom-${calComBookingId}`;
-}

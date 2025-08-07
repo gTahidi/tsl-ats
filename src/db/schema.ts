@@ -247,6 +247,9 @@ export const interviews = pgTable('interviews', {
   calComBookingId: text('cal_com_booking_id').unique(),
   startTime: timestamp('start_time', { withTimezone: true }).notNull(),
   endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+  notes: text('notes'),
+  status: text('status'), // e.g., 'scheduled', 'completed', 'cancelled'
+  ...timestamps,
 });
 
 export const interviewers = pgTable('interviewers', {

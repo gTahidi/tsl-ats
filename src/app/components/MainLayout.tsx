@@ -56,7 +56,6 @@ const MainLayout = ({ children }: Props) => {
       key: '/interviews',
       icon: <VideoCameraOutlined />,
       label: 'Interviews',
-      permission: 'interviews:read',
     },
         {
       key: '/cv-upload',

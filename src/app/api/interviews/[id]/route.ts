@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
 import { interviews, candidates, personas, jobPostings } from '@/db/schema';
 import { eq } from 'drizzle-orm';
+import { calcomService } from '@/lib/calcom';
+import { getInterviewStatus, getMeetingUrl } from '@/lib/interview-utils';
 
 export async function GET(
   request: NextRequest,
@@ -24,7 +26,6 @@ export async function GET(
       );
     }
 
-    // Fetch candidate details
     const candidateDetails = await db.query.candidates.findFirst({
       where: eq(candidates.id, interview.applicationId),
       with: {
@@ -55,42 +56,61 @@ export async function PATCH(
   { params }: { params: { id: string } }
 ) {
   try {
+    const { startTime } = await request.json();
     const interviewId = params.id;
-    const { notes, status } = await request.json();
 
-    const updateData: any = {
-      updatedAt: new Date(),
-    };
-
-    if (notes !== undefined) {
-      updateData.notes = notes;
+    if (!startTime || isNaN(new Date(startTime).getTime())) {
+      return NextResponse.json(
+        { error: 'A valid startTime is required for rescheduling' },
+        { status: 400 }
+      );
     }
 
-    if (status !== undefined) {
-      updateData.status = status;
-    }
+    const existingInterview = await db.query.interviews.findFirst({
+      where: eq(interviews.id, interviewId),
+    });
 
-    const [updatedInterview] = await db
-      .update(interviews)
-      .set(updateData)
-      .where(eq(interviews.id, interviewId))
-      .returning();
-
-    if (!updatedInterview) {
+    if (!existingInterview) {
       return NextResponse.json(
         { error: 'Interview not found' },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({
-      success: true,
-      interview: updatedInterview,
-    });
+    const newStartTime = new Date(startTime);
+    const duration = existingInterview.endTime.getTime() - existingInterview.startTime.getTime();
+    const newEndTime = new Date(newStartTime.getTime() + duration);
+
+    if (existingInterview.calComBookingId) {
+      try {
+        await calcomService.rescheduleBooking(
+          existingInterview.calComBookingId,
+          newStartTime
+        );
+      } catch (error) {
+        console.error('Failed to reschedule Cal.com booking:', error);
+        return NextResponse.json(
+          { error: 'Failed to reschedule Cal.com booking' },
+          { status: 500 }
+        );
+      }
+    }
+
+    const [updatedInterview] = await db
+      .update(interviews)
+      .set({
+        startTime: newStartTime,
+        endTime: newEndTime,
+        updatedAt: new Date(),
+      })
+      .where(eq(interviews.id, interviewId))
+      .returning();
+
+    return NextResponse.json(updatedInterview);
   } catch (error) {
-    console.error('Error updating interview:', error);
+    console.error('Error rescheduling interview:', error);
     return NextResponse.json(
-      { error: 'Failed to update interview' },
+      { error: 'Failed to reschedule interview' },
       { status: 500 }
     );
   }
@@ -103,7 +123,6 @@ export async function DELETE(
   try {
     const interviewId = params.id;
 
-    // First get the interview to check if it has a Cal.com booking
     const interview = await db.query.interviews.findFirst({
       where: eq(interviews.id, interviewId),
     });
@@ -115,26 +134,21 @@ export async function DELETE(
       );
     }
 
-    // If there's a Cal.com booking, we should cancel it
     if (interview.calComBookingId) {
       try {
-        const { calcomService } = await import('@/lib/calcom');
-        await calcomService.cancelBooking(interview.calComBookingId, 'Interview cancelled');
-      } catch (calcomError) {
-        console.error('Failed to cancel Cal.com booking:', calcomError);
-        // Continue with deletion even if Cal.com cancellation fails
+        await calcomService.cancelBooking(interview.calComBookingId);
+      } catch (error) {
+        console.error('Failed to cancel Cal.com booking:', error);
+        return NextResponse.json(
+          { error: 'Failed to cancel Cal.com booking' },
+          { status: 500 }
+        );
       }
     }
 
-    // Delete the interview record
-    await db
-      .delete(interviews)
-      .where(eq(interviews.id, interviewId));
+    await db.delete(interviews).where(eq(interviews.id, interviewId));
 
-    return NextResponse.json({
-      success: true,
-      message: 'Interview cancelled successfully',
-    });
+    return NextResponse.json({ message: 'Interview cancelled successfully' });
   } catch (error) {
     console.error('Error cancelling interview:', error);
     return NextResponse.json(
@@ -142,26 +156,4 @@ export async function DELETE(
       { status: 500 }
     );
   }
-}
-
-function getInterviewStatus(startTime: Date, endTime: Date): 'scheduled' | 'in_progress' | 'completed' | 'cancelled' {
-  const now = new Date();
-  const start = new Date(startTime);
-  const end = new Date(endTime);
-
-  if (now < start) {
-    return 'scheduled';
-  } else if (now >= start && now <= end) {
-    return 'in_progress';
-  } else {
-    return 'completed';
-  }
-}
-
-async function getMeetingUrl(calComBookingId: string | null): Promise<string | null> {
-  if (!calComBookingId) return null;
-  
-  // In a real implementation, you might fetch this from Cal.com API
-  // For now, we'll return a placeholder or stored URL
-  return `https://meet.google.com/generated-from-calcom-${calComBookingId}`;
 }

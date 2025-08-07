@@ -5,6 +5,8 @@ import { eq, and } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import { calcomService } from '@/lib/calcom';
 
+export const dynamic = 'force-dynamic';
+
 export async function PATCH(
   request: NextRequest,
   { params }: { params: { id: string } }
@@ -12,6 +14,7 @@ export async function PATCH(
   try {
     const { qualified } = await request.json();
     const candidateId = params.id;
+    
 
     if (typeof qualified !== 'boolean') {
       return NextResponse.json(
@@ -20,148 +23,147 @@ export async function PATCH(
       );
     }
 
-    // Start a transaction to handle both candidate update and interview creation
-    const result = await db.transaction(async (tx) => {
-      // Update candidate qualification status
-      const [updatedCandidate] = await tx
-        .update(candidates)
-        .set({ 
-          qualified: qualified ? 'true' : 'false',
-          updatedAt: new Date()
+    // Update candidate qualification status first
+    const [updatedCandidate] = await db
+      .update(candidates)
+      .set({ 
+        qualified: qualified ? 'true' : 'false',
+        updatedAt: new Date()
+      })
+      .where(eq(candidates.id, candidateId))
+      .returning();
+
+    if (!updatedCandidate) {
+      return NextResponse.json({ error: 'Candidate not found' }, { status: 404 });
+    }
+
+    // If not qualifying, we're done
+    if (!qualified) {
+      return NextResponse.json(updatedCandidate);
+    }
+
+    // If qualifying, proceed to create interview and book with Cal.com
+    try {
+      const candidateDetails = await db
+        .select({
+          candidate: candidates,
+          job: jobPostings,
+          cv: cvs,
+          persona: personas
         })
+        .from(candidates)
+        .leftJoin(jobPostings, eq(candidates.jobId, jobPostings.id))
+        .leftJoin(cvs, eq(candidates.cvId, cvs.id))
+        .leftJoin(personas, eq(candidates.personaId, personas.id))
         .where(eq(candidates.id, candidateId))
-        .returning();
+        .limit(1);
 
-      if (!updatedCandidate) {
-        throw new Error('Candidate not found');
+      if (candidateDetails.length === 0) {
+        throw new Error('Candidate details not found for interview creation');
       }
 
-      // If qualifying the candidate, create an interview record
-      if (qualified) {
-        // Get candidate details with job and CV information
-        const candidateDetails = await tx
-          .select({
-            candidate: candidates,
-            job: jobPostings,
-            cv: cvs,
-            persona: personas
-          })
-          .from(candidates)
-          .leftJoin(jobPostings, eq(candidates.jobId, jobPostings.id))
-          .leftJoin(cvs, eq(candidates.cvId, cvs.id))
-          .leftJoin(personas, eq(candidates.personaId, personas.id))
-          .where(eq(candidates.id, candidateId))
-          .limit(1);
+      const { job, cv, persona } = candidateDetails[0];
 
-        if (candidateDetails.length === 0) {
-          throw new Error('Candidate details not found');
-        }
+      // Check if there's already an interview for this candidate
+      const existingInterview = await db
+        .select()
+        .from(interviews)
+        .where(eq(interviews.applicationId, candidateId))
+        .limit(1);
 
-        const { candidate, job, cv, persona } = candidateDetails[0];
+      if (existingInterview.length > 0) {
+        // Interview already exists, no action needed
+        return NextResponse.json(updatedCandidate);
+      }
 
-        // Check if there's already an interview for this candidate
-        const existingInterview = await tx
+      // Schedule interview 24 hours from now (default)
+      const interviewStartTime = new Date();
+      interviewStartTime.setHours(interviewStartTime.getHours() + 24);
+      const interviewEndTime = new Date(interviewStartTime.getTime() + 60 * 60 * 1000); // 1-hour interview
+
+      let calcomBookingUid: string | null = null;
+
+      try {
+        // Create Cal.com booking with Google Meet
+        const calcomBooking = await calcomService.createBooking({
+          candidateName: `${persona?.name} ${persona?.surname}`,
+          candidateEmail: persona?.email || '',
+          candidateTimeZone: 'UTC', // Default timezone, could be enhanced
+          startTime: interviewStartTime,
+          lengthInMinutes: 60,
+          jobTitle: `Interview for ${job?.title}`,
+          eventTypeSlug: 'interview',
+          username: 'interviewer', // This should be configurable
+          metadata: {
+            candidateId,
+            jobId: job?.id || '',
+            jobTitle: job?.title || '',
+            candidateName: `${persona?.name} ${persona?.surname}`,
+            candidateEmail: persona?.email || '',
+            cvId: cv?.id || '',
+            cvUrl: cv?.fileUrl || '',
+            jobDescription: job?.description || job?.jdText || ''
+          }
+        });
+        calcomBookingUid = calcomBooking.data.uid;
+
+        console.log(`Interview scheduled via Cal.com for candidate ${candidateId}:`, {
+          bookingId: calcomBooking.data.uid,
+          meetingUrl: calcomBooking.data.meetingUrl,
+          startTime: interviewStartTime.toISOString()
+        });
+
+      } catch (calcomError) {
+        console.error('Failed to create Cal.com booking, creating interview without scheduling:', calcomError);
+        // Proceed to create interview record without Cal.com booking ID
+      }
+
+      // Use a transaction for creating room and interview records
+      await db.transaction(async (tx) => {
+        // Get or create a default interview room
+        let room = await tx
           .select()
-          .from(interviews)
-          .where(eq(interviews.applicationId, candidateId))
+          .from(interviewRooms)
+          .where(eq(interviewRooms.is_active, 'true'))
           .limit(1);
 
-        if (existingInterview.length === 0) {
-          // Get or create a default interview room
-          let room = await tx
-            .select()
-            .from(interviewRooms)
-            .where(eq(interviewRooms.is_active, 'true'))
-            .limit(1);
-
-          if (room.length === 0) {
-            // Create a default interview room if none exists
-            const [newRoom] = await tx
-              .insert(interviewRooms)
-              .values({
-                id: createId(),
-                name: 'Virtual Interview Room',
-                location: 'Google Meet',
-                is_active: 'true'
-              })
-              .returning();
-            room = [newRoom];
-          }
-
-          // Schedule interview 24 hours from now (default)
-          const interviewStartTime = new Date();
-          interviewStartTime.setHours(interviewStartTime.getHours() + 24);
-          const interviewEndTime = new Date(interviewStartTime.getTime() + 60 * 60 * 1000); // 1-hour interview
-
-          try {
-            // Create Cal.com booking with Google Meet
-            const calcomBooking = await calcomService.createBooking({
-              candidateName: `${persona?.name} ${persona?.surname}`,
-              candidateEmail: persona?.email || '',
-              candidateTimeZone: 'UTC', // Default timezone, could be enhanced
-              startTime: interviewStartTime,
-              lengthInMinutes: 60,
-              jobTitle: `Interview for ${job?.title}`,
-              eventTypeSlug: 'interview',
-              username: 'interviewer', // This should be configurable
-              metadata: {
-                candidateId,
-                jobId: job?.id || '',
-                jobTitle: job?.title || '',
-                candidateName: `${persona?.name} ${persona?.surname}`,
-                candidateEmail: persona?.email || '',
-                cvId: cv?.id || '',
-                cvUrl: cv?.fileUrl || '',
-                jobDescription: job?.description || job?.jdText || ''
-              }
-            });
-
-            // Create interview record with Cal.com booking details
-            const interviewData = {
+        if (room.length === 0) {
+          const [newRoom] = await tx
+            .insert(interviewRooms)
+            .values({
               id: createId(),
-              applicationId: candidateId,
-              roomId: room[0].id,
-              startTime: interviewStartTime,
-              endTime: interviewEndTime,
-              calComBookingId: calcomBooking.data.uid // Store Cal.com booking UID
-            };
-
-            await tx.insert(interviews).values(interviewData);
-
-            console.log(`Interview scheduled via Cal.com for candidate ${candidateId}:`, {
-              bookingId: calcomBooking.data.uid,
-              meetingUrl: calcomBooking.data.meetingUrl,
-              startTime: interviewStartTime.toISOString()
-            });
-
-          } catch (calcomError) {
-            console.error('Failed to create Cal.com booking, creating interview without scheduling:', calcomError);
-            
-            // Fallback: create interview record without Cal.com booking
-            const interviewData = {
-              id: createId(),
-              applicationId: candidateId,
-              roomId: room[0].id,
-              startTime: interviewStartTime,
-              endTime: interviewEndTime,
-              calComBookingId: null
-            };
-
-            await tx.insert(interviews).values(interviewData);
-          }
+              name: 'Virtual Interview Room',
+              location: 'Google Meet',
+              is_active: 'true'
+            })
+            .returning();
+          room = [newRoom];
         }
-      }
 
-      return updatedCandidate;
-    });
+        // Create interview record with or without Cal.com booking details
+        const interviewData = {
+          id: createId(),
+          applicationId: candidateId,
+          roomId: room[0].id,
+          startTime: interviewStartTime,
+          endTime: interviewEndTime,
+          calComBookingId: calcomBookingUid
+        };
 
-    return NextResponse.json({
-      success: true,
-      candidate: result,
-      message: qualified 
-        ? 'Candidate qualified and moved to interview stage'
-        : 'Candidate qualification status updated'
-    });
+        await tx.insert(interviews).values(interviewData);
+      });
+
+      return NextResponse.json(updatedCandidate);
+
+    } catch (error) {
+      console.error('Error during interview creation process:', error);
+      // Return the successfully updated candidate but acknowledge the interview creation failure
+      return NextResponse.json({
+        message: 'Candidate qualified, but failed to create interview.',
+        error: error instanceof Error ? error.message : String(error),
+        candidate: updatedCandidate
+      }, { status: 500 });
+    }
 
   } catch (error) {
     console.error('Error updating candidate qualification:', error);
