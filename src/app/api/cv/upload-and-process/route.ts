@@ -219,13 +219,6 @@ async function processCv(file: File, jobId: string): Promise<{ candidate: any; j
 
 
 export async function POST(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const apiKey = searchParams.get('apiKey');
-
-    if (apiKey !== process.env.INTERNAL_API_KEY) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     try {
         const contentType = req.headers.get('content-type') || '';
         let file: File;
@@ -233,6 +226,12 @@ export async function POST(req: NextRequest) {
 
         // --- Handle Postmark JSON Webhook ---
         if (contentType.includes('application/json')) {
+            const { searchParams } = new URL(req.url);
+            const apiKey = searchParams.get('apiKey');
+
+            if (apiKey !== process.env.INTERNAL_API_KEY) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
             console.log('Processing Postmark inbound webhook...');
             const body = await req.json();
             const parsedData = postmarkWebhookSchema.safeParse(body);
