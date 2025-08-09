@@ -6,6 +6,7 @@ import { parseAndRankCvWithGemini } from '@/lib/gemini/cv-parser';
 import { uploadFile } from '@/lib/azure-storage';
 import { createCandidateWithInitialStep, updateCandidateWithNewCv } from '@/utils/candidate-creation';
 import { createAndStoreCvEmbeddings } from '@/utils/embedding-creation';
+import { sendCvReceivedEmail } from '@/lib/email';
 import { z } from 'zod';
 
 // --- Zod Schemas for Postmark --- 
@@ -108,7 +109,7 @@ async function findJobBySubject(subject: string): Promise<string | null> {
 
 // --- Core CV Processing Logic --- 
 
-async function processCv(file: File, jobId: string) {
+async function processCv(file: File, jobId: string): Promise<{ candidate: any; job: any }> {
     // 1. Fetch job details for ranking context
     const job = await db.query.jobPostings.findFirst({
         where: eq(jobPostings.id, jobId)
@@ -213,7 +214,7 @@ async function processCv(file: File, jobId: string) {
     // Trigger the embedding process asynchronously (fire and forget)
     createAndStoreCvEmbeddings(cvId, unifiedResult);
 
-    return candidate;
+    return { candidate, job };
 }
 
 
@@ -281,7 +282,17 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'File and Job ID are required' }, { status: 400 });
         }
 
-        const candidate = await processCv(file, jobId);
+        const { candidate, job } = await processCv(file, jobId);
+
+        // Send confirmation email after successful processing
+        if (candidate.persona?.email) {
+            sendCvReceivedEmail(
+                candidate.persona.email,
+                `${candidate.persona.name} ${candidate.persona.surname}`.trim(),
+                job.title
+            );
+        }
+
         return NextResponse.json(candidate);
 
     } catch (error) {

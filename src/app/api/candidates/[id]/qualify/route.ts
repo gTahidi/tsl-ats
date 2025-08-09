@@ -4,6 +4,7 @@ import { candidates, interviews, interviewRooms, jobPostings, cvs, personas } fr
 import { eq, and } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
 import { calcomService } from '@/lib/calcom';
+import { sendInterviewInvitationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,6 +113,16 @@ export async function PATCH(
           meetingUrl: calcomBooking.data.meetingUrl,
           startTime: interviewStartTime.toISOString()
         });
+
+        // Send interview invitation email
+        if (persona?.email && calcomBooking.data.meetingUrl) {
+          sendInterviewInvitationEmail(
+            persona.email,
+            `${persona.name} ${persona.surname}`.trim(),
+            job?.title || 'the position',
+            calcomBooking.data.meetingUrl
+          );
+        }
 
       } catch (calcomError) {
         console.error('Failed to create Cal.com booking, creating interview without scheduling:', calcomError);
