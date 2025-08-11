@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     // Build where conditions
     let whereConditions = [];
     if (candidateId) {
-      whereConditions.push(eq(interviews.applicationId, candidateId));
+      whereConditions.push(eq(interviews.candidateId, candidateId));
     }
 
     const allInterviews = await db.query.interviews.findMany({
@@ -21,14 +21,14 @@ export async function GET(request: NextRequest) {
       with: {
         room: true,
       },
-      orderBy: [desc(interviews.startTime)],
+      orderBy: [desc(interviews.scheduledTime)],
     });
 
     // Fetch candidate details for each interview
     const interviewsWithDetails = await Promise.all(
       allInterviews.map(async (interview) => {
         const candidateDetails = await db.query.candidates.findFirst({
-          where: eq(candidates.id, interview.applicationId),
+          where: eq(candidates.id, interview.candidateId),
           with: {
             persona: true,
             job: true,
@@ -38,7 +38,12 @@ export async function GET(request: NextRequest) {
         return {
           ...interview,
           candidate: candidateDetails,
-          status: getInterviewStatus(interview.startTime, interview.endTime),
+          status: interview.scheduledTime
+            ? getInterviewStatus(
+                new Date(interview.scheduledTime),
+                new Date(new Date(interview.scheduledTime).getTime() + 30 * 60000) // Assume 30 mins duration
+              )
+            : 'scheduled',
           meetingUrl: await getMeetingUrl(interview.calComBookingId),
         };
       })

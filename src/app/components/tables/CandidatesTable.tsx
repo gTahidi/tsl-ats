@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, CheckOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RatingModal from '../RatingModal';
 import CvViewerButton from '../cv-viewer-button';
 import JobSelector from '../JobSelector';
+import Link from 'next/link';
 
 const { Title } = Typography;
 
@@ -178,21 +179,34 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify }) =
               onClick={() => handleRowClick(record)}
             />
           </Tooltip>
-          <Tooltip title={record.qualified ? 'Qualified for interview' : 'Qualify for interview'}>
-            <Button
-              type="text"
-              icon={<CheckOutlined style={{ color: record.qualified ? '#52c41a' : undefined }} />}
-              onClick={(e) => {
-                e.stopPropagation();
-                qualifyCandidateMutation.mutate({ 
-                  candidateId: record.id, 
-                  qualified: !record.qualified 
-                });
-              }}
-              loading={qualifyCandidateMutation.isPending && 
-                      qualifyCandidateMutation.variables?.candidateId === record.id}
-            />
-          </Tooltip>
+          {!record.qualified ? (
+            <Tooltip title="Qualify for interview">
+              <Button
+                type="text"
+                icon={<CheckOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  qualifyCandidateMutation.mutate({
+                    candidateId: record.id,
+                    qualified: true,
+                  });
+                }}
+                loading={
+                  qualifyCandidateMutation.isPending &&
+                  qualifyCandidateMutation.variables?.candidateId === record.id
+                }
+              />
+            </Tooltip>
+          ) : (
+            <Tooltip title="View Interview">
+              <Link href={`/interviews?candidateId=${record.id}`} passHref>
+                <Button
+                  type="text"
+                  icon={<CalendarOutlined style={{ color: '#52c41a' }} />}
+                />
+              </Link>
+            </Tooltip>
+          )}
         </div>
       ),
     },

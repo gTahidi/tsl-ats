@@ -15,7 +15,6 @@ export async function PATCH(
   try {
     const { qualified } = await request.json();
     const candidateId = params.id;
-    
 
     if (typeof qualified !== 'boolean') {
       return NextResponse.json(
@@ -28,7 +27,7 @@ export async function PATCH(
     const [updatedCandidate] = await db
       .update(candidates)
       .set({ 
-        qualified: qualified ? 'true' : 'false',
+        qualified: qualified,
         updatedAt: new Date()
       })
       .where(eq(candidates.id, candidateId))
@@ -65,11 +64,15 @@ export async function PATCH(
 
       const { job, cv, persona } = candidateDetails[0];
 
+      if (!job || !job.id) {
+        throw new Error(`Cannot create interview for candidate ${candidateId} because they are not associated with a valid job.`);
+      }
+
       // Check if there's already an interview for this candidate
       const existingInterview = await db
         .select()
         .from(interviews)
-        .where(eq(interviews.applicationId, candidateId))
+        .where(eq(interviews.candidateId, candidateId))
         .limit(1);
 
       if (existingInterview.length > 0) {
@@ -82,7 +85,8 @@ export async function PATCH(
       interviewStartTime.setHours(interviewStartTime.getHours() + 24);
       const interviewEndTime = new Date(interviewStartTime.getTime() + 60 * 60 * 1000); // 1-hour interview
 
-      let calcomBookingUid: string | null = null;
+            let calcomBookingUid: string | null = null;
+      let meetingUrl: string | null = null;
 
       try {
         // Create Cal.com booking with Google Meet
@@ -97,16 +101,17 @@ export async function PATCH(
           username: 'interviewer', // This should be configurable
           metadata: {
             candidateId,
-            jobId: job?.id || '',
+            jobId: job.id,
             jobTitle: job?.title || '',
             candidateName: `${persona?.name} ${persona?.surname}`,
             candidateEmail: persona?.email || '',
             cvId: cv?.id || '',
             cvUrl: cv?.fileUrl || '',
-            jobDescription: job?.description || job?.jdText || ''
+            jobDescription: job?.title || ''
           }
         });
-        calcomBookingUid = calcomBooking.data.uid;
+                calcomBookingUid = calcomBooking.data.uid;
+        meetingUrl = calcomBooking.data.meetingUrl;
 
         console.log(`Interview scheduled via Cal.com for candidate ${candidateId}:`, {
           bookingId: calcomBooking.data.uid,
@@ -152,13 +157,15 @@ export async function PATCH(
         }
 
         // Create interview record with or without Cal.com booking details
-        const interviewData = {
+                const interviewData = {
           id: createId(),
-          applicationId: candidateId,
+          candidateId: candidateId,
+          jobId: job.id,
           roomId: room[0].id,
-          startTime: interviewStartTime,
-          endTime: interviewEndTime,
-          calComBookingId: calcomBookingUid
+          status: 'Scheduled' as const,
+          scheduledTime: interviewStartTime,
+          calComBookingId: calcomBookingUid,
+          meetingUrl: meetingUrl || null,
         };
 
         await tx.insert(interviews).values(interviewData);

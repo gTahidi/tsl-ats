@@ -1,1 +1,1 @@
-ALTER TABLE "candidates" ADD COLUMN "qualified" text DEFAULT 'false' NOT NULL;
+-- ALTER TABLE "candidates" ADD COLUMN "qualified" text DEFAULT 'false' NOT NULL;

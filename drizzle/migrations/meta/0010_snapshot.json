@@ -1,6 +1,6 @@
 {
-  "id": "b09cec45-a9e2-4cfc-8227-9c0b6b2d6e39",
-  "prevId": "98296a31-b252-4ff6-bc00-b7496ceeecc2",
+  "id": "c772189c-204d-4d54-b2c8-308215ac0fc1",
+  "prevId": "b09cec45-a9e2-4cfc-8227-9c0b6b2d6e39",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -58,10 +58,10 @@
         },
         "qualified": {
           "name": "qualified",
-          "type": "text",
+          "type": "boolean",
           "primaryKey": false,
           "notNull": true,
-          "default": "'false'"
+          "default": false
         },
         "metadata": {
           "name": "metadata",

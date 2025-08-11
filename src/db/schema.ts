@@ -8,6 +8,7 @@ import {
   vector,
   serial,
   pgEnum,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
@@ -52,7 +53,7 @@ export const candidates = pgTable('candidates', {
   currentStepId: text('current_step_id'),
   rating: jsonb('rating'),
   source: text('source'),
-  qualified: text('qualified').default('false').notNull(),
+    qualified: boolean('qualified').default(false).notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
 });
@@ -240,15 +241,18 @@ export const interviewRooms = pgTable('interview_rooms', {
   is_active: text('is_active').default('true'),
 });
 
+export const interviewStatusEnum = pgEnum('interview_status', ['Scheduled', 'In Progress', 'Completed', 'Cancelled']);
+
 export const interviews = pgTable('interviews', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
-  applicationId: text('application_id').notNull(),
-  roomId: text('room_id').references(() => interviewRooms.id),
-  calComBookingId: text('cal_com_booking_id').unique(),
-  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
-  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+  status: interviewStatusEnum('status').default('Scheduled').notNull(),
+  scheduledTime: timestamp('scheduled_time', { withTimezone: true }),
   notes: text('notes'),
-  status: text('status'), // e.g., 'scheduled', 'completed', 'cancelled'
+  calComBookingId: text('cal_com_booking_id').unique(),
+  meetingUrl: text('meeting_url'),
+  candidateId: text('candidate_id').notNull().references(() => candidates.id, { onDelete: 'cascade' }),
+  jobId: text('job_id').notNull().references(() => jobPostings.id, { onDelete: 'cascade' }),
+  roomId: text('room_id').references(() => interviewRooms.id),
   ...timestamps,
 });
 
