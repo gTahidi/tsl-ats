@@ -8,13 +8,33 @@ import { sendInterviewInvitationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
+// Helper function to get or create the static event type
+async function getOrCreateStaticEventType() {
+  const eventTypeSlug = 'static-interview';
+  let eventType = await calcomService.getEventTypeBySlug(eventTypeSlug);
+  if (!eventType) {
+    console.log('Static event type not found, creating a new one...');
+    eventType = await calcomService.createStaticEventType({
+      title: 'Candidate Interview',
+      slug: eventTypeSlug,
+      lengthInMinutes: 60,
+      description: 'A static event type for scheduling candidate interviews.'
+    });
+  }
+  return eventType;
+}
+
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
+    console.log("DEBUG: typeof context.params =", typeof context.params);
+    console.log("DEBUG: context.params raw value =", context.params);
     const { qualified } = await request.json();
-    const candidateId = params.id;
+    const awaitedParams = await context.params;
+    console.log("DEBUG: awaitedParams =", awaitedParams);
+    const candidateId = awaitedParams.id;
 
     if (typeof qualified !== 'boolean') {
       return NextResponse.json(
@@ -22,6 +42,8 @@ export async function PATCH(
         { status: 400 }
       );
     }
+
+    console.log("DEBUG: Cal.com booking username configured as:", 'tasksavvy');
 
     // Update candidate qualification status first
     const [updatedCandidate] = await db
@@ -68,6 +90,13 @@ export async function PATCH(
         throw new Error(`Cannot create interview for candidate ${candidateId} because they are not associated with a valid job.`);
       }
 
+      if (!persona || !persona.email) {
+        console.error(`Cannot schedule interview for candidate ${candidateId} because their persona or email is missing.`);
+        // You can either throw an error to stop the process, or just skip scheduling
+        // Throwing an error is often better to make the problem visible.
+        throw new Error(`Failed to schedule interview: Candidate persona or email is missing.`);
+      }
+
       // Check if there's already an interview for this candidate
       const existingInterview = await db
         .select()
@@ -77,7 +106,7 @@ export async function PATCH(
 
       if (existingInterview.length > 0) {
         // Interview already exists, no action needed
-        return NextResponse.json(updatedCandidate);
+        return NextResponse.json(updatedCandidate); 
       }
 
       // Schedule interview 24 hours from now (default)
@@ -90,15 +119,19 @@ export async function PATCH(
 
       try {
         // Create Cal.com booking with Google Meet
+        const staticEventType = await getOrCreateStaticEventType();
+        if (!staticEventType || !staticEventType.id) {
+          throw new Error('Failed to get or create a static event type for interviews.');
+        }
+
         const calcomBooking = await calcomService.createBooking({
           candidateName: `${persona?.name} ${persona?.surname}`,
           candidateEmail: persona?.email || '',
-          candidateTimeZone: 'UTC', // Default timezone, could be enhanced
           startTime: interviewStartTime,
-          lengthInMinutes: 60,
           jobTitle: `Interview for ${job?.title}`,
-          eventTypeSlug: 'interview',
-          username: 'interviewer', // This should be configurable
+          eventTypeId: staticEventType.id,
+          lengthInMinutes: 60,
+          interviewerEmail: 'hr@tasksavvy.org',
           metadata: {
             candidateId,
             jobId: job.id,
@@ -110,8 +143,8 @@ export async function PATCH(
             jobDescription: job?.title || ''
           }
         });
-                calcomBookingUid = calcomBooking.data.uid;
-        meetingUrl = calcomBooking.data.meetingUrl;
+        calcomBookingUid = calcomBooking.data.uid ?? null;
+        meetingUrl = calcomBooking.data.meetingUrl ?? null;
 
         console.log(`Interview scheduled via Cal.com for candidate ${candidateId}:`, {
           bookingId: calcomBooking.data.uid,

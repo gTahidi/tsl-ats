@@ -1,29 +1,5 @@
 import { createId } from '@paralleldrive/cuid2';
 
-interface CalcomBookingRequest {
-  start: string; // ISO 8601 UTC timestamp
-  attendee: {
-    name: string;
-    email: string;
-    timeZone: string;
-    phoneNumber?: string;
-    language?: string;
-  };
-  eventTypeId?: number;
-  eventTypeSlug?: string;
-  username?: string;
-  teamSlug?: string;
-  organizationSlug?: string;
-  guests?: string[];
-  location?: {
-    type: string;
-    value?: string;
-  };
-  metadata?: Record<string, any>;
-  lengthInMinutes?: number;
-  instant?: boolean;
-}
-
 interface CalcomBookingResponse {
   status: string;
   data: {
@@ -68,10 +44,87 @@ export class CalcomService {
   constructor() {
     this.apiKey = process.env.CALCOM_API_KEY || '';
     this.baseUrl = process.env.CALCOM_API_URL || 'https://api.cal.com';
-    this.apiVersion = '2024-08-13';
+    this.apiVersion = '2024-06-14';
 
     if (!this.apiKey) {
       throw new Error('CALCOM_API_KEY environment variable is required');
+    }
+  }
+
+  /**
+   * Create a static event type for interviews if it doesn't exist.
+   */
+  async createStaticEventType(eventDetails: {
+    title: string;
+    slug: string;
+    lengthInMinutes: number;
+    description?: string;
+  }): Promise<any> {
+    const { title, slug, lengthInMinutes, description } = eventDetails;
+    try {
+      // First, check if an event with the same slug already exists
+      const existingEventType = await this.getEventTypeBySlug(slug);
+      if (existingEventType) {
+        console.log(`Event type with slug '${slug}' already exists with ID: ${existingEventType.id}`);
+        return existingEventType;
+      }
+
+      // If it doesn't exist, create it
+      const response = await fetch(`${this.baseUrl}/v2/event-types`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiKey}`,
+          'cal-api-version': this.apiVersion,
+        },
+        body: JSON.stringify({
+          title,
+          slug,
+          lengthInMinutes,
+          description,
+          // Add other static configurations as needed
+        }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to create static event type: ${errorData}`);
+      }
+
+      const newEventType = await response.json();
+      console.log(`Successfully created static event type with ID: ${newEventType.data.id}`);
+      return newEventType.data;
+    } catch (error) {
+      console.error('Error in createStaticEventType:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Get an event type by its slug.
+   */
+  async getEventTypeBySlug(slug: string): Promise<any | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/event-types?slug=${slug}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'cal-api-version': this.apiVersion,
+        },
+      });
+
+      if (!response.ok) {
+        // If the API returns a 404 or other error, we can assume the event type doesn't exist
+        return null;
+      }
+
+      const eventTypes = await response.json();
+      // The response might be an array of event types, find the one with the matching slug
+      const eventType = eventTypes.data.find((et: any) => et.slug === slug);
+      return eventType || null;
+    } catch (error) {
+      console.error('Error in getEventTypeBySlug:', error);
+      return null;
     }
   }
 
@@ -84,11 +137,9 @@ export class CalcomService {
     candidateTimeZone?: string;
     interviewerEmail?: string;
     startTime: Date;
-    lengthInMinutes?: number;
     jobTitle?: string;
-    eventTypeId?: number;
-    eventTypeSlug?: string;
-    username?: string;
+    eventTypeId: number;
+    lengthInMinutes?: number;
     metadata?: Record<string, any>;
   }): Promise<CalcomBookingResponse> {
     const {
@@ -97,46 +148,40 @@ export class CalcomService {
       candidateTimeZone = 'UTC',
       interviewerEmail,
       startTime,
-      lengthInMinutes = 60,
       jobTitle = 'Interview',
       eventTypeId,
-      eventTypeSlug = 'interview',
-      username = 'interviewer',
+      lengthInMinutes = 60,
       metadata = {}
     } = params;
 
-    const bookingRequest: CalcomBookingRequest = {
+    const bookingRequest: any = {
+      eventTypeId,
       start: startTime.toISOString(),
-      attendee: {
+      responses: {
         name: candidateName,
         email: candidateEmail,
-        timeZone: candidateTimeZone,
-        language: 'en'
-      },
-      lengthInMinutes,
-      location: {
-        type: 'integrations:google:meet' // Google Meet integration
+        guests: interviewerEmail ? [interviewerEmail] : [],
+        location: {
+          value: "integrations:google:meet",
+          optionValue: ""
+        }
       },
       metadata: {
         ...metadata,
         jobTitle,
         bookingType: 'interview',
         createdBy: 'ats-system'
-      }
+      },
+      timeZone: candidateTimeZone,
+      language: 'en',
+      lengthInMinutes,
+      title: `Interview with ${candidateName}`,
+      description: `Interview for ${jobTitle}`,
+      status: 'PENDING',
+      smsReminderNumber: null
     };
 
-    // Add event type identification
-    if (eventTypeId) {
-      bookingRequest.eventTypeId = eventTypeId;
-    } else {
-      bookingRequest.eventTypeSlug = eventTypeSlug;
-      bookingRequest.username = username;
-    }
-
     // Add interviewer as guest if provided
-    if (interviewerEmail) {
-      bookingRequest.guests = [interviewerEmail];
-    }
 
     try {
       const response = await fetch(`${this.baseUrl}/v2/bookings`, {
@@ -148,6 +193,7 @@ export class CalcomService {
         },
         body: JSON.stringify(bookingRequest)
       });
+      console.debug('CalcomService.createBooking - raw response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.text();
