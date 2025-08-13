@@ -8,20 +8,41 @@ import { sendInterviewInvitationEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
-// Helper function to get or create the static event type
+/// In your src/app/api/candidates/[id]/qualify/route.ts file
+
 async function getOrCreateStaticEventType() {
-  const eventTypeSlug = 'static-interview';
+  // FIX: Changed the slug to a new version to bypass the "stuck" slug on Cal.com
+  const eventTypeSlug = 'static-interview-v2'; 
+  
+  // 1. First, try to GET the event type.
   let eventType = await calcomService.getEventTypeBySlug(eventTypeSlug);
-  if (!eventType) {
-    console.log('Static event type not found, creating a new one...');
+  
+  // 2. If it's found, return it immediately.
+  if (eventType) {
+    return eventType;
+  }
+  
+  // 3. If not found, THEN try to CREATE it.
+  try {
+    console.log(`Static event type '${eventTypeSlug}' not found, creating a new one...`);
     eventType = await calcomService.createStaticEventType({
       title: 'Candidate Interview',
       slug: eventTypeSlug,
       lengthInMinutes: 60,
-      description: 'A static event type for scheduling candidate interviews.'
+      description: 'A static event type for scheduling candidate interviews via the ATS.'
     });
+    return eventType;
+  } catch (error: any) {
+    // 4. If creation fails due to a race condition, try to GET it one last time.
+    if (error.message && error.message.includes("User already has an event type with this slug")) {
+      console.warn(`Race condition detected for slug '${eventTypeSlug}'. Refetching...`);
+      eventType = await calcomService.getEventTypeBySlug(eventTypeSlug);
+      if (eventType) return eventType;
+    }
+    // If it still fails for any reason, throw a clear error.
+    console.error(`Fatal: Could not resolve event type with slug '${eventTypeSlug}' after multiple attempts.`, error);
+    throw new Error(`Could not initialize the interview scheduling configuration. Please check Cal.com for conflicting event types.`);
   }
-  return eventType;
 }
 
 export async function PATCH(

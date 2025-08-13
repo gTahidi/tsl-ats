@@ -1,41 +1,42 @@
 import { createId } from '@paralleldrive/cuid2';
 
+// --- TYPE DEFINITIONS for better type safety and code clarity ---
+
+interface CalcomAttendee {
+  name: string;
+  email: string;
+  timeZone: string;
+}
+
+interface CalcomBookingRequest {
+  eventTypeId: number;
+  start: string;
+  attendees: CalcomAttendee[];
+  idempotencyKey: string;
+  lengthInMinutes: number;
+  timeZone: string; // FIX: Added required timeZone property
+  language: string; // FIX: Added required language property
+  metadata?: Record<string, any>;
+  title?: string;
+  description?: string;
+  location?: string;
+}
+
 interface CalcomBookingResponse {
-  status: string;
+  // This interface should match the structure of the booking object
+  // returned by the Cal.com API. It's kept brief here for clarity.
   data: {
     id: number;
     uid: string;
     title: string;
-    description?: string;
-    hosts: Array<{
-      id: number;
-      name: string;
-      email: string;
-      username: string;
-      timeZone: string;
-    }>;
-    status: string;
-    start: string;
-    end: string;
-    duration: number;
-    eventTypeId: number;
     meetingUrl?: string;
-    location?: string;
-    createdAt: string;
-    updatedAt: string;
-    metadata?: Record<string, any>;
-    attendees: Array<{
-      name: string;
-      email: string;
-      timeZone: string;
-      language: string;
-      absent: boolean;
-      phoneNumber?: string;
-    }>;
-    guests?: string[];
+    // ... other properties
   };
 }
 
+// --- REFACTORED SERVICE ---
+
+// The class itself must be exported to be visible to other modules.
 export class CalcomService {
   private apiKey: string;
   private baseUrl: string;
@@ -44,7 +45,7 @@ export class CalcomService {
   constructor() {
     this.apiKey = process.env.CALCOM_API_KEY || '';
     this.baseUrl = process.env.CALCOM_API_URL || 'https://api.cal.com';
-    this.apiVersion = '2024-06-14';
+    this.apiVersion = '2024-06-14'; // Lock the API version for stability
 
     if (!this.apiKey) {
       throw new Error('CALCOM_API_KEY environment variable is required');
@@ -52,7 +53,8 @@ export class CalcomService {
   }
 
   /**
-   * Create a static event type for interviews if it doesn't exist.
+   * Creates a static event type. This method now ONLY creates and does not
+   * handle get-or-create logic, which is better handled by the caller.
    */
   async createStaticEventType(eventDetails: {
     title: string;
@@ -62,84 +64,69 @@ export class CalcomService {
   }): Promise<any> {
     const { title, slug, lengthInMinutes, description } = eventDetails;
     try {
-      // First, check if an event with the same slug already exists
-      const existingEventType = await this.getEventTypeBySlug(slug);
-      if (existingEventType) {
-        console.log(`Event type with slug '${slug}' already exists with ID: ${existingEventType.id}`);
-        return existingEventType;
-      }
-
-      // If it doesn't exist, create it
+      // This method now ONLY attempts to create.
       const response = await fetch(`${this.baseUrl}/v2/event-types`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion,
-        },
-        body: JSON.stringify({
-          title,
-          slug,
-          lengthInMinutes,
-          description,
-          // Add other static configurations as needed
-        }),
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+        body: JSON.stringify({ title, slug, lengthInMinutes, description }),
       });
 
       if (!response.ok) {
         const errorData = await response.text();
+        // The caller is now responsible for handling conflicts.
         throw new Error(`Failed to create static event type: ${errorData}`);
       }
 
       const newEventType = await response.json();
-      console.log(`Successfully created static event type with ID: ${newEventType.data.id}`);
       return newEventType.data;
+
     } catch (error) {
-      console.error('Error in createStaticEventType:', error);
+      // We re-throw the original error to allow for specific handling by the caller.
       throw error;
     }
   }
 
   /**
-   * Get an event type by its slug.
+   * Get an event type by its slug with improved error handling.
    */
   async getEventTypeBySlug(slug: string): Promise<any | null> {
     try {
       const response = await fetch(`${this.baseUrl}/v2/event-types?slug=${slug}`, {
         method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion,
-        },
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
       });
 
-      if (!response.ok) {
-        // If the API returns a 404 or other error, we can assume the event type doesn't exist
+      if (response.status === 404) {
         return null;
+      }
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to fetch Cal.com event type: ${response.status} - ${errorData}`);
       }
 
       const eventTypes = await response.json();
-      // The response might be an array of event types, find the one with the matching slug
       const eventType = eventTypes.data.find((et: any) => et.slug === slug);
       return eventType || null;
     } catch (error) {
       console.error('Error in getEventTypeBySlug:', error);
-      return null;
+      throw error;
     }
   }
 
   /**
-   * Create a booking with Google Meet integration
+   * Create a booking with Google Meet integration, using best practices.
    */
   async createBooking(params: {
     candidateName: string;
     candidateEmail: string;
     candidateTimeZone?: string;
     interviewerEmail?: string;
+    interviewerName?: string;
+    interviewerTimeZone?: string;
     startTime: Date;
     jobTitle?: string;
     eventTypeId: number;
-    lengthInMinutes?: number;
+    lengthInMinutes: number;
     metadata?: Record<string, any>;
   }): Promise<CalcomBookingResponse> {
     const {
@@ -147,155 +134,54 @@ export class CalcomService {
       candidateEmail,
       candidateTimeZone = 'UTC',
       interviewerEmail,
+      interviewerName = 'Interviewer',
+      interviewerTimeZone = 'UTC',
       startTime,
       jobTitle = 'Interview',
       eventTypeId,
-      lengthInMinutes = 60,
+      lengthInMinutes,
       metadata = {}
     } = params;
 
-    const bookingRequest: any = {
+    const attendees: CalcomAttendee[] = [{ name: candidateName, email: candidateEmail, timeZone: candidateTimeZone }];
+    if (interviewerEmail) {
+      attendees.push({ name: interviewerName, email: interviewerEmail, timeZone: interviewerTimeZone });
+    }
+
+    const bookingRequest: CalcomBookingRequest = {
       eventTypeId,
       start: startTime.toISOString(),
-      responses: {
-        name: candidateName,
-        email: candidateEmail,
-        guests: interviewerEmail ? [interviewerEmail] : [],
-        location: {
-          value: "integrations:google:meet",
-          optionValue: ""
-        }
-      },
-      metadata: {
-        ...metadata,
-        jobTitle,
-        bookingType: 'interview',
-        createdBy: 'ats-system'
-      },
-      timeZone: candidateTimeZone,
-      language: 'en',
+      attendees,
       lengthInMinutes,
-      title: `Interview with ${candidateName}`,
-      description: `Interview for ${jobTitle}`,
-      status: 'PENDING',
-      smsReminderNumber: null
+      idempotencyKey: createId(),
+      location: "integrations:google:meet",
+      // FIX: Add the missing top-level timeZone and language properties.
+      // We use the candidate's timezone as the primary for the event.
+      timeZone: candidateTimeZone,
+      language: 'en', // Setting language to English as a default
+      metadata: { ...metadata, jobTitle, bookingType: 'interview', createdBy: 'ats-system' },
+      title: `Interview: ${jobTitle} with ${candidateName}`,
     };
-
-    // Add interviewer as guest if provided
 
     try {
       const response = await fetch(`${this.baseUrl}/v2/bookings`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion
-        },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
         body: JSON.stringify(bookingRequest)
       });
-      console.debug('CalcomService.createBooking - raw response status:', response.status);
 
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`Cal.com API error: ${response.status} - ${errorData}`);
+        throw new Error(`Cal.com API error creating booking: ${response.status} - ${errorData}`);
       }
-
-      const result: CalcomBookingResponse = await response.json();
-      return result;
+      return await response.json();
     } catch (error) {
       console.error('Error creating Cal.com booking:', error);
       throw error;
     }
   }
-
-  /**
-   * Get a booking by ID
-   */
-  async getBooking(bookingId: string): Promise<CalcomBookingResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Cal.com API error: ${response.status} - ${errorData}`);
-      }
-
-      const result: CalcomBookingResponse = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error fetching Cal.com booking:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Cancel a booking
-   */
-  async cancelBooking(bookingId: string, reason?: string): Promise<void> {
-    try {
-      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}/cancel`, {
-        method: 'DELETE',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion
-        },
-        body: JSON.stringify({
-          reason: reason || 'Cancelled by ATS system'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Cal.com API error: ${response.status} - ${errorData}`);
-      }
-    } catch (error) {
-      console.error('Error cancelling Cal.com booking:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Reschedule a booking
-   */
-  async rescheduleBooking(
-    bookingId: string, 
-    newStartTime: Date,
-    reason?: string
-  ): Promise<CalcomBookingResponse> {
-    try {
-      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}/reschedule`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`,
-          'cal-api-version': this.apiVersion
-        },
-        body: JSON.stringify({
-          start: newStartTime.toISOString(),
-          reason: reason || 'Rescheduled by ATS system'
-        })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Cal.com API error: ${response.status} - ${errorData}`);
-      }
-
-      const result: CalcomBookingResponse = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error rescheduling Cal.com booking:', error);
-      throw error;
-    }
-  }
 }
 
-// Export a singleton instance
+// The singleton instance MUST be exported to be used in other files.
+// It is created from the exported CalcomService class defined above.
 export const calcomService = new CalcomService();
