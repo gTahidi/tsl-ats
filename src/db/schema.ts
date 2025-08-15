@@ -249,7 +249,8 @@ export const interviewStatusEnum = pgEnum('interview_status', ['Scheduled', 'In 
 export const interviews = pgTable('interviews', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   status: interviewStatusEnum('status').default('Scheduled').notNull(),
-  scheduledTime: timestamp('scheduled_time', { withTimezone: true }),
+  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
+  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
   notes: text('notes'),
   calComBookingId: text('cal_com_booking_id').unique(),
   meetingUrl: text('meeting_url'),

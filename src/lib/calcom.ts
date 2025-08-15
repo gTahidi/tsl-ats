@@ -156,6 +156,47 @@ export class CalcomService {
       throw error;
     }
   }
+
+  async rescheduleBooking(
+    bookingId: string,
+    start: Date,
+  ): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}`,
+        {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}` },
+          body: JSON.stringify({ start: start.toISOString() }),
+        });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to reschedule Cal.com booking: ${errorData}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error in rescheduleBooking:', error);
+      throw error;
+    }
+  }
+
+  async cancelBooking(bookingId: string): Promise<void> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}`,
+        {
+          method: 'DELETE',
+          headers: { 'Authorization': `Bearer ${this.apiKey}` },
+        });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to cancel Cal.com booking: ${errorData}`);
+      }
+    } catch (error) {
+      console.error('Error in cancelBooking:', error);
+      throw error;
+    }
+  }
 }
 
 export const calcomService = new CalcomService();

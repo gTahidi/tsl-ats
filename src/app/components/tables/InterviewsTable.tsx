@@ -121,8 +121,8 @@ const InterviewsTable: React.FC<InterviewsTableProps> = ({ candidateId, status }
       ),
     },
     {
-      title: 'Scheduled Time',
-      key: 'scheduledTime',
+      title: 'Time',
+      key: 'time',
       render: (record) => {
         const startTime = new Date(record.startTime);
         const endTime = new Date(record.endTime);

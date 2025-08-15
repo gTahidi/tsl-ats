@@ -27,7 +27,7 @@ export async function GET(
     }
 
     const candidateDetails = await db.query.candidates.findFirst({
-      where: eq(candidates.id, interview.applicationId),
+      where: eq(candidates.id, interview.candidateId),
       with: {
         persona: true,
         job: true,

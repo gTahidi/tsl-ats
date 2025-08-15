@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
       with: {
         room: true,
       },
-      orderBy: [desc(interviews.scheduledTime)],
+      orderBy: [desc(interviews.startTime)],
     });
 
     // Fetch candidate details for each interview
@@ -38,12 +38,7 @@ export async function GET(request: NextRequest) {
         return {
           ...interview,
           candidate: candidateDetails,
-          status: interview.scheduledTime
-            ? getInterviewStatus(
-                new Date(interview.scheduledTime),
-                new Date(new Date(interview.scheduledTime).getTime() + 30 * 60000) // Assume 30 mins duration
-              )
-            : 'scheduled',
+          status: getInterviewStatus(interview.startTime, interview.endTime),
           meetingUrl: await getMeetingUrl(interview.calComBookingId),
         };
       })
