@@ -7,10 +7,10 @@ import { getInterviewStatus, getMeetingUrl } from '@/lib/interview-utils';
 
 export async function GET(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const interviewId = params.id;
+    const interviewId = context.params.id;
 
     const interview = await db.query.interviews.findFirst({
       where: eq(interviews.id, interviewId),
@@ -53,11 +53,11 @@ export async function GET(
 
 export async function PATCH(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
     const { startTime } = await request.json();
-    const interviewId = params.id;
+    const interviewId = context.params.id;
 
     if (!startTime || isNaN(new Date(startTime).getTime())) {
       return NextResponse.json(
@@ -118,10 +118,10 @@ export async function PATCH(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } }
 ) {
   try {
-    const interviewId = params.id;
+    const interviewId = context.params.id;
 
     const interview = await db.query.interviews.findFirst({
       where: eq(interviews.id, interviewId),
