@@ -68,6 +68,7 @@ export interface CandidateView {
     cons: string[];
   } | null;
   source?: "LinkedIn" | "Email" | "Referral" | "Other" | string | null;
+  qualified?: boolean;
 
   steps?: ProcessStep[];
 
@@ -213,4 +214,33 @@ export type AuthUser = {
 export type PermissionCheck = {
   resource: string;
   action: string;
+};
+
+// Interview Types
+export type InterviewRoom = {
+  id: string;
+  name: string;
+  location?: string | null;
+  is_active: string;
+};
+
+export type Interview = {
+  id: string;
+  applicationId: string;
+  roomId?: string | null;
+  calComBookingId?: string | null;
+  startTime: Date;
+  endTime: Date;
+  createdAt?: Date;
+  updatedAt?: Date;
+  room?: InterviewRoom;
+  candidate?: CandidateView;
+  status?: 'scheduled' | 'in_progress' | 'completed' | 'cancelled';
+  meetingUrl?: string;
+  notes?: string;
+};
+
+export type InterviewView = Interview & {
+  candidate: CandidateView;
+  room: InterviewRoom;
 };

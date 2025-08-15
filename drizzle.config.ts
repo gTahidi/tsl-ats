@@ -6,7 +6,8 @@ export default defineConfig({
   out: './drizzle/migrations',
   dialect: 'postgresql',
   dbCredentials: {
-    url: process.env.POSTGRES_PRISMA_URL!,
+    // Prefer a direct/non-pooled connection for migrations. Fallbacks included for convenience.
+    url: (process.env.POSTGRES_URL_NON_POOLING || process.env.POSTGRES_URL || process.env.POSTGRES_PRISMA_URL)!,
   },
   verbose: true,
   strict: true,

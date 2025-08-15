@@ -3,23 +3,23 @@
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EditOutlined, DeleteOutlined, EyeOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckOutlined, CalendarOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import RatingModal from '../RatingModal';
 import CvViewerButton from '../cv-viewer-button';
 import JobSelector from '../JobSelector';
+import Link from 'next/link';
 
 const { Title } = Typography;
 
 interface CandidatesTableProps {
   jobId?: string;
-  onEdit?: (candidate: CandidateView) => void;
-  onDelete?: (candidate: CandidateView) => void;
+  onQualify?: (candidate: CandidateView) => void;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDelete }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -34,6 +34,29 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
       return response.json();
     },
 
+  });
+
+  const qualifyCandidateMutation = useMutation({
+    mutationFn: async ({ candidateId, qualified }: { candidateId: string, qualified: boolean }) => {
+      const response = await fetch(`/api/candidates/${candidateId}/qualify`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ qualified }),
+      });
+      if (!response.ok) {
+        throw new Error('Failed to update qualification status');
+      }
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['candidates', jobId] });
+      message.success('Candidate qualification status updated');
+    },
+    onError: (error) => {
+      message.error(error instanceof Error ? error.message : 'Failed to update qualification status');
+    },
   });
 
   const deleteCandidateMutation = useMutation({
@@ -149,32 +172,40 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onEdit, onDele
       key: 'actions',
       render: (_, record) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
-          <Button
-            type="text"
-            icon={<EyeOutlined />}
-            onClick={() => handleRowClick(record)}
-          />
-          {onEdit && (
+          <Tooltip title="View candidate details">
             <Button
               type="text"
-              icon={<EditOutlined />}
-              onClick={() => onEdit?.(record)}
+              icon={<EyeOutlined />}
+              onClick={() => handleRowClick(record)}
             />
-          )}
-          {onDelete && (
-            <Popconfirm
-              title="Delete candidate"
-              description="Are you sure?"
-              onConfirm={() => onDelete?.(record)}
-              okText="Yes"
-              cancelText="No"
-            >
+          </Tooltip>
+          {!record.qualified ? (
+            <Tooltip title="Qualify for interview">
               <Button
                 type="text"
-                danger
-                icon={<DeleteOutlined />}
+                icon={<CheckOutlined />}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  qualifyCandidateMutation.mutate({
+                    candidateId: record.id,
+                    qualified: true,
+                  });
+                }}
+                loading={
+                  qualifyCandidateMutation.isPending &&
+                  qualifyCandidateMutation.variables?.candidateId === record.id
+                }
               />
-            </Popconfirm>
+            </Tooltip>
+          ) : (
+            <Tooltip title="View Interview">
+              <Link href={`/interviews?candidateId=${record.id}`} passHref>
+                <Button
+                  type="text"
+                  icon={<CalendarOutlined style={{ color: '#52c41a' }} />}
+                />
+              </Link>
+            </Tooltip>
           )}
         </div>
       ),

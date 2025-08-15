@@ -6,6 +6,7 @@ import { parseAndRankCvWithGemini } from '@/lib/gemini/cv-parser';
 import { uploadFile } from '@/lib/azure-storage';
 import { createCandidateWithInitialStep, updateCandidateWithNewCv } from '@/utils/candidate-creation';
 import { createAndStoreCvEmbeddings } from '@/utils/embedding-creation';
+import { sendCvReceivedEmail } from '@/lib/email';
 import { z } from 'zod';
 
 // --- Zod Schemas for Postmark --- 
@@ -108,7 +109,7 @@ async function findJobBySubject(subject: string): Promise<string | null> {
 
 // --- Core CV Processing Logic --- 
 
-async function processCv(file: File, jobId: string) {
+async function processCv(file: File, jobId: string, emailHint?: string): Promise<{ candidate: any; job: any; createdNewCandidate: boolean }> {
     // 1. Fetch job details for ranking context
     const job = await db.query.jobPostings.findFirst({
         where: eq(jobPostings.id, jobId)
@@ -118,32 +119,58 @@ async function processCv(file: File, jobId: string) {
         throw new Error('Job not found');
     }
 
-    // 2. Upload file to Azure Blob Storage
-    const fileUrl = await uploadFile(file);
-
-    // 3. Parse, Rank, and Extract Referees with the unified Gemini call
+    // 2. Parse, Rank, and Extract Referees with the unified Gemini call
     const unifiedResult = await parseAndRankCvWithGemini(file, job);
     const { ranking, referees, ...parsedCv } = unifiedResult;
 
-    // 4. Validate that we have an email before proceeding
-    if (!parsedCv.contactInfo.email) {
-        throw new Error('CV parsing failed to extract a valid email address.');
+    // 4. Validate that we have an email before proceeding (allow optional UI-provided hint)
+    if (!parsedCv.contactInfo.email && emailHint) {
+        const emailParse = z.string().email().safeParse(String(emailHint).trim().toLowerCase());
+        if (emailParse.success) {
+            parsedCv.contactInfo.email = emailParse.data;
+        }
     }
 
-    // 5. Check if a candidate with this email already exists for this job
+    if (!parsedCv.contactInfo.email) {
+        throw new Error('CV parsing failed to extract a valid email address. You can retry the upload and supply an email manually.');
+    }
+
+    // 3. Check if a candidate with this email already exists for this job
     const existingPersona = await db.query.personas.findFirst({
         where: eq(personas.email, parsedCv.contactInfo.email!)
     });
 
-    let existingCandidate = null;
+    let existingCandidate: any = null;
     if (existingPersona) {
         existingCandidate = await db.query.candidates.findFirst({
             where: and(
                 eq(candidates.jobId, jobId),
                 eq(candidates.personaId, existingPersona.id)
-            )
+            ),
+            with: { cv: true },
         });
     }
+
+    // 4. If the same candidate for the same job already has an identical file processed recently,
+    //    short-circuit to avoid duplicate CVs/candidates.
+    if (
+        existingCandidate?.cv &&
+        existingCandidate.cv.originalFilename === file.name &&
+        existingCandidate.cv.fileSize === file.size &&
+        existingCandidate.cv.mimeType === file.type
+    ) {
+        return {
+            candidate: {
+                ...existingCandidate,
+                persona: existingPersona,
+            },
+            job,
+            createdNewCandidate: false,
+        };
+    }
+
+    // 5. Upload file to Azure Blob Storage (only when we know we need to persist a new CV)
+    const fileUrl = await uploadFile(file);
 
     // 6. Use a transaction to create/update all related database records
     const { candidate, cvId } = await db.transaction(async (tx) => {
@@ -213,26 +240,29 @@ async function processCv(file: File, jobId: string) {
     // Trigger the embedding process asynchronously (fire and forget)
     createAndStoreCvEmbeddings(cvId, unifiedResult);
 
-    return candidate;
+    const createdNewCandidate = !existingCandidate;
+    return { candidate, job, createdNewCandidate };
 }
 
 
 export async function POST(req: NextRequest) {
-    const { searchParams } = new URL(req.url);
-    const apiKey = searchParams.get('apiKey');
-
-    if (apiKey !== process.env.INTERNAL_API_KEY) {
-        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
     try {
         const contentType = req.headers.get('content-type') || '';
         let file: File;
         let jobId: string;
+        let emailHint: string | undefined;
+        let isEmailWebhook = false;
 
         // --- Handle Postmark JSON Webhook ---
         if (contentType.includes('application/json')) {
+            const { searchParams } = new URL(req.url);
+            const apiKey = searchParams.get('apiKey');
+
+            if (apiKey !== process.env.INTERNAL_API_KEY) {
+                return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+            }
             console.log('Processing Postmark inbound webhook...');
+            isEmailWebhook = true;
             const body = await req.json();
             const parsedData = postmarkWebhookSchema.safeParse(body);
 
@@ -273,6 +303,10 @@ export async function POST(req: NextRequest) {
             const formData = await req.formData();
             file = formData.get('file') as File;
             jobId = formData.get('jobId') as string;
+            const emailField = formData.get('emailHint');
+            if (typeof emailField === 'string' && emailField.trim().length > 0) {
+                emailHint = emailField;
+            }
         } else {
             return NextResponse.json({ error: 'Unsupported Content-Type' }, { status: 415 });
         }
@@ -281,12 +315,23 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: 'File and Job ID are required' }, { status: 400 });
         }
 
-        const candidate = await processCv(file, jobId);
+        const { candidate, job, createdNewCandidate } = await processCv(file, jobId, emailHint);
+
+        // Send confirmation email only for email-originated applications and only when a new candidate was created
+        if (isEmailWebhook && createdNewCandidate && candidate.persona?.email) {
+            sendCvReceivedEmail(
+                candidate.persona.email,
+                `${candidate.persona.name} ${candidate.persona.surname}`.trim(),
+                job.title
+            );
+        }
+
         return NextResponse.json(candidate);
 
     } catch (error) {
         console.error('Error processing CV upload:', error);
         const errorMessage = error instanceof Error ? error.message : 'An unknown error occurred';
-        return NextResponse.json({ error: 'Failed to process CV', details: errorMessage }, { status: 500 });
+        const status = errorMessage.toLowerCase().includes('email') ? 422 : 500;
+        return NextResponse.json({ error: 'Failed to process CV', details: errorMessage }, { status });
     }
 }

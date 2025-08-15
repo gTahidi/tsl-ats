@@ -8,6 +8,7 @@ import {
   vector,
   serial,
   pgEnum,
+  boolean,
 } from 'drizzle-orm/pg-core';
 import { relations } from 'drizzle-orm';
 import { createId } from '@paralleldrive/cuid2';
@@ -52,9 +53,13 @@ export const candidates = pgTable('candidates', {
   currentStepId: text('current_step_id'),
   rating: jsonb('rating'),
   source: text('source'),
+    qualified: boolean('qualified').default(false).notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
-});
+}, (table) => ({
+  // Prevent duplicate candidates for the same persona and job
+  candidatesJobPersonaUnique: uniqueIndex('candidates_job_persona_unique').on(table.jobId, table.personaId),
+}));
 
 export const processGroups = pgTable('process_groups', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
@@ -227,8 +232,45 @@ export const users = pgTable('users', {
   lastName: text('last_name').notNull(),
   isActive: text('is_active').default('true').notNull(),
   lastLoginAt: timestamp('last_login_at'),
+  calComUsername: text('cal_com_username').unique(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
+});
+
+export const interviewRooms = pgTable('interview_rooms', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull().unique(),
+  location: text('location'),
+  is_active: text('is_active').default('true'),
+});
+
+export const interviewStatusEnum = pgEnum('interview_status', ['Scheduled', 'In Progress', 'Completed', 'Cancelled']);
+
+export const interviews = pgTable('interviews', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  status: interviewStatusEnum('status').default('Scheduled').notNull(),
+  scheduledTime: timestamp('scheduled_time', { withTimezone: true }),
+  notes: text('notes'),
+  calComBookingId: text('cal_com_booking_id').unique(),
+  meetingUrl: text('meeting_url'),
+  candidateId: text('candidate_id').notNull().references(() => candidates.id, { onDelete: 'cascade' }),
+  jobId: text('job_id').notNull().references(() => jobPostings.id, { onDelete: 'cascade' }),
+  roomId: text('room_id').references(() => interviewRooms.id),
+  ...timestamps,
+});
+
+export const interviewers = pgTable('interviewers', {
+  interviewId: text('interview_id').notNull().references(() => interviews.id, { onDelete: 'cascade' }),
+  userId: text('user_id').notNull().references(() => users.id, { onDelete: 'cascade' }),
+}, (table) => ({
+  pk: uniqueIndex().on(table.interviewId, table.userId),
+}));
+
+export const idempotencyKeys = pgTable('idempotency_keys', {
+    id: text('id').primaryKey(),
+    status: text('status').notNull(),
+    response: jsonb('response'),
+    createdAt: timestamp('created_at', { withTimezone: true }).defaultNow().notNull(),
 });
 
 export const roles = pgTable('roles', {
@@ -279,6 +321,29 @@ export const usersRelations = relations(users, ({ many }) => ({
 export const rolesRelations = relations(roles, ({ many }) => ({
   userRoles: many(userRoles),
   rolePermissions: many(rolePermissions),
+}));
+
+export const interviewRoomsRelations = relations(interviewRooms, ({ many }) => ({
+  interviews: many(interviews),
+}));
+
+export const interviewsRelations = relations(interviews, ({ one, many }) => ({
+  room: one(interviewRooms, {
+    fields: [interviews.roomId],
+    references: [interviewRooms.id],
+  }),
+  interviewers: many(interviewers),
+}));
+
+export const interviewersRelations = relations(interviewers, ({ one }) => ({
+  interview: one(interviews, {
+    fields: [interviewers.interviewId],
+    references: [interviews.id],
+  }),
+  user: one(users, {
+    fields: [interviewers.userId],
+    references: [users.id],
+  }),
 }));
 
 export const permissionsRelations = relations(permissions, ({ many }) => ({

@@ -48,7 +48,7 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
 
     const initialStepTemplate = job.processGroup.stepTemplates[0];
 
-    // 2. Create the new candidate.
+    // 2. Create or upsert the candidate (idempotent for same job+persona).
     const insertPayload: typeof candidates.$inferInsert = {
         jobId: data.jobId,
         personaId: data.personaId,
@@ -60,15 +60,35 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     if (data.metadata) insertPayload.metadata = data.metadata;
     if (data.rating) insertPayload.rating = data.rating;
 
-    const [newCandidate] = await tx.insert(candidates).values(insertPayload).returning();
+    const [upsertedCandidate] = await tx
+        .insert(candidates)
+        .values(insertPayload)
+        .onConflictDoUpdate({
+            target: [candidates.jobId, candidates.personaId],
+            set: {
+                cvId: data.cvId,
+                updatedAt: new Date(),
+                ...(data.rating ? { rating: data.rating } : {}),
+                ...(data.notes ? { notes: data.notes } : {}),
+                ...(data.source ? { source: data.source } : {}),
+                ...(data.metadata ? { metadata: data.metadata } : {}),
+            },
+        })
+        .returning();
 
     // 3. Create the first process step for this candidate.
-    await tx.insert(processSteps).values({
-        candidateId: newCandidate.id,
-        templateId: initialStepTemplate.id,
-        status: 'PENDING',
-        groupId: job.processGroupId,
+    // Ensure the initial step exists exactly once for this candidate
+    const existingInitialStep = await tx.query.processSteps.findFirst({
+        where: eq(processSteps.candidateId, upsertedCandidate.id),
     });
+    if (!existingInitialStep) {
+        await tx.insert(processSteps).values({
+            candidateId: upsertedCandidate.id,
+            templateId: initialStepTemplate.id,
+            status: 'PENDING',
+            groupId: job.processGroupId,
+        });
+    }
 
     // 4. Insert referees if they exist
     if (data.referees && data.referees.length > 0) {
@@ -79,12 +99,12 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
         const refereeValues = data.referees.map(ref => ({
             ...ref,
             cvId: data.cvId, // Link referee to the CV
-            candidateId: newCandidate.id, // FIX: Link referee to the new candidate
+            candidateId: upsertedCandidate.id, // Link referee to the candidate (new or existing)
         }));
         await tx.insert(referees).values(refereeValues);
     }
 
-    return newCandidate;
+    return upsertedCandidate;
 }
 
 export async function updateCandidateWithNewCv(tx: DrizzleTransactionClient, data: CandidateUpdateData) {

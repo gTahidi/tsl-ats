@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { trace } from '@opentelemetry/api';
 import { createRequestLogger } from './logger';
 
 export interface APIContext {
@@ -19,88 +18,52 @@ export function withAPILogging<T = any>(
     spanName?: string;
   }
 ) {
-  const { operation, tracerName = 'api-routes', spanName } = options;
-  const tracer = trace.getTracer(tracerName, '1.0.0');
-  const finalSpanName = spanName || operation.replace('_', '-');
+  const { operation } = options;
 
   return async function(request: NextRequest | Request): Promise<NextResponse<T>> {
-    // Create request-specific logger with context
+    const startTime = Date.now();
+    const url = new URL(request.url);
     const requestLogger = createRequestLogger(request, {
       'api.operation': operation,
     });
 
-    return tracer.startActiveSpan(finalSpanName, async (span) => {
-      const startTime = Date.now();
-      const url = new URL(request.url);
-      
-      // Set initial span attributes
-      span.setAttributes({
-        'http.method': request.method,
-        'http.route': url.pathname,
-        'http.url': request.url,
-        'api.operation': operation,
-      });
-
-      // Log the incoming request
-      requestLogger.info(`Processing ${request.method} ${url.pathname} request`, {
-        'request.method': request.method,
-        'request.path': url.pathname,
-        'request.query': url.search,
-        'request.user_agent': request.headers.get('user-agent') || 'unknown',
-        'request.content_type': request.headers.get('content-type') || undefined,
-      });
-
-      const context: APIContext = {
-        logger: requestLogger,
-        startTime,
-      };
-
-      try {
-        // Call the actual handler
-        const response = await handler(request, context);
-        const duration = Date.now() - startTime;
-        
-        // Log successful response
-        requestLogger.info(`${request.method} ${url.pathname} request completed successfully`, {
-          'response.status': response.status,
-          'response.duration_ms': duration,
-          'response.content_type': response.headers.get('content-type') || undefined,
-        });
-
-        // Set success metrics on span
-        span.setAttributes({
-          'response.status_code': response.status,
-          'response.duration_ms': duration,
-          'success': true,
-        });
-
-        return response;
-      } catch (error) {
-        const duration = Date.now() - startTime;
-        
-        // Log the error with full context
-        requestLogger.error(`Failed to process ${request.method} ${url.pathname}`, error as Error, {
-          'error.duration_ms': duration,
-          'response.status': 500,
-        });
-
-        // Record exception in span
-        span.recordException(error as Error);
-        span.setAttributes({
-          'error': true,
-          'response.status_code': 500,
-          'response.duration_ms': duration,
-        });
-
-        // Return error response
-        return NextResponse.json(
-          { error: 'Internal server error' },
-          { status: 500 }
-        ) as NextResponse<T>;
-      } finally {
-        span.end();
-      }
+    requestLogger.info(`Processing ${request.method} ${url.pathname} request`, {
+      'request.method': request.method,
+      'request.path': url.pathname,
+      'request.query': url.search,
+      'request.user_agent': request.headers.get('user-agent') || 'unknown',
+      'request.content_type': request.headers.get('content-type') || undefined,
     });
+
+    const context: APIContext = {
+      logger: requestLogger,
+      startTime,
+    };
+
+    try {
+      const response = await handler(request, context);
+      const duration = Date.now() - startTime;
+
+      requestLogger.info(`${request.method} ${url.pathname} request completed successfully`, {
+        'response.status': response.status,
+        'response.duration_ms': duration,
+        'response.content_type': response.headers.get('content-type') || undefined,
+      });
+
+      return response;
+    } catch (error) {
+      const duration = Date.now() - startTime;
+
+      requestLogger.error(`Failed to process ${request.method} ${url.pathname}`, error as Error, {
+        'error.duration_ms': duration,
+        'response.status': 500,
+      });
+
+      return NextResponse.json(
+        { error: 'Internal server error' },
+        { status: 500 }
+      ) as NextResponse<T>;
+    }
   };
 }
 

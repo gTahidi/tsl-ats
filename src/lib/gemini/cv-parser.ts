@@ -2,6 +2,7 @@ import { GoogleGenerativeAI } from '@google/generative-ai';
 import { ParsedCvSchema, ParsedCv } from './schema';
 import { jobPostings } from '@/db/schema';
 import { ZodError } from 'zod';
+import djson from 'dirty-json';
 
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY!);
 
@@ -36,7 +37,7 @@ export async function parseAndRankCvWithGemini(
   console.log('---------------------------------------');
 
   try {
-    const parsedJson = JSON.parse(rawResponse);
+    const parsedJson = djson.parse(rawResponse);
     return ParsedCvSchema.parse(parsedJson);
   } catch (error) {
     if (error instanceof ZodError) {
@@ -60,7 +61,7 @@ export async function parseAndRankCvWithGemini(
       console.log('---------------------------------------');
 
       try {
-        const parsedJson = JSON.parse(correctedResponse);
+        const parsedJson = djson.parse(correctedResponse);
         return ParsedCvSchema.parse(parsedJson);
       } catch (finalError) {
         console.error('Error parsing corrected Gemini response:', finalError);

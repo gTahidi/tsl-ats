@@ -17,6 +17,7 @@ interface UserContextType {
   user: AuthUser | null;
   loading: boolean;
   hasPermission: (permission: string) => boolean;
+  refreshUser: () => Promise<void>;
 }
 
 // Create the context with a default value
@@ -51,13 +52,31 @@ export const UserProvider = ({ children }: { children: ReactNode }) => {
     fetchUser();
   }, [router]);
 
+  // Expose a method to manually refresh the user state after login
+  const refreshUser = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch('/api/auth/me', { credentials: 'include' });
+      if (response.ok) {
+        const data = await response.json();
+        setUser(data.user);
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error('Failed to refresh user:', error);
+      setUser(null);
+    }
+    setLoading(false);
+  };
+
   const hasPermission = (permission: string) => {
     if (!user || !user.permissions) return false;
     return user.permissions.includes(permission);
   };
 
   return (
-    <UserContext.Provider value={{ user, loading, hasPermission }}>
+    <UserContext.Provider value={{ user, loading, hasPermission, refreshUser }}>
       {children}
     </UserContext.Provider>
   );

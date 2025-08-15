@@ -22,8 +22,12 @@ export async function GET() {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
 
-    const canManageUsers = await hasPermission(authUser.id as string, { resource: 'users', action: 'manage' });
-    if (!canManageUsers) {
+    const canManageRoles = await hasAnyPermission(authUser.id as string, [
+      { resource: 'roles', action: 'read' },
+      { resource: 'users', action: 'create' },
+      { resource: 'users', action: 'update' }
+    ]);
+    if (!canManageRoles) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
 
