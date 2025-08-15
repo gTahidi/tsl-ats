@@ -6,14 +6,10 @@ import {
   UserOutlined, 
   SnippetsOutlined, 
   TeamOutlined, 
-  OrderedListOutlined,
-  HomeOutlined, 
-  FileTextOutlined, 
   SolutionOutlined, 
   DatabaseOutlined,
   UploadOutlined,
   SettingOutlined,
-  SafetyOutlined,
   VideoCameraOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
@@ -63,12 +59,7 @@ const MainLayout = ({ children }: Props) => {
       label: 'Upload CV',
       permission: 'candidates:create', // Placeholder, assuming CV upload is part of creating candidates
     },
-        {
-      key: '/process-groups',
-      icon: <OrderedListOutlined />,
-      label: 'Process Groups',
-      permission: 'process-groups:read',
-    },
+        // Process Groups menu temporarily removed (using standard/general process group)
         {
       key: '/legacy-dashboard',
       icon: <DatabaseOutlined />,

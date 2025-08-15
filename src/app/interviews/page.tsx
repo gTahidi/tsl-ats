@@ -73,7 +73,7 @@ export default function InterviewsPage() {
   return (
     <div className="p-6">
       <div className="mb-6">
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-wrap justify-between items-center gap-3 mb-4">
           <Title level={2} style={{ margin: 0 }}>
             Interview Management
           </Title>

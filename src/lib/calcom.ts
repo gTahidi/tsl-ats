@@ -14,29 +14,25 @@ interface CalcomBookingRequest {
   attendees: CalcomAttendee[];
   idempotencyKey: string;
   lengthInMinutes: number;
-  timeZone: string; // FIX: Added required timeZone property
-  language: string; // FIX: Added required language property
+  timeZone: string;
+  language: string;
   metadata?: Record<string, any>;
   title?: string;
   description?: string;
-  location?: string;
+  // The location field is intentionally omitted to debug the 500 error
 }
 
 interface CalcomBookingResponse {
-  // This interface should match the structure of the booking object
-  // returned by the Cal.com API. It's kept brief here for clarity.
   data: {
     id: number;
     uid: string;
     title: string;
     meetingUrl?: string;
-    // ... other properties
   };
 }
 
 // --- REFACTORED SERVICE ---
 
-// The class itself must be exported to be visible to other modules.
 export class CalcomService {
   private apiKey: string;
   private baseUrl: string;
@@ -45,17 +41,13 @@ export class CalcomService {
   constructor() {
     this.apiKey = process.env.CALCOM_API_KEY || '';
     this.baseUrl = process.env.CALCOM_API_URL || 'https://api.cal.com';
-    this.apiVersion = '2024-06-14'; // Lock the API version for stability
+    this.apiVersion = '2024-06-14';
 
     if (!this.apiKey) {
       throw new Error('CALCOM_API_KEY environment variable is required');
     }
   }
 
-  /**
-   * Creates a static event type. This method now ONLY creates and does not
-   * handle get-or-create logic, which is better handled by the caller.
-   */
   async createStaticEventType(eventDetails: {
     title: string;
     slug: string;
@@ -64,7 +56,6 @@ export class CalcomService {
   }): Promise<any> {
     const { title, slug, lengthInMinutes, description } = eventDetails;
     try {
-      // This method now ONLY attempts to create.
       const response = await fetch(`${this.baseUrl}/v2/event-types`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
@@ -73,22 +64,14 @@ export class CalcomService {
 
       if (!response.ok) {
         const errorData = await response.text();
-        // The caller is now responsible for handling conflicts.
         throw new Error(`Failed to create static event type: ${errorData}`);
       }
-
-      const newEventType = await response.json();
-      return newEventType.data;
-
+      return (await response.json()).data;
     } catch (error) {
-      // We re-throw the original error to allow for specific handling by the caller.
       throw error;
     }
   }
 
-  /**
-   * Get an event type by its slug with improved error handling.
-   */
   async getEventTypeBySlug(slug: string): Promise<any | null> {
     try {
       const response = await fetch(`${this.baseUrl}/v2/event-types?slug=${slug}`, {
@@ -96,26 +79,19 @@ export class CalcomService {
         headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
       });
 
-      if (response.status === 404) {
-        return null;
-      }
+      if (response.status === 404) return null;
       if (!response.ok) {
         const errorData = await response.text();
         throw new Error(`Failed to fetch Cal.com event type: ${response.status} - ${errorData}`);
       }
-
       const eventTypes = await response.json();
-      const eventType = eventTypes.data.find((et: any) => et.slug === slug);
-      return eventType || null;
+      return eventTypes.data.find((et: any) => et.slug === slug) || null;
     } catch (error) {
       console.error('Error in getEventTypeBySlug:', error);
       throw error;
     }
   }
 
-  /**
-   * Create a booking with Google Meet integration, using best practices.
-   */
   async createBooking(params: {
     candidateName: string;
     candidateEmail: string;
@@ -127,7 +103,7 @@ export class CalcomService {
     jobTitle?: string;
     eventTypeId: number;
     lengthInMinutes: number;
-    metadata?: Record<string, any>;
+    metadata?: { candidateId: string; jobId: string; };
   }): Promise<CalcomBookingResponse> {
     const {
       candidateName,
@@ -154,13 +130,13 @@ export class CalcomService {
       attendees,
       lengthInMinutes,
       idempotencyKey: createId(),
-      location: "integrations:google:meet",
-      // FIX: Add the missing top-level timeZone and language properties.
-      // We use the candidate's timezone as the primary for the event.
       timeZone: candidateTimeZone,
-      language: 'en', // Setting language to English as a default
-      metadata: { ...metadata, jobTitle, bookingType: 'interview', createdBy: 'ats-system' },
+      language: 'en',
+      metadata: { ...metadata, bookingType: 'interview', createdBy: 'ats-system' },
       title: `Interview: ${jobTitle} with ${candidateName}`,
+      description: `Candidate interview for the ${jobTitle} position.`,
+      // FIX: The `location` field has been removed. If this request succeeds,
+      // the root cause is the Google Meet integration configuration on your Cal.com account.
     };
 
     try {
@@ -182,6 +158,4 @@ export class CalcomService {
   }
 }
 
-// The singleton instance MUST be exported to be used in other files.
-// It is created from the exported CalcomService class defined above.
 export const calcomService = new CalcomService();

@@ -56,7 +56,10 @@ export const candidates = pgTable('candidates', {
     qualified: boolean('qualified').default(false).notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
-});
+}, (table) => ({
+  // Prevent duplicate candidates for the same persona and job
+  candidatesJobPersonaUnique: uniqueIndex('candidates_job_persona_unique').on(table.jobId, table.personaId),
+}));
 
 export const processGroups = pgTable('process_groups', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
