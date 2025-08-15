@@ -271,7 +271,7 @@ export default function InterviewDetailsPage() {
               <Paragraph>{interview.notes}</Paragraph>
             ) : (
               <Paragraph className="text-gray-500 italic">
-                No notes added yet. Click "Add Notes" to add interview notes.
+                No notes added yet. Click &quot;Add Notes&quot; to add interview notes.
               </Paragraph>
             )}
           </Card>
