@@ -153,12 +153,20 @@ async function processCv(file: File, jobId: string) {
             email: parsedCv.contactInfo.email!,
             surname: parsedCv.contactInfo.surname,
             location: parsedCv.contactInfo.location,
+            phone: parsedCv.contactInfo.phone,
             linkedinUrl: parsedCv.contactInfo.linkedinUrl,
         };
 
         const [persona] = await tx.insert(personas).values(personaData).onConflictDoUpdate({
             target: personas.email,
-            set: { ...personaData, updatedAt: new Date() },
+            set: { 
+                name: personaData.name,
+                surname: personaData.surname,
+                location: personaData.location,
+                phone: personaData.phone,
+                linkedinUrl: personaData.linkedinUrl,
+                updatedAt: new Date(),
+            },
         }).returning();
 
         // 6b. Create the new CV record
