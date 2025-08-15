@@ -5,12 +5,10 @@ import { eq } from 'drizzle-orm';
 import { calcomService } from '@/lib/calcom';
 import { getInterviewStatus, getMeetingUrl } from '@/lib/interview-utils';
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+
+export async function GET(request: NextRequest, { params }: any) {
   try {
-    const interviewId = context.params.id;
+    const interviewId = params.id;
 
     const interview = await db.query.interviews.findFirst({
       where: eq(interviews.id, interviewId),
@@ -51,13 +49,10 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function PATCH(request: NextRequest, { params }: any) {
   try {
     const { startTime } = await request.json();
-    const interviewId = context.params.id;
+    const interviewId = params.id;
 
     if (!startTime || isNaN(new Date(startTime).getTime())) {
       return NextResponse.json(
@@ -116,12 +111,9 @@ export async function PATCH(
   }
 }
 
-export async function DELETE(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function DELETE(request: NextRequest, { params }: any) {
   try {
-    const interviewId = context.params.id;
+    const interviewId = params.id;
 
     const interview = await db.query.interviews.findFirst({
       where: eq(interviews.id, interviewId),

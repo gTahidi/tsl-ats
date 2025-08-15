@@ -211,13 +211,15 @@ export async function PATCH(
         }
 
         // Create interview record with or without Cal.com booking details
-                const interviewData = {
+        const interviewEndTime = new Date(interviewStartTime.getTime() + 60 * 60 * 1000); // 1 hour later
+        const interviewData = {
           id: createId(),
           candidateId: candidateId,
           jobId: job.id,
           roomId: room[0].id,
           status: 'Scheduled' as const,
-          scheduledTime: interviewStartTime,
+          startTime: interviewStartTime,
+          endTime: interviewEndTime,
           calComBookingId: calcomBookingUid,
           meetingUrl: meetingUrl || null,
         };

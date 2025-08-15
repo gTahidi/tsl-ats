@@ -103,7 +103,7 @@ export class CalcomService {
     jobTitle?: string;
     eventTypeId: number;
     lengthInMinutes: number;
-    metadata?: { candidateId: string; jobId: string; };
+    metadata?: Record<string, any>;
   }): Promise<CalcomBookingResponse> {
     const {
       candidateName,
@@ -176,6 +176,24 @@ export class CalcomService {
       return await response.json();
     } catch (error) {
       console.error('Error in rescheduleBooking:', error);
+      throw error;
+    }
+  }
+
+  async getBooking(bookingId: string): Promise<any> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/bookings/${bookingId}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to fetch Cal.com booking: ${response.status} - ${errorData}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getBooking:', error);
       throw error;
     }
   }

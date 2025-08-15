@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
-import { EyeOutlined, CheckOutlined, CalendarOutlined } from '@ant-design/icons';
+import { EyeOutlined, CheckOutlined, CalendarOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
 import { useRouter } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -17,9 +17,11 @@ const { Title } = Typography;
 interface CandidatesTableProps {
   jobId?: string;
   onQualify?: (candidate: CandidateView) => void;
+  onEdit?: (candidate: CandidateView) => void;
+  onDelete?: (candidate: CandidateView) => Promise<void>;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify, onEdit, onDelete }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
