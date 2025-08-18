@@ -1,14 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { candidates } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { candidates, personas } from '@/db/schema';
+import { and, eq, inArray } from 'drizzle-orm';
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id: jobId } = await params;
+    const searchParams = req.nextUrl.searchParams;
+    const location = searchParams.get('location') || undefined;
+
+    const filters = [eq(candidates.jobId, jobId)] as any[];
+
+    if (location) {
+      const personaRows = await db
+        .select({ id: personas.id })
+        .from(personas)
+        .where(eq(personas.location, location));
+      const personaIds = personaRows.map((p) => p.id);
+      if (personaIds.length === 0) {
+        return NextResponse.json([]);
+      }
+      filters.push(inArray(candidates.personaId, personaIds));
+    }
+
+    const whereClause = filters.length ? and(...filters) : undefined;
 
     const jobCandidates = await db.query.candidates.findMany({
-      where: eq(candidates.jobId, jobId),
+      where: whereClause,
       with: {
         persona: true,
         job: true,

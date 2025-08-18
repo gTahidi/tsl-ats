@@ -1,11 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Button, Flex, Typography, message, Select } from 'antd';
 import { PlusOutlined } from '@ant-design/icons';
 import CandidatesTable from '../../components/tables/CandidatesTable';
 import CandidateModal from '../../components/CandidateModal';
-import type { CandidateView, JobView } from '@/types';
+import type { CandidateView, JobView, Persona } from '@/types';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
 export default function Page(): React.JSX.Element {
@@ -13,6 +13,7 @@ export default function Page(): React.JSX.Element {
   const [editingCandidate, setEditingCandidate] = useState<CandidateView | null>(null);
   const qc = useQueryClient();
   const [selectedJobId, setSelectedJobId] = useState<string | undefined>();
+  const [selectedLocation, setSelectedLocation] = useState<string | undefined>();
 
   const { data: jobs, isLoading: isLoadingJobs } = useQuery<JobView[]>({
     queryKey: ['jobs'],
@@ -25,6 +26,24 @@ export default function Page(): React.JSX.Element {
       return data.jobs;
     },
   });
+
+  // Fetch personas to derive distinct locations for the filter
+  const { data: personas, isLoading: isLoadingPersonas } = useQuery<Persona[]>({
+    queryKey: ['personas'],
+    queryFn: async () => {
+      const response = await fetch('/api/personas');
+      if (!response.ok) throw new Error('Failed to fetch personas');
+      return response.json();
+    },
+  });
+
+  const locationOptions = useMemo(() => {
+    const set = new Set<string>();
+    (personas || []).forEach((p) => {
+      if (p.location && p.location.trim()) set.add(p.location.trim());
+    });
+    return Array.from(set).sort().map((loc) => ({ label: loc, value: loc }));
+  }, [personas]);
 
   const handleCreateOrUpdate = async (values: Partial<CandidateView>) => {
     try {
@@ -104,6 +123,15 @@ export default function Page(): React.JSX.Element {
             options={jobs?.map((job) => ({ label: job.title, value: job.id }))}
             value={selectedJobId}
           />
+          <Select
+            placeholder="Filter by location"
+            style={{ width: 220 }}
+            allowClear
+            loading={isLoadingPersonas}
+            onChange={setSelectedLocation}
+            options={locationOptions}
+            value={selectedLocation}
+          />
           {/* <Button
             type="primary"
             icon={<PlusOutlined />}
@@ -116,6 +144,7 @@ export default function Page(): React.JSX.Element {
 
       <CandidatesTable
         jobId={selectedJobId}
+        location={selectedLocation}
         onEdit={handleEdit}
         onDelete={handleDelete}
       />

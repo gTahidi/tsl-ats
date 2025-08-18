@@ -173,6 +173,11 @@ export default function Page() {
                       ellipsis: true,
                     },
                     {
+                      title: 'Location',
+                      key: 'location',
+                      render: (record: CandidateView) => record.persona.location || '-',
+                    },
+                    {
                       title: 'Final Rating',
                       key: 'rating',
                       render: (record: CandidateView) => {

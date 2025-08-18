@@ -10,7 +10,8 @@ import {
   DatabaseOutlined,
   UploadOutlined,
   SettingOutlined,
-  VideoCameraOutlined
+  VideoCameraOutlined,
+  LogoutOutlined
 } from '@ant-design/icons';
 import { useRouter, usePathname } from 'next/navigation';
 import { useUser } from '../contexts/UserContext';
@@ -75,7 +76,7 @@ const MainLayout = ({ children }: Props) => {
     {
       key: '/users',
       icon: <SettingOutlined />,
-      label: 'User Management',
+      label: 'Users',
       permission: 'users:manage',
     }
   ];
@@ -139,7 +140,8 @@ const MainLayout = ({ children }: Props) => {
               danger
               block
               size="large"
-              style={{ borderRadius: 'var(--radius-md)' }}
+              icon={<LogoutOutlined />}
+              style={{ borderRadius: 'var(--radius-md)', display: 'flex', justifyContent: 'flex-start', alignItems: 'center', paddingLeft: 24 }}
               onClick={() => {
                 router.push('/logout');
               }}

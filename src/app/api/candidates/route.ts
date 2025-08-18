@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { candidates, processSteps } from '@/db/schema';
+import { candidates, personas, processSteps } from '@/db/schema';
 import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
-import { eq } from 'drizzle-orm';
+import { and, eq, inArray } from 'drizzle-orm';
 
 import { createRequestLogger, createDatabaseLogger, logInfo, logError } from '@/lib/logger';
 
@@ -19,6 +19,7 @@ export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const jobId = searchParams.get('jobId');
+    const location = searchParams.get('location') || undefined;
     
     requestLogger.info('Processing GET candidates request', {
       'request.job_id': jobId || undefined,
@@ -27,12 +28,36 @@ export async function GET(request: NextRequest) {
 
     const dbLogger = createDatabaseLogger('select', 'candidates', {
       'query.job_id': jobId || undefined,
+      'query.location': location || undefined,
     });
 
     dbLogger.info('Executing candidates query');
 
+    // Build dynamic filters
+    const filters = [] as any[];
+    if (jobId) filters.push(eq(candidates.jobId, jobId));
+
+    if (location) {
+      // Find personas with matching location
+      const personaRows = await db
+        .select({ id: personas.id })
+        .from(personas)
+        .where(eq(personas.location, location));
+      const personaIds = personaRows.map((p) => p.id);
+      if (personaIds.length === 0) {
+        dbLogger.info('No personas matched location filter', {
+          'result.count': 0,
+          'query.duration_ms': Date.now() - startTime,
+        });
+        return NextResponse.json([]);
+      }
+      filters.push(inArray(candidates.personaId, personaIds));
+    }
+
+    const whereClause = filters.length ? and(...filters) : undefined;
+
     const allCandidates = await db.query.candidates.findMany({
-      where: jobId ? eq(candidates.jobId, jobId) : undefined,
+      where: whereClause,
       with: {
         persona: true,
         job: true,

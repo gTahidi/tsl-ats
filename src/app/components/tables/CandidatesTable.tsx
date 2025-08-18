@@ -16,19 +16,21 @@ const { Title } = Typography;
 
 interface CandidatesTableProps {
   jobId?: string;
+  location?: string;
   onQualify?: (candidate: CandidateView) => void;
   onEdit?: (candidate: CandidateView) => void;
   onDelete?: (candidate: CandidateView) => Promise<void>;
 }
 
-const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify, onEdit, onDelete }) => {
+const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQualify, onEdit, onDelete }) => {
   const router = useRouter();
   const queryClient = useQueryClient();
 
   const { data: fetchedCandidates, isLoading } = useQuery<CandidateView[]>({
-    queryKey: ['candidates', jobId],
+    queryKey: ['candidates', jobId, location],
     queryFn: async () => {
-      const url = jobId ? `/api/jobs/${jobId}/candidates` : '/api/candidates';
+      const query = location ? `?location=${encodeURIComponent(location)}` : '';
+      const url = jobId ? `/api/jobs/${jobId}/candidates${query}` : `/api/candidates${query}`;
       const response = await fetch(url);
       if (!response.ok) {
         throw new Error('Network response was not ok');
@@ -102,6 +104,12 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify, onE
       render: (record) => record.persona?.email,
       ellipsis: true,
     },
+    {
+      title: 'Location',
+      key: 'location',
+      render: (record) => record.persona?.location || '-',
+      ellipsis: true,
+    },
     ...(!jobId ?
       [
         {
@@ -158,15 +166,6 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, onQualify, onE
             ratingObject={record.rating || null}
           />
         );
-      },
-    },
-    {
-      title: 'Updated',
-      dataIndex: 'updatedAt',
-      key: 'updatedAt',
-      render: (date: string) => {
-        if (typeof window === 'undefined') return date;
-        return new Date(date).toLocaleDateString();
       },
     },
     {
