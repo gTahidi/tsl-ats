@@ -88,6 +88,10 @@ const MainLayout = ({ children }: Props) => {
     (item) => !item.permission || hasPermission(item.permission)
   );
 
+  // Split items so that 'User Management' is anchored at the bottom
+  const topMenuItems = filteredMenuItems.filter((item) => item.key !== '/users');
+  const bottomMenuItems = filteredMenuItems.filter((item) => item.key === '/users');
+
 
     if (loading) {
     return <Spin size="large" fullscreen />;
@@ -105,7 +109,7 @@ const MainLayout = ({ children }: Props) => {
         onCollapse={(value) => setCollapsed(value)}
         theme="light"
       >
-        <Flex vertical justify="space-between" style={{ height: '100%' }}>
+        <Flex vertical justify="space-between" style={{ height: '100%', padding: '12px 8px' }}>
           <Flex vertical>
             <Flex justify={"center"} align="center" style={{ padding: '24px' }}>
               <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
@@ -116,22 +120,37 @@ const MainLayout = ({ children }: Props) => {
               theme="light"
               selectedKeys={[pathname]}
               mode="inline"
-              items={filteredMenuItems}
+              items={topMenuItems}
               onClick={({ key }) => handleMenuClick(key)}
             />
           </Flex>
-          <Button
-            type="dashed"
-            onClick={() => {
-              router.push('/logout');
-            }}
-          >
-            Logout
-          </Button>
+          <Flex vertical gap={8}>
+            {bottomMenuItems.length > 0 && (
+              <Menu
+                theme="light"
+                selectedKeys={[pathname]}
+                mode="inline"
+                items={bottomMenuItems}
+                onClick={({ key }) => handleMenuClick(key)}
+              />
+            )}
+            <Button
+              type="primary"
+              danger
+              block
+              size="large"
+              style={{ borderRadius: 'var(--radius-md)' }}
+              onClick={() => {
+                router.push('/logout');
+              }}
+            >
+              Logout
+            </Button>
+          </Flex>
         </Flex>
       </Sider>
-      <Layout>
-        <Content style={{ margin: '24px 16px', padding: 24, minHeight: 280 }}>
+      <Layout style={{ height: '100vh', overflow: 'hidden' }}>
+        <Content style={{ margin: '24px 16px', padding: 24, height: 'calc(100vh - 48px)', overflow: 'auto' }}>
           <App>{children}</App>
         </Content>
       </Layout>

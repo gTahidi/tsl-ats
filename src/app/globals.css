@@ -128,24 +128,36 @@ body {
 
 /* Sidebar menu spacing */
 .ant-layout-sider .ant-menu {
-  padding: 8px 8px;
+  padding: 12px 10px;
 }
 
 .ant-layout-sider .ant-menu-inline:not(.ant-menu-inline-collapsed) .ant-menu-item,
 .ant-layout-sider .ant-menu-inline:not(.ant-menu-inline-collapsed) .ant-menu-submenu-title {
-  margin: 6px 0;
+  margin: 8px 0;
   padding-inline: 12px !important;
-  height: 42px;
-  line-height: 42px;
+  height: 44px;
+  line-height: 44px;
   border-radius: var(--radius-sm);
 }
 
 .ant-layout-sider .ant-menu-item .ant-menu-item-icon {
-  margin-right: 10px;
+  margin-right: 12px; /* tighter but consistent spacing between icon and text */
+}
+
+/* Tweak title spacing and overflow */
+.ant-layout-sider .ant-menu-title-content {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .ant-layout-sider .ant-menu-item-selected {
   border-radius: var(--radius-sm) !important;
+}
+
+/* Hover state for sidebar items */
+.ant-layout-sider .ant-menu-item:hover:not(.ant-menu-item-selected) {
+  background-color: #fff6f2; /* subtle warm hover */
 }
 
 /* Table tweaks */
@@ -189,4 +201,13 @@ body {
 }
 .ant-progress .ant-progress-bg {
   background: var(--color-primary) !important;
+}
+
+/* Card hover consistency */
+.ant-card-hoverable {
+  transition: transform 120ms ease, box-shadow 120ms ease;
+}
+.ant-card-hoverable:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.08);
 }
