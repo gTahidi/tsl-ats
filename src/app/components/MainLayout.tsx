@@ -64,7 +64,7 @@ const MainLayout = ({ children }: Props) => {
         {
       key: '/legacy-dashboard',
       icon: <DatabaseOutlined />,
-      label: 'Legacy Candidates',
+      label: 'Legacy',
       permission: 'candidates:read', // Placeholder, assuming legacy is part of reading candidates
     },
             {

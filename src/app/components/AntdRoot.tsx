@@ -18,7 +18,7 @@ const theme = {
     colorText: '#2C363F',
     colorBorder: '#D9D9D4',
     fontSize: 14,
-    fontFamily: "'IBM Plex Mono', monospace",
+    fontFamily: "var(--font-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif",
     borderRadius: 2,
     controlHeight: 32,
     lineWidth: 1.5,
@@ -66,7 +66,7 @@ export function AntdRoot({ children }: { children: React.ReactNode }) {
                 margin: 0,
                 fontSize: '20px',
                 color: '#2C363F',
-                fontFamily: "'IBM Plex Mono', monospace",
+                fontFamily: "var(--font-heading)",
               }}>
                 ATS Platform
               </h1>

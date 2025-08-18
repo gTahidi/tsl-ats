@@ -5,46 +5,9 @@ import { ConfigProvider, App } from 'antd';
 import { StyleProvider } from '@ant-design/cssinjs';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import FrontendObservability from './components/frontend-observability';
+import { theme } from './theme/themeConfig';
 
-const theme = {
-  token: {
-    colorPrimary: '#7B8C98',
-    colorSuccess: '#90B77D',
-    colorWarning: '#D2AB67',
-    colorError: '#C15B5B',
-    colorBgContainer: '#F5F5F0',
-    colorText: '#2C363F',
-    colorBorder: '#D9D9D4',
-    fontSize: 14,
-    fontFamily: "'IBM Plex Mono', monospace",
-    borderRadius: 2,
-    controlHeight: 32,
-    lineWidth: 1.5,
-    wireframe: true,
-  },
-  components: {
-    Table: {
-      colorBgContainer: '#F5F5F0',
-      headerBg: '#E8E8E3',
-      borderRadius: 2,
-    },
-    Button: {
-      borderRadius: 2,
-      controlHeight: 32,
-    },
-    Card: {
-      borderRadius: 2,
-    },
-    Input: {
-      borderRadius: 2,
-      controlHeight: 32,
-    },
-    Select: {
-      borderRadius: 2,
-      controlHeight: 32,
-    },
-  },
-};
+// Using shared theme from themeConfig for consistency across the app
 
 const queryClient = new QueryClient({
   defaultOptions: {

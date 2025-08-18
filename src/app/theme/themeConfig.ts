@@ -10,6 +10,7 @@ export const theme: ThemeConfig = {
     borderRadius: 4,
     wireframe: true,
     fontSize: 14,
+    fontFamily: "var(--font-sans), ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', 'Liberation Sans', sans-serif",
   },
   components: {
     Table: {
