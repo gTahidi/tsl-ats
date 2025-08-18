@@ -92,6 +92,59 @@ export class CalcomService {
     }
   }
 
+  async getEventTypeById(id: number): Promise<any | null> {
+    try {
+      const response = await fetch(`${this.baseUrl}/v2/event-types/${id}`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      });
+
+      if (response.status === 404) return null;
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to fetch Cal.com event type by id: ${response.status} - ${errorData}`);
+      }
+      const json = await response.json();
+      return json.data ?? null;
+    } catch (error) {
+      console.error('Error in getEventTypeById:', error);
+      throw error;
+    }
+  }
+
+  async getSlots(params: {
+    eventTypeId: number;
+    from: Date | string;
+    to: Date | string;
+    timeZone?: string;
+  }): Promise<any> {
+    const { eventTypeId, from, to, timeZone = 'UTC' } = params;
+    const startISO = typeof from === 'string' ? new Date(from).toISOString() : from.toISOString();
+    const endISO = typeof to === 'string' ? new Date(to).toISOString() : to.toISOString();
+
+    const url = new URL(`${this.baseUrl}/v2/slots`);
+    url.searchParams.set('eventTypeId', String(eventTypeId));
+    url.searchParams.set('start', startISO);
+    url.searchParams.set('end', endISO);
+    url.searchParams.set('timeZone', timeZone);
+
+    try {
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        throw new Error(`Failed to fetch Cal.com slots: ${response.status} - ${errorData}`);
+      }
+      return await response.json();
+    } catch (error) {
+      console.error('Error in getSlots:', error);
+      throw error;
+    }
+  }
+
   async createBooking(params: {
     candidateName: string;
     candidateEmail: string;

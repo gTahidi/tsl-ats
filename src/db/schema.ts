@@ -53,12 +53,12 @@ export const candidates = pgTable('candidates', {
   currentStepId: text('current_step_id'),
   rating: jsonb('rating'),
   source: text('source'),
-    qualified: boolean('qualified').default(false).notNull(),
+  qualified: boolean('qualified').default(false).notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
 }, (table) => ({
   // Prevent duplicate candidates for the same persona and job
-  candidatesJobPersonaUnique: uniqueIndex('candidates_job_persona_unique').on(table.jobId, table.personaId),
+  // candidatesJobPersonaUnique: uniqueIndex('candidates_job_persona_unique').on(table.jobId, table.personaId),
 }));
 
 export const processGroups = pgTable('process_groups', {
@@ -249,8 +249,8 @@ export const interviewStatusEnum = pgEnum('interview_status', ['Scheduled', 'In 
 export const interviews = pgTable('interviews', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
   status: interviewStatusEnum('status').default('Scheduled').notNull(),
-  startTime: timestamp('start_time', { withTimezone: true }).notNull(),
-  endTime: timestamp('end_time', { withTimezone: true }).notNull(),
+  startTime: timestamp('start_time', { withTimezone: true }),
+  endTime: timestamp('end_time', { withTimezone: true }),
   notes: text('notes'),
   calComBookingId: text('cal_com_booking_id').unique(),
   meetingUrl: text('meeting_url'),
