@@ -122,23 +122,163 @@ export class CalcomService {
     const startISO = typeof from === 'string' ? new Date(from).toISOString() : from.toISOString();
     const endISO = typeof to === 'string' ? new Date(to).toISOString() : to.toISOString();
 
-    const url = new URL(`${this.baseUrl}/v2/slots`);
-    url.searchParams.set('eventTypeId', String(eventTypeId));
-    url.searchParams.set('start', startISO);
-    url.searchParams.set('end', endISO);
-    url.searchParams.set('timeZone', timeZone);
+    // Cal.com v2 expects date-only values for start/end (YYYY-MM-DD)
+    const startDate = startISO.slice(0, 10);
+    const endDate = endISO.slice(0, 10);
 
     try {
-      const response = await fetch(url.toString(), {
-        method: 'GET',
-        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      const attemptLogs: Array<{ url: string; status: number; body: string }> = [];
+
+      // Primary: Use /v2/slots/available (working endpoint)
+      const availablePath = '/v2/slots/available';
+      const availableQS = new URLSearchParams({
+        eventTypeId: String(eventTypeId),
+        startTime: startISO,
+        endTime: endISO,
+        timeZone,
       });
 
-      if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to fetch Cal.com slots: ${response.status} - ${errorData}`);
+      const url = new URL(`${this.baseUrl}${availablePath}`);
+      availableQS.forEach((v, k) => url.searchParams.set(k, v));
+      
+      const resp = await fetch(url.toString(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiKey}`,
+          'cal-api-version': this.apiVersion,
+          'Accept': 'application/json',
+        },
+      });
+
+      if (resp.ok) {
+        const data = await resp.json();
+        // Transform the response to match expected format
+        if (data?.data?.slots) {
+          const slots = [];
+          for (const [date, timeSlots] of Object.entries(data.data.slots)) {
+            for (const slot of timeSlots as any[]) {
+              slots.push(slot);
+            }
+          }
+          return { slots };
+        }
+        return data;
       }
-      return await response.json();
+
+      const text = await resp.text();
+      attemptLogs.push({ url: `${availablePath}?${url.searchParams.toString()}`, status: resp.status, body: text });
+
+      // Fallback: Try legacy /v2/slots endpoint
+      const path = '/v2/slots';
+      
+      // Helper to attempt a single GET with given query params
+      const attemptFetch = async (qs: URLSearchParams, withFormat: boolean) => {
+        const url = new URL(`${this.baseUrl}${path}`);
+        qs.forEach((v, k) => url.searchParams.set(k, v));
+        if (withFormat) url.searchParams.set('format', 'range');
+        const resp = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'cal-api-version': this.apiVersion,
+            'Accept': 'application/json',
+          },
+        });
+        if (resp.ok) {
+          return { ok: true as const, data: await resp.json() };
+        }
+        const text = await resp.text();
+        attemptLogs.push({ url: `${path}?${url.searchParams.toString()}`, status: resp.status, body: text });
+        return { ok: false as const, status: resp.status };
+      };
+
+      // 1) Fallback: by eventTypeId
+      const baseQS1 = new URLSearchParams({
+        eventTypeId: String(eventTypeId),
+        start: startDate,
+        end: endDate,
+        timeZone,
+      });
+      for (const withFormat of [true, false]) {
+        const r = await attemptFetch(baseQS1, withFormat);
+        if (r.ok) return r.data;
+        if (r.status >= 500) {
+          const last = attemptLogs[attemptLogs.length - 1];
+          throw new Error(`Failed to fetch Cal.com slots: ${r.status} - ${last.body} (url=${last.url})`);
+        }
+      }
+
+      // 2) Fallback: fetch event type details, then try slug-based forms
+      const et = await this.getEventTypeById(eventTypeId);
+      const eventTypeSlug: string | undefined = et?.slug ?? et?.data?.slug;
+      const username: string | undefined = et?.user?.username ?? et?.owner?.username ?? et?.data?.user?.username ?? et?.data?.owner?.username;
+      const teamSlug: string | undefined = et?.team?.slug ?? et?.data?.team?.slug;
+      const orgSlug: string | undefined = process.env.CALCOM_ORG_SLUG || et?.organization?.slug || et?.data?.organization?.slug;
+
+      // Try slug + username
+      if (eventTypeSlug && username) {
+        const baseQS2 = new URLSearchParams({
+          eventTypeSlug: eventTypeSlug,
+          username: username,
+          start: startDate,
+          end: endDate,
+          timeZone,
+        });
+        for (const withFormat of [true, false]) {
+          const r = await attemptFetch(baseQS2, withFormat);
+          if (r.ok) return r.data;
+          if (r.status >= 500) {
+            const last = attemptLogs[attemptLogs.length - 1];
+            throw new Error(`Failed to fetch Cal.com slots: ${r.status} - ${last.body} (url=${last.url})`);
+          }
+        }
+      }
+
+      // Try slug + teamSlug (+ optional org)
+      if (eventTypeSlug && teamSlug) {
+        const baseQS3 = new URLSearchParams({
+          eventTypeSlug: eventTypeSlug,
+          teamSlug: teamSlug,
+          start: startDate,
+          end: endDate,
+          timeZone,
+        });
+        if (orgSlug) baseQS3.set('organizationSlug', orgSlug);
+        for (const withFormat of [true, false]) {
+          const r = await attemptFetch(baseQS3, withFormat);
+          if (r.ok) return r.data;
+          if (r.status >= 500) {
+            const last = attemptLogs[attemptLogs.length - 1];
+            throw new Error(`Failed to fetch Cal.com slots: ${r.status} - ${last.body} (url=${last.url})`);
+          }
+        }
+      }
+
+      // 3) Final attempt: by id without cal-api-version header (in case of gateway/versioning quirk)
+      const baseQS4 = new URLSearchParams({
+        eventTypeId: String(eventTypeId),
+        start: startDate,
+        end: endDate,
+        timeZone,
+      });
+      for (const withFormat of [true, false]) {
+        const url = new URL(`${this.baseUrl}${path}`);
+        baseQS4.forEach((v, k) => url.searchParams.set(k, v));
+        if (withFormat) url.searchParams.set('format', 'range');
+        const resp = await fetch(url.toString(), {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${this.apiKey}`,
+            'Accept': 'application/json',
+          },
+        });
+        if (resp.ok) return await resp.json();
+        const text = await resp.text();
+        attemptLogs.push({ url: `${path}?${url.searchParams.toString()}`, status: resp.status, body: text });
+      }
+
+      const diag = attemptLogs.map(a => `{status:${a.status},url:${a.url},body:${a.body}}`).join(' | ');
+      throw new Error(`Failed to fetch Cal.com slots after attempts: ${diag}`);
     } catch (error) {
       console.error('Error in getSlots:', error);
       throw error;
@@ -177,25 +317,20 @@ export class CalcomService {
       attendees.push({ name: interviewerName, email: interviewerEmail, timeZone: interviewerTimeZone });
     }
 
-    const bookingRequest: CalcomBookingRequest = {
-      eventTypeId,
+    const bookingRequest = {
       start: startTime.toISOString(),
-      attendees,
-      lengthInMinutes,
-      idempotencyKey: createId(),
-      timeZone: candidateTimeZone,
-      language: 'en',
-      metadata: { ...metadata, bookingType: 'interview', createdBy: 'ats-system' },
-      title: `Interview: ${jobTitle} with ${candidateName}`,
-      description: `Candidate interview for the ${jobTitle} position.`,
-      // FIX: The `location` field has been removed. If this request succeeds,
-      // the root cause is the Google Meet integration configuration on your Cal.com account.
+      attendee: {
+        name: candidateName,
+        email: candidateEmail,
+        timeZone: candidateTimeZone
+      },
+      eventTypeId
     };
 
     try {
       const response = await fetch(`${this.baseUrl}/v2/bookings`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': '2024-08-13' },
         body: JSON.stringify(bookingRequest)
       });
 

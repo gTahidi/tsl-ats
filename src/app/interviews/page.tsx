@@ -1,14 +1,13 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
-import { Card, Tabs, Space, Button, Typography, Statistic, Row, Col, Select, Modal, Form, InputNumber, Divider, message } from 'antd';
+import React, { useMemo, useState } from 'react';
+import { Card, Tabs, Space, Button, Typography, Statistic, Row, Col, Select } from 'antd';
 import { 
   CalendarOutlined, 
   ClockCircleOutlined, 
   CheckCircleOutlined,
   StopOutlined,
   PlusOutlined,
-  SettingOutlined,
 } from '@ant-design/icons';
 import InterviewsTable from '@/app/components/tables/InterviewsTable';
 import ScheduleInterviewModal from '@/app/components/interviews/ScheduleInterviewModal';
@@ -22,9 +21,7 @@ export default function InterviewsPage() {
   const [activeTab, setActiveTab] = useState('all');
   const [selectedJobId, setSelectedJobId] = useState<string | undefined>();
   const [selectedTemplateId, setSelectedTemplateId] = useState<string | undefined>();
-  const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-  const [form] = Form.useForm();
 
   // Fetch all interviews for statistics
   const { data: allInterviews } = useQuery<InterviewView[]>({
@@ -67,25 +64,7 @@ export default function InterviewsPage() {
     [selectedGroup]
   );
 
-  // Current event type details for selected template
-  const { data: calConfig, refetch: refetchCalConfig, isFetching: isLoadingConfig } = useQuery<{ templateId: string; calcomEventTypeId: number | null; eventType: any | null }>({
-    queryKey: ['template-calcom', selectedTemplateId],
-    queryFn: async () => {
-      const res = await fetch(`/api/process-step-templates/${selectedTemplateId}/calcom`);
-      if (!res.ok) throw new Error('Failed to load template calcom config');
-      return res.json();
-    },
-    enabled: !!selectedTemplateId && isConfigOpen,
-  });
-
-  useEffect(() => {
-    if (!isConfigOpen) return;
-    if (calConfig?.calcomEventTypeId) {
-      form.setFieldsValue({ calcomEventTypeId: calConfig.calcomEventTypeId });
-    } else {
-      form.resetFields();
-    }
-  }, [calConfig, isConfigOpen, form]);
+  // Removed Configure Event Type UI; event types are ensured automatically in ScheduleInterviewModal
 
   // Calculate statistics
   const stats = React.useMemo(() => {
@@ -154,15 +133,6 @@ export default function InterviewsPage() {
               showSearch
               optionFilterProp="label"
             />
-            <Button
-              icon={<SettingOutlined />}
-              disabled={!selectedTemplateId}
-              onClick={() => {
-                setIsConfigOpen(true);
-              }}
-            >
-              Configure Event Type
-            </Button>
             <Button
               type="primary"
               icon={<CalendarOutlined />}
@@ -238,60 +208,7 @@ export default function InterviewsPage() {
         />
       </Card>
 
-      {/* Configure Cal.com Event Type Modal */}
-      <Modal
-        title="Configure Cal.com Event Type"
-        open={isConfigOpen}
-        onCancel={() => setIsConfigOpen(false)}
-        destroyOnClose
-        onOk={async () => {
-          try {
-            const values = await form.validateFields();
-            const res = await fetch(`/api/process-step-templates/${selectedTemplateId}/calcom`, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ calcomEventTypeId: values.calcomEventTypeId }),
-            });
-            const json = await res.json();
-            if (!res.ok) {
-              throw new Error(json?.error || 'Failed to save');
-            }
-            message.success('Event type saved');
-            setIsConfigOpen(false);
-            await refetchCalConfig();
-          } catch (e: any) {
-            message.error(e?.message || 'Failed to save');
-          }
-        }}
-        okButtonProps={{ disabled: isLoadingConfig }}
-      >
-        <div>
-          <div className="mb-3">
-            <div className="text-sm text-gray-500">Job</div>
-            <div className="font-medium">{selectedJob?.title || '-'}</div>
-          </div>
-          <div className="mb-3">
-            <div className="text-sm text-gray-500">Stage</div>
-            <div className="font-medium">{stepOptions.find((o: { label: string; value: string }) => o.value === selectedTemplateId)?.label || '-'}</div>
-          </div>
-          <Divider />
-          <Form form={form} layout="vertical" initialValues={{ calcomEventTypeId: calConfig?.calcomEventTypeId }}>
-            <Form.Item
-              label="Cal.com Event Type ID"
-              name="calcomEventTypeId"
-              rules={[{ required: true, message: 'Please enter a Cal.com event type ID' }]}
-            >
-              <InputNumber min={1} precision={0} style={{ width: '100%' }} placeholder="e.g., 12345" />
-            </Form.Item>
-          </Form>
-          {calConfig?.eventType && (
-            <div className="mt-2 text-sm text-gray-600">
-              <div><strong>Resolved:</strong> {calConfig.eventType?.title || calConfig.eventType?.name || 'Event Type'}</div>
-              {calConfig.eventType?.slug && <div><strong>Slug:</strong> {calConfig.eventType.slug}</div>}
-            </div>
-          )}
-        </div>
-      </Modal>
+      {/* Configure Cal.com Event Type UI removed; handled automatically */}
 
       {/* Schedule Interview Modal */}
       <ScheduleInterviewModal

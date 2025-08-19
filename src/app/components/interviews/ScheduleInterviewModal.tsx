@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Modal, Select, DatePicker, Button, Space, Typography, Spin, message, Divider, Empty } from 'antd';
+import { Modal, Select, Calendar, Button, Space, Typography, Spin, message, Divider, Empty, Radio } from 'antd';
+import type { CalendarProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -13,32 +14,12 @@ interface ScheduleInterviewModalProps {
 }
 
 function normalizeSlots(payload: any): Array<{ start: string; end?: string }> {
-  if (!payload) return [];
-  // Try common shapes
-  const maybeSlots = payload?.data?.slots || payload?.slots || payload?.data || payload?.data?.data || [];
-  if (Array.isArray(maybeSlots)) {
-    // If array of objects with start/end
-    if (maybeSlots.length > 0 && typeof maybeSlots[0] === 'object') {
-      return maybeSlots
-        .map((s: any) => ({ start: s.start ?? s?.startTime ?? s, end: s.end ?? s?.endTime }))
-        .filter((s: any) => typeof s.start === 'string');
-    }
-    // If array of strings
-    return maybeSlots.filter((s) => typeof s === 'string').map((s) => ({ start: s }));
-  }
-  // Try nested slots under days
-  const days = payload?.data?.days || payload?.days;
-  if (Array.isArray(days)) {
-    const res: Array<{ start: string; end?: string }> = [];
-    days.forEach((d: any) => {
-      if (Array.isArray(d?.slots)) {
-        d.slots.forEach((s: any) => {
-          if (typeof s === 'string') res.push({ start: s });
-          else if (s?.start) res.push({ start: s.start, end: s.end });
-        });
-      }
-    });
-    return res;
+  // The API response is an object with a 'slots' key: { slots: [ { time: '...' }, ... ] }
+  if (payload && Array.isArray(payload.slots)) {
+    return payload.slots.map((slot: any) => ({
+      start: slot.time, // Correctly use 'time' property from the API response
+      end: slot.time,   // Default end time to start time as it's not provided
+    }));
   }
   return [];
 }
@@ -49,6 +30,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
   const [selectedDate, setSelectedDate] = useState<Dayjs | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<{ start: string; end?: string } | null>(null);
   const [booking, setBooking] = useState(false);
+  const [days] = useState<number>(30); // Fetch slots for the next 30 days
 
   const defaultTz = useMemo(() => Intl.DateTimeFormat().resolvedOptions().timeZone || 'UTC', []);
   const [timeZone] = useState<string>(defaultTz);
@@ -74,20 +56,35 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
     [qualifiedCandidates]
   );
 
+  // Ensure a Cal.com Event Type exists for the selected template (auto-resolve/create & persist)
+  const { data: ensureData, isFetching: ensuringEventType, error: ensureError } = useQuery<any>({
+    queryKey: ['ensure-calcom', templateId, open],
+    enabled: open && !!templateId,
+    queryFn: async () => {
+      const res = await fetch(`/api/process-step-templates/${templateId}/ensure-calcom`, { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json?.error || 'Failed to ensure event type');
+      }
+      return json;
+    },
+  });
+
   // Slots for template
   const { data: slotPayload, isFetching: loadingSlots, refetch: refetchSlots, error: slotsError } = useQuery<any>({
-    queryKey: ['slots', templateId, timeZone, open],
-    enabled: open && !!templateId,
+    queryKey: ['slots', templateId, timeZone, days, open, ensureData?.calcomEventTypeId, candidateId],
+    enabled: open && !!templateId && !!ensureData?.calcomEventTypeId && !!candidateId,
     queryFn: async () => {
       const url = new URL('/api/slots', window.location.origin);
       url.searchParams.set('templateId', String(templateId));
-      url.searchParams.set('days', '14');
+      url.searchParams.set('days', String(days));
       url.searchParams.set('timeZone', timeZone);
       const res = await fetch(url.toString());
       const json = await res.json();
       if (!res.ok) {
         throw new Error(json?.error || 'Failed to fetch slots');
       }
+      console.log('Slots API response:', json); // Debug log
       return json;
     },
   });
@@ -112,12 +109,19 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
   // Set a default selected date when slots load
   useEffect(() => {
     if (!open) return;
-    if (selectedDate && slotsByDate.has(selectedDate.format('YYYY-MM-DD'))) return;
+
+    if (selectedDate && slotsByDate.has(selectedDate.format('YYYY-MM-DD'))) {
+      return;
+    }
+
     const firstDay = Array.from(slotsByDate.keys()).sort()[0];
-    if (firstDay) setSelectedDate(dayjs(firstDay));
-    else setSelectedDate(null);
+    if (firstDay) {
+      setSelectedDate(dayjs(firstDay));
+    } else {
+      setSelectedDate(null);
+    }
     setSelectedSlot(null);
-  }, [open, slotsByDate, selectedDate]);
+  }, [open, slotsByDate]);
 
   // Reset state on close/open toggles
   useEffect(() => {
@@ -127,11 +131,6 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
       setSelectedSlot(null);
     }
   }, [open]);
-
-  const timesForSelectedDate = useMemo(() => {
-    if (!selectedDate) return [] as Array<{ start: string; end?: string }>; 
-    return slotsByDate.get(selectedDate.format('YYYY-MM-DD')) || [];
-  }, [selectedDate, slotsByDate]);
 
   const handleBook = async () => {
     if (!candidateId) {
@@ -215,61 +214,55 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
 
       <Divider style={{ margin: '12px 0' }} />
 
-      {/* Slots area */}
-      <div className="mb-2">
-        <Space style={{ marginBottom: 8 }}>
-          <Typography.Text type="secondary">Time zone:</Typography.Text>
-          <Typography.Text>{timeZone}</Typography.Text>
-        </Space>
-        <div className="flex gap-4 items-start">
-          <div>
-            <Typography.Text type="secondary">Date</Typography.Text>
-            <div>
-              <DatePicker
-                value={selectedDate}
-                onChange={(d) => {
-                  setSelectedDate(d);
-                  setSelectedSlot(null);
-                }}
-                disabledDate={(current) => {
-                  if (!current) return false;
-                  const key = current.format('YYYY-MM-DD');
-                  return !slotsByDate.has(key);
-                }}
-                style={{ width: 240 }}
-              />
-            </div>
-          </div>
-          <div style={{ flex: 1 }}>
-            <Typography.Text type="secondary">Available times</Typography.Text>
-            <div style={{ minHeight: 120 }}>
-              {loadingSlots ? (
-                <div className="flex items-center justify-center" style={{ height: 120 }}>
-                  <Spin />
-                </div>
-              ) : slotsError ? (
-                <Empty description={(slotsError as any)?.message || 'Failed to load slots'} />
-              ) : timesForSelectedDate.length === 0 ? (
-                <Empty description={selectedDate ? 'No slots on selected date' : 'No available slots found'} />
-              ) : (
-                <div className="flex flex-wrap gap-8">
-                  {timesForSelectedDate.map((s) => {
-                    const start = dayjs(s.start);
-                    const label = start.format('ddd, MMM D HH:mm');
-                    const active = selectedSlot?.start === s.start;
-                    return (
-                      <Button
-                        key={s.start}
-                        type={active ? 'primary' : 'default'}
-                        onClick={() => setSelectedSlot(s)}
-                      >
-                        {label}
-                      </Button>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
+      {/* Calendar and Slots Picker */}
+      <div className="flex gap-6">
+        {/* Left Panel: Calendar */}
+        <div style={{ width: 320 }}>
+          <Calendar 
+            fullscreen={false} 
+            value={selectedDate || undefined}
+            onSelect={(date) => {
+              if (slotsByDate.has(date.format('YYYY-MM-DD'))) {
+                setSelectedDate(date);
+                setSelectedSlot(null);
+              }
+            }}
+            disabledDate={(current) => {
+              if (!current) return false;
+              if (current.isBefore(dayjs().startOf('day'))) return true;
+              if (!slotsByDate.has(current.format('YYYY-MM-DD'))) return true;
+              return false;
+            }}
+          />
+        </div>
+
+        {/* Right Panel: Time Slots */}
+        <div style={{ flex: 1 }}>
+          <Typography.Text className="block mb-3">
+            {selectedDate ? `Available times for ${selectedDate.format('dddd, MMMM D')}` : 'Select a date'}
+          </Typography.Text>
+          <div style={{ minHeight: 200, maxHeight: 220, overflowY: 'auto' }}>
+            {!candidateId ? (
+              <Empty description="Select a candidate first" />
+            ) : loadingSlots ? (
+              <div className="flex items-center justify-center h-full"><Spin /></div>
+            ) : slotsError ? (
+              <Empty description="Failed to load slots" />
+            ) : selectedDate && (slotsByDate.get(selectedDate.format('YYYY-MM-DD')) || []).length > 0 ? (
+              <Radio.Group 
+                onChange={(e) => setSelectedSlot(e.target.value)} 
+                value={selectedSlot}
+                className="flex flex-col gap-2"
+              >
+                {(slotsByDate.get(selectedDate.format('YYYY-MM-DD')) || []).map((slot) => (
+                  <Radio.Button key={slot.start} value={slot}>
+                    {dayjs(slot.start).format('HH:mm')}
+                  </Radio.Button>
+                ))}
+              </Radio.Group>
+            ) : (
+              <Empty description="No available slots on this date" />
+            )}
           </div>
         </div>
       </div>
