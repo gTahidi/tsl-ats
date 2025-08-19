@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         return {
           ...interview,
           candidate: candidateDetails,
-          status: getInterviewStatus(interview.startTime, interview.endTime),
+          status: getInterviewStatus(interview.startTime as Date | null, interview.endTime as Date | null),
           meetingUrl: await getMeetingUrl(interview.calComBookingId),
         };
       })

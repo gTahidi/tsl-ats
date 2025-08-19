@@ -35,7 +35,7 @@ export async function GET(request: NextRequest, { params }: any) {
     const interviewWithDetails = {
       ...interview,
       candidate: candidateDetails,
-      status: getInterviewStatus(interview.startTime, interview.endTime),
+      status: getInterviewStatus(interview.startTime as Date | null, interview.endTime as Date | null),
       meetingUrl: await getMeetingUrl(interview.calComBookingId),
     };
 
@@ -73,7 +73,10 @@ export async function PATCH(request: NextRequest, { params }: any) {
     }
 
     const newStartTime = new Date(startTime);
-    const duration = existingInterview.endTime.getTime() - existingInterview.startTime.getTime();
+    const duration =
+      existingInterview.startTime && existingInterview.endTime
+        ? existingInterview.endTime.getTime() - existingInterview.startTime.getTime()
+        : 30 * 60 * 1000; // default 30 minutes if previous end/start missing
     const newEndTime = new Date(newStartTime.getTime() + duration);
 
     if (existingInterview.calComBookingId) {

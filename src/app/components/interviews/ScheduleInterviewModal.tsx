@@ -2,7 +2,6 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Modal, Select, Calendar, Button, Space, Typography, Spin, message, Divider, Empty, Radio } from 'antd';
-import type { CalendarProps } from 'antd';
 import dayjs, { Dayjs } from 'dayjs';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 
@@ -121,7 +120,7 @@ const ScheduleInterviewModal: React.FC<ScheduleInterviewModalProps> = ({ open, o
       setSelectedDate(null);
     }
     setSelectedSlot(null);
-  }, [open, slotsByDate]);
+  }, [open, slotsByDate, selectedDate]);
 
   // Reset state on close/open toggles
   useEffect(() => {
