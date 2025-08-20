@@ -57,7 +57,7 @@ export async function POST(_req: NextRequest, context: { params: Promise<{ id: s
 
     // 3) If not found, create static event type
     if (!resolved) {
-      const lengthInMinutes = Number(meta.lengthInMinutes) && Number(meta.lengthInMinutes) > 0 ? Number(meta.lengthInMinutes) : 60;
+      const lengthInMinutes = Number(meta.lengthInMinutes) && Number(meta.lengthInMinutes) > 0 ? Number(meta.lengthInMinutes) : 30;
       const created = await calcomService.createStaticEventType({ title, slug, lengthInMinutes, description: `ATS interview stage for ${title}` });
       resolved = created;
     }

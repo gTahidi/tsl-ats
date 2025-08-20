@@ -63,8 +63,13 @@ export class CalcomService {
       });
 
       if (!response.ok) {
-        const errorData = await response.text();
-        throw new Error(`Failed to create static event type: ${errorData}`);
+        const errorText = await response.text();
+        // If slug already exists, resolve and return existing event type instead of throwing
+        if (/already has an event type with this slug/i.test(errorText)) {
+          const existing = await this.getEventTypeBySlug(slug);
+          if (existing) return existing;
+        }
+        throw new Error(`Failed to create static event type: ${errorText}`);
       }
       return (await response.json()).data;
     } catch (error) {
@@ -74,22 +79,70 @@ export class CalcomService {
 
   async getEventTypeBySlug(slug: string): Promise<any | null> {
     try {
-      const response = await fetch(`${this.baseUrl}/v2/event-types?slug=${slug}`, {
+      // Get current user to build the correct slug-based lookup URL
+      const meResponse = await fetch(`${this.baseUrl}/v2/me`, {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      });
+      if (!meResponse.ok) {
+        // Fallback for cases where /me is not available or fails, try previous method
+        console.warn('Could not fetch /v2/me from Cal.com, falling back to paginated search.');
+        return await this.getEventTypeBySlugPaginated(slug);
+      }
+      const me = (await meResponse.json()).data;
+      const username = me?.username;
+      if (!username) {
+        throw new Error('Could not determine Cal.com username from /v2/me');
+      }
+
+      // Use the direct /v2/event-types endpoint with username and slug
+      const url = `${this.baseUrl}/v2/event-types?username=${username}&slug=${slug}`;
+      const response = await fetch(url, {
         method: 'GET',
         headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
       });
 
-      if (response.status === 404) return null;
+      if (response.status === 404) {
+        return null;
+      }
       if (!response.ok) {
         const errorData = await response.text();
-        throw new Error(`Failed to fetch Cal.com event type: ${response.status} - ${errorData}`);
+        throw new Error(`Failed to fetch Cal.com event type by slug: ${response.status} - ${errorData}`);
       }
-      const eventTypes = await response.json();
-      return eventTypes.data.find((et: any) => et.slug === slug) || null;
+      const json = await response.json();
+      // The API returns an array, so we find our specific slug
+      const eventType = Array.isArray(json?.data) ? json.data.find((et: any) => et.slug === slug) : null;
+      return eventType || null;
     } catch (error) {
       console.error('Error in getEventTypeBySlug:', error);
       throw error;
     }
+  }
+
+  private async getEventTypeBySlugPaginated(slug: string): Promise<any | null> {
+    const limit = 100;
+    let offset = 0;
+    while (true) {
+      const url = new URL(`${this.baseUrl}/v2/event-types`);
+      url.searchParams.set('limit', String(limit));
+      url.searchParams.set('offset', String(offset));
+      const resp = await fetch(url.toString(), {
+        method: 'GET',
+        headers: { 'Authorization': `Bearer ${this.apiKey}`, 'cal-api-version': this.apiVersion },
+      });
+      if (resp.status === 404) return null;
+      if (!resp.ok) {
+        const errorData = await resp.text();
+        throw new Error(`Failed to fetch Cal.com event types (paginated): ${resp.status} - ${errorData}`);
+      }
+      const json = await resp.json();
+      const items: any[] = Array.isArray(json?.data) ? json.data : [];
+      const found = items.find((et: any) => et.slug === slug);
+      if (found) return found;
+      if (items.length < limit) break; // no more pages
+      offset += items.length;
+    }
+    return null;
   }
 
   async getEventTypeById(id: number): Promise<any | null> {
