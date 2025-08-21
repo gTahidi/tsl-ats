@@ -1,4 +1,4 @@
-import { ServerClient } from 'postmark';
+import { ServerClient, TemplatedMessage } from 'postmark';
 
 const POSTMARK_API_KEY = process.env.POSTMARK_API_KEY;
 const POSTMARK_FROM_EMAIL = process.env.POSTMARK_FROM_EMAIL;
@@ -44,17 +44,64 @@ export const sendInterviewInvitationEmail = async (to: string, candidateName: st
     return;
   }
 
-  const emailBody = `Hi ${candidateName},<br/><br/>We were very impressed with your background and would like to invite you for an interview for the ${jobTitle} position.<br/><br/>Please use the following link to join the meeting at the scheduled time:<br/><a href="${meetingUrl}">${meetingUrl}</a><br/><br/>We look forward to speaking with you.<br/><br/>Best regards,<br/>The Hiring Team`;
-
   try {
-    const response = await client.sendEmail({
+    const response = await client.sendEmailWithTemplate({
       From: POSTMARK_FROM_EMAIL,
       To: to,
-      Subject: `Invitation to Interview for ${jobTitle}`,
-      HtmlBody: emailBody,
+      TemplateAlias: 'interview-invitation',
+      TemplateModel: {
+        candidateName,
+        jobTitle,
+        meetingUrl,
+        companyName: 'Your Company Name', // Or make this dynamic
+      },
     });
     console.log(`Interview invitation sent to ${to}. Postmark response:`, response);
   } catch (error) {
     console.error('Failed to send interview invitation email:', error);
   }
 };
+
+export const getPostmarkTemplates = async () => {
+  if (!client) {
+    throw new Error('Postmark client not initialized.');
+  }
+  try {
+    // Note: Postmark's getTemplates returns a Paged response. We fetch the first page.
+    // For more than 50 templates, pagination logic would be needed here.
+    const templates = await client.getTemplates({ count: 50, offset: 0 });
+    return templates.Templates;
+  } catch (error) {
+    console.error('Failed to fetch Postmark templates:', error);
+    throw new Error('Failed to fetch Postmark templates.');
+  }
+};
+
+export const sendBulkEmailWithTemplate = async (recipients: { email: string; name: string }[], templateAlias: string, templateModel: object) => {
+  if (!client || !POSTMARK_FROM_EMAIL) {
+    throw new Error('Postmark client not initialized or FROM_EMAIL is missing.');
+  }
+
+  // Postmark's bulk send expects a separate message for each recipient
+  const messages = recipients.map(recipient => ({
+    From: POSTMARK_FROM_EMAIL!,
+    To: recipient.email,
+    TemplateAlias: templateAlias,
+    TemplateModel: {
+      ...templateModel,
+      // Common model fields can go here
+      candidateName: recipient.name, // Per-recipient model fields
+    },
+  }));
+
+  try {
+    // Use sendEmailBatchWithTemplates for sending multiple emails based on a single template
+    const response = await client.sendEmailBatchWithTemplates(messages as TemplatedMessage[]);
+    console.log('Bulk email sent successfully. Postmark response:', response);
+    return response;
+  } catch (error) {
+    console.error('Failed to send bulk email:', error);
+    throw error;
+  }
+};
+

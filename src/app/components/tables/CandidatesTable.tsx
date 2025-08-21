@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Table, Button, Popconfirm, message, Tooltip, Typography } from 'antd';
+import BulkEmailModal from '../BulkEmailModal';
+import { Table, Button, Popconfirm, message, Tooltip, Typography, Flex } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 import { EyeOutlined, CheckOutlined, CalendarOutlined, EditOutlined, DeleteOutlined } from '@ant-design/icons';
 import type { CandidateView } from '@/types';
@@ -23,6 +24,8 @@ interface CandidatesTableProps {
 }
 
 const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQualify, onEdit, onDelete }) => {
+  const [selectedRowKeys, setSelectedRowKeys] = useState<React.Key[]>([]);
+  const [isEmailModalVisible, setIsEmailModalVisible] = useState(false);
   const router = useRouter();
   const queryClient = useQueryClient();
 
@@ -82,6 +85,20 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
     },
   });
 
+    const onSelectChange = (newSelectedRowKeys: React.Key[]) => {
+    setSelectedRowKeys(newSelectedRowKeys);
+  };
+
+  const rowSelection = {
+    selectedRowKeys,
+    onChange: onSelectChange,
+  };
+
+  const handleBulkEmailSuccess = () => {
+    setSelectedRowKeys([]); // Clear selection after email is sent
+    // Optionally, you can add a query invalidation here if needed
+  };
+
   const handleRowClick = (record: CandidateView) => {
     router.push(`/candidates/${record.id}`);
   };
@@ -102,6 +119,12 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
       title: 'Email',
       key: 'email',
       render: (record) => record.persona?.email,
+      ellipsis: true,
+    },
+    {
+      title: 'Phone',
+      key: 'phone',
+      render: (record) => record.persona?.phone || '-',
       ellipsis: true,
     },
     {
@@ -135,14 +158,6 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
       ] : []
     ),
     {
-      title: 'CV',
-      key: 'cvUrl',
-      render: (record: CandidateView) => {
-        // Always show the CV button - the API endpoint will handle cases where CV isn't available
-        return <CVButton id={record.id} />
-      }
-    },
-    {
       title: 'Rating',
       key: 'rating',
       sorter: (a, b) => (a.rating?.matchScore || 0) - (b.rating?.matchScore || 0),
@@ -173,6 +188,9 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
       key: 'actions',
       render: (_, record) => (
         <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
+          <Tooltip title="View CV">
+            <CVButton id={record.id} />
+          </Tooltip>
           <Tooltip title="View candidate details">
             <Button
               type="text"
@@ -215,10 +233,18 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
 
   return (
     <div>
-      <Title level={4} style={{ marginBottom: 16 }}>
-        Candidates ({fetchedCandidates?.length || 0})
-      </Title>
+      <Flex justify="space-between" align="center" style={{ marginBottom: 16 }}>
+        <Title level={4} style={{ margin: 0 }}>
+          Candidates ({fetchedCandidates?.length || 0})
+        </Title>
+        {selectedRowKeys.length > 0 && (
+          <Button type="primary" onClick={() => setIsEmailModalVisible(true)}>
+            Send Bulk Email ({selectedRowKeys.length})
+          </Button>
+        )}
+      </Flex>
       <Table
+        rowSelection={rowSelection}
         dataSource={fetchedCandidates || []}
         columns={columns}
         rowKey="id"
@@ -229,6 +255,12 @@ const CandidatesTable: React.FC<CandidatesTableProps> = ({ jobId, location, onQu
           showTotal: (total) => `Total ${total} candidates`,
         }}
       />
+      <BulkEmailModal
+        visible={isEmailModalVisible}
+        candidateIds={selectedRowKeys as string[]}
+        onClose={() => setIsEmailModalVisible(false)}
+        onSuccess={handleBulkEmailSuccess}
+      />
     </div>
   );
 };
@@ -237,7 +269,7 @@ const CVButton = ({ id }: { id: string }) => {
   return (
     <CvViewerButton
       apiEndpoint={`/api/candidates/${id}/cv-azure`}
-      buttonText="View"
+      buttonText=""
       tooltipText="View CV"
     />
   );

@@ -102,6 +102,45 @@ export async function POST(request: Request) {
       .limit(1);
 
     if (existingUser.length > 0) {
+      const user = existingUser[0];
+      // If user is soft-deleted, reactivate and update them
+      if (user.deletedAt) {
+        const passwordHash = await hashPassword(password);
+        const [updatedUser] = await db.update(users)
+          .set({
+            firstName,
+            lastName,
+            passwordHash,
+            isActive: 'true',
+            deletedAt: null,
+            updatedAt: new Date(),
+          })
+          .where(eq(users.id, user.id))
+          .returning();
+
+        // Update roles
+        if (roleIds && roleIds.length > 0) {
+          await db.delete(userRoles).where(eq(userRoles.userId, user.id));
+          const roleAssignments = roleIds.map((roleId: string) => ({
+            userId: user.id,
+            roleId,
+            assignedBy: authUser.id,
+          }));
+          await db.insert(userRoles).values(roleAssignments);
+        }
+
+        return NextResponse.json({ 
+          message: 'User reactivated and updated successfully.',
+          user: {
+            id: updatedUser.id,
+            email: updatedUser.email,
+            firstName: updatedUser.firstName,
+            lastName: updatedUser.lastName,
+            isActive: updatedUser.isActive === 'true',
+          }
+        });
+      }
+
       return NextResponse.json(
         { error: 'User with this email already exists' },
         { status: 400 }

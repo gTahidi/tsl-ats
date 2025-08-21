@@ -13,6 +13,7 @@ export default function UsersPage() {
   const [modalVisible, setModalVisible] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [form] = Form.useForm();
+  const [modal, contextHolder] = Modal.useModal();
   const { hasPermission } = usePermissions();
 
   useEffect(() => {
@@ -62,6 +63,33 @@ export default function UsersPage() {
       isActive: user.isActive,
     });
     setModalVisible(true);
+  };
+
+  const handleDeleteUser = (userId: string) => {
+    modal.confirm({
+      title: 'Are you sure you want to deactivate this user?',
+      content: 'This action is reversible.',
+      okText: 'Yes, Deactivate',
+      okType: 'danger',
+      cancelText: 'No',
+      onOk: async () => {
+        try {
+          const response = await fetch(`/api/users/${userId}`, {
+            method: 'DELETE',
+          });
+
+          if (response.ok) {
+            message.success('User deactivated successfully');
+            fetchUsers();
+          } else {
+            const data = await response.json();
+            message.error(data.error || 'Failed to deactivate user');
+          }
+        } catch (error) {
+          message.error('An unexpected error occurred');
+        }
+      },
+    });
   };
 
   const handleSubmit = async (values: any) => {
@@ -137,6 +165,14 @@ export default function UsersPage() {
               onClick={() => handleEditUser(record)}
             />
           </PermissionGuard>
+          <PermissionGuard permission={{ resource: 'users', action: 'manage' }}>
+            <Button
+              type="text"
+              danger
+              icon={<DeleteOutlined />}
+              onClick={() => handleDeleteUser(record.id)}
+            />
+          </PermissionGuard>
         </Space>
       ),
     },
@@ -144,6 +180,7 @@ export default function UsersPage() {
 
   return (
     <div style={{ padding: '24px' }}>
+      {contextHolder}
       <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
         <h1>User Management</h1>
         <PermissionGuard permission={{ resource: 'users', action: 'manage' }}>
