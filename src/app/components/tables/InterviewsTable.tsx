@@ -236,6 +236,7 @@ const InterviewsTable: React.FC<InterviewsTableProps> = ({ candidateId, status }
               <h4 className="font-medium text-gray-900">Candidate Information</h4>
               <p><strong>Name:</strong> {selectedInterview.candidate?.persona?.name} {selectedInterview.candidate?.persona?.surname}</p>
               <p><strong>Email:</strong> {selectedInterview.candidate?.persona?.email}</p>
+              <p><strong>Phone:</strong> {selectedInterview.candidate?.persona?.phone || '-'}</p>
               <p><strong>Job:</strong> {selectedInterview.candidate?.job?.title}</p>
             </div>
             
