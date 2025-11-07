@@ -16,6 +16,6 @@ services:
         - CALCOM_API_KEY=${CALCOM_API_KEY}
         
     ports:
-      - "3000:3000"
+      - "3032:3000"
     env_file:
       - .env
