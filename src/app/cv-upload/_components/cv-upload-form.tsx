@@ -16,12 +16,21 @@ interface CvUploadFormProps {
     jobs: Job[];
 }
 
+const createEmptyCandidateInfo = () => ({
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: '',
+    location: '',
+    linkedinUrl: '',
+});
+
 export default function CvUploadForm({ jobs }: CvUploadFormProps) {
     const [selectedJobId, setSelectedJobId] = useState<string | undefined>(jobs[0]?.id);
     const [fileList, setFileList] = useState<UploadFile[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [progress, setProgress] = useState(0);
-    const [emailHint, setEmailHint] = useState<string>('');
+    const [candidateInfo, setCandidateInfo] = useState(createEmptyCandidateInfo);
 
     const handleUpload = async () => {
         if (!selectedJobId) {
@@ -49,8 +58,29 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
                 formData.append('file', file as any);
             }
             formData.append('jobId', selectedJobId);
-            if (emailHint && emailHint.trim().length > 0) {
-                formData.append('emailHint', emailHint.trim());
+            const emailHint = candidateInfo.email.trim();
+            if (emailHint.length > 0) {
+                formData.append('emailHint', emailHint);
+            }
+            const firstName = candidateInfo.firstName.trim();
+            if (firstName.length > 0) {
+                formData.append('firstName', firstName);
+            }
+            const lastName = candidateInfo.lastName.trim();
+            if (lastName.length > 0) {
+                formData.append('lastName', lastName);
+            }
+            const phone = candidateInfo.phone.trim();
+            if (phone.length > 0) {
+                formData.append('phone', phone);
+            }
+            const location = candidateInfo.location.trim();
+            if (location.length > 0) {
+                formData.append('location', location);
+            }
+            const linkedinUrl = candidateInfo.linkedinUrl.trim();
+            if (linkedinUrl.length > 0) {
+                formData.append('linkedinUrl', linkedinUrl);
             }
 
             try {
@@ -82,7 +112,7 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
 
         setIsUploading(false);
         setFileList([]); // Clear file list after processing
-        setEmailHint('');
+        setCandidateInfo(createEmptyCandidateInfo());
 
         if (errorDetails.length > 0) {
             notification.error({
@@ -116,11 +146,13 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
         beforeUpload: (file) => {
             setFileList((prev) => [...prev, file]);
             return false; // Prevent antd from uploading automatically
-        },
+        }, 
         fileList,
         multiple: true,
         accept: '.pdf,.doc,.docx',
     };
+
+    const hasCandidateInfo = Object.values(candidateInfo).some((value) => value.trim().length > 0);
 
     return (
         <div className="bg-white p-6 md:p-10 border rounded-lg shadow-sm max-w-5xl mx-auto w-full">
@@ -144,14 +176,90 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
 
                     <Col xs={24} md={12}>
                         <Form.Item
+                            label="Candidate First Name (optional)"
+                        >
+                            <Input
+                                placeholder="Enter first name"
+                                value={candidateInfo.firstName}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, firstName: e.target.value }))}
+                                disabled={isUploading}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={[32, 24]}>
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            label="Candidate Last Name (optional)"
+                        >
+                            <Input
+                                placeholder="Enter last name"
+                                value={candidateInfo.lastName}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, lastName: e.target.value }))}
+                                disabled={isUploading}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                        <Form.Item
                             label="Candidate Email (optional)"
                         >
                             <Input
                                 id="emailHint"
                                 type="email"
                                 placeholder="Enter candidate email"
-                                value={emailHint}
-                                onChange={(e) => setEmailHint(e.target.value)}
+                                value={candidateInfo.email}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, email: e.target.value }))}
+                                disabled={isUploading}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={[32, 24]}>
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            label="Candidate Phone (optional)"
+                        >
+                            <Input
+                                placeholder="Enter phone number"
+                                value={candidateInfo.phone}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, phone: e.target.value }))}
+                                disabled={isUploading}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            label="Candidate Location (optional)"
+                        >
+                            <Input
+                                placeholder="Enter city / country"
+                                value={candidateInfo.location}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, location: e.target.value }))}
+                                disabled={isUploading}
+                                allowClear
+                            />
+                        </Form.Item>
+                    </Col>
+                </Row>
+
+                <Row gutter={[32, 24]}>
+                    <Col xs={24} md={12}>
+                        <Form.Item
+                            label="Candidate LinkedIn URL (optional)"
+                        >
+                            <Input
+                                placeholder="https://www.linkedin.com/in/username"
+                                value={candidateInfo.linkedinUrl}
+                                onChange={(e) => setCandidateInfo((prev) => ({ ...prev, linkedinUrl: e.target.value }))}
                                 disabled={isUploading}
                                 allowClear
                             />
@@ -209,9 +317,9 @@ export default function CvUploadForm({ jobs }: CvUploadFormProps) {
                         <Button
                             onClick={() => {
                                 setFileList([]);
-                                setEmailHint('');
+                                setCandidateInfo(createEmptyCandidateInfo());
                             }}
-                            disabled={isUploading || (fileList.length === 0 && !emailHint)}
+                            disabled={isUploading || (fileList.length === 0 && !hasCandidateInfo)}
                             size="large"
                             block
                         >
