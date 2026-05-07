@@ -3,26 +3,16 @@ export const runtime = 'nodejs';
 import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { roles, permissions, rolePermissions } from '@/db/schema';
-import { eq, inArray, isNull } from 'drizzle-orm';
+import { eq, and, isNull } from 'drizzle-orm';
 import { hasPermission, hasAnyPermission } from '@/lib/rbac';
-import { verifyJWT } from '@/lib/jwt';
-import { cookies } from 'next/headers';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth')?.value;
-  if (!token) return null;
-  return verifyJWT(token);
-}
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 export async function GET() {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
 
-    const canManageRoles = await hasAnyPermission(authUser.id as string, [
+    const canManageRoles = await hasAnyPermission(authUser.id, [
       { resource: 'roles', action: 'read' },
       { resource: 'users', action: 'create' },
       { resource: 'users', action: 'update' }
@@ -44,7 +34,7 @@ export async function GET() {
       .from(roles)
       .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
       .leftJoin(permissions, eq(rolePermissions.permissionId, permissions.id))
-      .where(isNull(roles.deletedAt));
+      .where(and(isNull(roles.deletedAt), eq(roles.organizationId, authUser.organizationId)));
 
     // Group roles with their permissions
     const roleMap = new Map();
@@ -74,12 +64,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
 
-    const hasCreatePermission = await hasPermission(authUser.id as string, { resource: 'roles', action: 'create' });
+    const hasCreatePermission = await hasPermission(authUser.id, { resource: 'roles', action: 'create' });
     if (!hasCreatePermission) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -95,7 +83,7 @@ export async function POST(request: Request) {
     const existingRole = await db
       .select()
       .from(roles)
-      .where(eq(roles.name, name))
+      .where(and(eq(roles.name, name), eq(roles.organizationId, authUser.organizationId)))
       .limit(1);
 
     if (existingRole.length > 0) {
@@ -107,6 +95,7 @@ export async function POST(request: Request) {
 
     const [newRole] = await db.insert(roles)
       .values({
+        organizationId: authUser.organizationId,
         name,
         description,
         isSystem: 'false',

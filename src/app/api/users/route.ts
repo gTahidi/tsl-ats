@@ -4,25 +4,15 @@ import { NextResponse } from 'next/server';
 import { db } from '@/db';
 import { users, userRoles, roles } from '@/db/schema';
 import { eq, and, isNull } from 'drizzle-orm';
-import { hashPassword, hasPermission, hasAnyPermission } from '@/lib/rbac';
-import { verifyJWT } from '@/lib/jwt';
-import { cookies } from 'next/headers';
-
-async function getAuthUser() {
-  const cookieStore = await cookies();
-  const token = cookieStore.get('auth')?.value;
-  if (!token) return null;
-  return verifyJWT(token);
-}
+import { hashPassword, hasPermission } from '@/lib/rbac';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 export async function GET() {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
 
-    const canManageUsers = await hasPermission(authUser.id as string, { resource: 'users', action: 'manage' });
+    const canManageUsers = await hasPermission(authUser.id, { resource: 'users', action: 'manage' });
     if (!canManageUsers) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -42,7 +32,7 @@ export async function GET() {
       .from(users)
       .leftJoin(userRoles, eq(users.id, userRoles.userId))
       .leftJoin(roles, eq(userRoles.roleId, roles.id))
-      .where(isNull(users.deletedAt));
+      .where(and(isNull(users.deletedAt), eq(users.organizationId, authUser.organizationId)));
 
     // Group users with their roles
     const userMap = new Map();
@@ -74,12 +64,10 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    const authUser = await getAuthUser();
-    if (!authUser) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-    }
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
 
-    const canManageUsers = await hasPermission(authUser.id as string, { resource: 'users', action: 'manage' });
+    const canManageUsers = await hasPermission(authUser.id, { resource: 'users', action: 'manage' });
     if (!canManageUsers) {
       return NextResponse.json({ error: 'Insufficient permissions' }, { status: 403 });
     }
@@ -108,6 +96,7 @@ export async function POST(request: Request) {
         const passwordHash = await hashPassword(password);
         const [updatedUser] = await db.update(users)
           .set({
+            organizationId: authUser.organizationId,
             firstName,
             lastName,
             passwordHash,
@@ -151,6 +140,7 @@ export async function POST(request: Request) {
 
     const [newUser] = await db.insert(users)
       .values({
+        organizationId: authUser.organizationId,
         email,
         passwordHash,
         firstName,

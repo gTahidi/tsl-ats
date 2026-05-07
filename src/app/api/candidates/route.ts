@@ -3,6 +3,7 @@ import { db } from '@/db';
 import { candidates, personas, processSteps } from '@/db/schema';
 import { createCandidateWithInitialStep } from '@/utils/candidate-creation';
 import { and, eq, inArray } from 'drizzle-orm';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 import { createRequestLogger, createDatabaseLogger, logInfo, logError } from '@/lib/logger';
 
@@ -17,6 +18,9 @@ export async function GET(request: NextRequest) {
   const startTime = Date.now();
   
   try {
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     const searchParams = request.nextUrl.searchParams;
     const jobId = searchParams.get('jobId');
     const location = searchParams.get('location') || undefined;
@@ -34,7 +38,7 @@ export async function GET(request: NextRequest) {
     dbLogger.info('Executing candidates query');
 
     // Build dynamic filters
-    const filters = [] as any[];
+    const filters = [eq(candidates.organizationId, authUser.organizationId)] as any[];
     if (jobId) filters.push(eq(candidates.jobId, jobId));
 
     if (location) {
@@ -42,7 +46,10 @@ export async function GET(request: NextRequest) {
       const personaRows = await db
         .select({ id: personas.id })
         .from(personas)
-        .where(eq(personas.location, location));
+        .where(and(
+          eq(personas.location, location),
+          eq(personas.organizationId, authUser.organizationId),
+        ));
       const personaIds = personaRows.map((p) => p.id);
       if (personaIds.length === 0) {
         dbLogger.info('No personas matched location filter', {
@@ -116,6 +123,9 @@ export async function POST(request: NextRequest) {
   const startTime = Date.now();
   
   try {
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     requestLogger.info('Processing POST candidate request');
 
     const data = await request.json();
@@ -136,6 +146,7 @@ export async function POST(request: NextRequest) {
 
     const newCandidate = await db.transaction(async (tx) => {
       return createCandidateWithInitialStep(tx, {
+        organizationId: authUser.organizationId,
         jobId: data.jobId,
         personaId: data.personaId,
         notes: data.notes,

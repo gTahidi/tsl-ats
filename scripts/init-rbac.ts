@@ -1,7 +1,7 @@
 import { db } from '../src/db';
-import { users, roles, userRoles } from '../src/db/schema';
+import { DEFAULT_ORGANIZATION_ID, users, roles, userRoles } from '../src/db/schema';
 import { initializeRBAC, hashPassword } from '../src/lib/rbac';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 
 async function main() {
   console.log('Initializing RBAC system...');
@@ -37,7 +37,7 @@ async function main() {
     const [adminRole] = await db
       .select()
       .from(roles)
-      .where(eq(roles.name, 'admin'))
+      .where(and(eq(roles.name, 'admin'), eq(roles.organizationId, DEFAULT_ORGANIZATION_ID)))
       .limit(1);
 
     if (adminRole) {

@@ -92,6 +92,7 @@ export default function Page(): React.JSX.Element {
                 } : {
                     ...step,
                     id: crypto.randomUUID(),
+                    organizationId: editingProcessGroup.organizationId,
                     createdAt: now,
                     updatedAt: now,
                 };
@@ -99,10 +100,12 @@ export default function Page(): React.JSX.Element {
             updatedAt: now,
         } : {
             id: crypto.randomUUID(),
+            organizationId: '',
             name: values.name,
             steps: values.steps.map((step) => ({
                 ...step,
                 id: crypto.randomUUID(),
+                organizationId: '',
                 createdAt: now,
                 updatedAt: now,
             })),

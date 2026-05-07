@@ -12,7 +12,7 @@ const robotoCondensed = Roboto_Condensed({ subsets: ['latin'], variable: '--font
 
 export const metadata: Metadata = {
   title: 'Qchungi 0.0.1',
-  description: 'Helping you find hidden gems - Task Savvy ATS',
+  description: 'Helping you find hidden gems - JobHuntly ATS',
 };
 
 export default function RootLayout({

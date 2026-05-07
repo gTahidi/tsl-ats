@@ -19,8 +19,45 @@ const timestamps = {
   deletedAt: timestamp('deleted_at'),
 };
 
+export const DEFAULT_ORGANIZATION_ID = 'tsl-default-org';
+
+export const organizations = pgTable('organizations', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  name: text('name').notNull(),
+  slug: text('slug').unique().notNull(),
+  websiteUrl: text('website_url'),
+  billingEmail: text('billing_email'),
+  subscriptionStatus: text('subscription_status').default('trialing').notNull(),
+  subscriptionPlan: text('subscription_plan').default('starter').notNull(),
+  trialEndsAt: timestamp('trial_ends_at'),
+  metadata: jsonb('metadata').default({}).notNull(),
+  ...timestamps,
+});
+
+export const organizationSubscriptions = pgTable('organization_subscriptions', {
+  id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .references(() => organizations.id, { onDelete: 'cascade' }),
+  provider: text('provider').default('stub').notNull(),
+  providerCustomerId: text('provider_customer_id'),
+  providerSubscriptionId: text('provider_subscription_id'),
+  plan: text('plan').default('starter').notNull(),
+  status: text('status').default('trialing').notNull(),
+  currentPeriodEndsAt: timestamp('current_period_ends_at'),
+  cancelAtPeriodEnd: boolean('cancel_at_period_end').default(false).notNull(),
+  metadata: jsonb('metadata').default({}).notNull(),
+  ...timestamps,
+}, (table) => ({
+  organizationSubscriptionUnique: uniqueIndex('organization_subscriptions_org_unique').on(table.organizationId),
+}));
+
 export const jobPostings = pgTable('job_postings', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   title: text('title').notNull(),
   description: text('description'),
   jdFileUrl: text('jd_file_url'),
@@ -34,18 +71,28 @@ export const jobPostings = pgTable('job_postings', {
 
 export const personas = pgTable('personas', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   name: text('name').notNull(),
   surname: text('surname'),
   location: text('location'),
-  email: text('email').unique().notNull(),
+  email: text('email').notNull(),
   phone: text('phone'),
   linkedinUrl: text('linkedin_url'),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
-});
+}, (table) => ({
+  personaOrganizationEmailUnique: uniqueIndex('personas_org_email_unique').on(table.organizationId, table.email),
+}));
 
 export const candidates = pgTable('candidates', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   notes: text('notes'),
   cvId: text('cv_id').unique().references(() => cvs.id),
   personaId: text('persona_id').notNull().references(() => personas.id),
@@ -63,6 +110,10 @@ export const candidates = pgTable('candidates', {
 
 export const processGroups = pgTable('process_groups', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   name: text('name').notNull(),
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
@@ -70,6 +121,10 @@ export const processGroups = pgTable('process_groups', {
 
 export const processStepTemplates = pgTable('process_step_templates', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   order: integer('order').notNull(),
   name: text('name').notNull(),
   groupId: text('group_id').notNull().references(() => processGroups.id),
@@ -79,6 +134,10 @@ export const processStepTemplates = pgTable('process_step_templates', {
 
 export const cvs = pgTable('cvs', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   content: jsonb('content').notNull(),
   fileUrl: text('file_url'),
   originalFilename: text('original_filename'),
@@ -108,6 +167,10 @@ export const referees = pgTable('referees', {
 
 export const processSteps = pgTable('process_steps', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   status: text('status').default('Pending').notNull(),
   notes: text('notes'),
   date: timestamp('date'),
@@ -121,6 +184,10 @@ export const processSteps = pgTable('process_steps', {
 
 // Relations
 export const jobPostingsRelations = relations(jobPostings, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [jobPostings.organizationId],
+    references: [organizations.id],
+  }),
   processGroup: one(processGroups, {
     fields: [jobPostings.processGroupId],
     references: [processGroups.id],
@@ -128,11 +195,19 @@ export const jobPostingsRelations = relations(jobPostings, ({ one, many }) => ({
   candidates: many(candidates),
 }));
 
-export const personasRelations = relations(personas, ({ many }) => ({
+export const personasRelations = relations(personas, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [personas.organizationId],
+    references: [organizations.id],
+  }),
   candidates: many(candidates),
 }));
 
 export const candidatesRelations = relations(candidates, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [candidates.organizationId],
+    references: [organizations.id],
+  }),
   persona: one(personas, {
     fields: [candidates.personaId],
     references: [personas.id],
@@ -148,7 +223,11 @@ export const candidatesRelations = relations(candidates, ({ one, many }) => ({
   steps: many(processSteps, { relationName: 'CandidateSteps' }),
 }));
 
-export const processGroupsRelations = relations(processGroups, ({ many }) => ({
+export const processGroupsRelations = relations(processGroups, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [processGroups.organizationId],
+    references: [organizations.id],
+  }),
   jobs: many(jobPostings),
   stepTemplates: many(processStepTemplates),
   processSteps: many(processSteps),
@@ -176,6 +255,10 @@ export const legacyCandidates = pgTable('legacy_candidates', {
 });
 
 export const cvsRelations = relations(cvs, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [cvs.organizationId],
+    references: [organizations.id],
+  }),
   candidate: one(candidates),
   chunks: many(cvChunks),
   referees: many(referees),
@@ -189,6 +272,10 @@ export const cvChunksRelations = relations(cvChunks, ({ one }) => ({
 }));
 
 export const processStepTemplatesRelations = relations(processStepTemplates, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [processStepTemplates.organizationId],
+    references: [organizations.id],
+  }),
   group: one(processGroups, {
     fields: [processStepTemplates.groupId],
     references: [processGroups.id],
@@ -197,6 +284,10 @@ export const processStepTemplatesRelations = relations(processStepTemplates, ({ 
 }));
 
 export const processStepsRelations = relations(processSteps, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [processSteps.organizationId],
+    references: [organizations.id],
+  }),
   group: one(processGroups, {
     fields: [processSteps.groupId],
     references: [processGroups.id],
@@ -226,6 +317,10 @@ export const refereesRelations = relations(referees, ({ one }) => ({
 // RBAC Tables
 export const users = pgTable('users', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   email: text('email').unique().notNull(),
   passwordHash: text('password_hash').notNull(),
   firstName: text('first_name').notNull(),
@@ -239,6 +334,10 @@ export const users = pgTable('users', {
 
 export const interviewRooms = pgTable('interview_rooms', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   name: text('name').notNull().unique(),
   location: text('location'),
   is_active: text('is_active').default('true'),
@@ -248,6 +347,10 @@ export const interviewStatusEnum = pgEnum('interview_status', ['Scheduled', 'In 
 
 export const interviews = pgTable('interviews', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
   status: interviewStatusEnum('status').default('Scheduled').notNull(),
   startTime: timestamp('start_time', { withTimezone: true }),
   endTime: timestamp('end_time', { withTimezone: true }),
@@ -276,12 +379,18 @@ export const idempotencyKeys = pgTable('idempotency_keys', {
 
 export const roles = pgTable('roles', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
-  name: text('name').unique().notNull(),
+  organizationId: text('organization_id')
+    .notNull()
+    .default(DEFAULT_ORGANIZATION_ID)
+    .references(() => organizations.id),
+  name: text('name').notNull(),
   description: text('description'),
   isSystem: text('is_system').default('false').notNull(), // System roles can't be deleted
   metadata: jsonb('metadata').default({}).notNull(),
   ...timestamps,
-});
+}, (table) => ({
+  roleOrganizationNameUnique: uniqueIndex('roles_org_name_unique').on(table.organizationId, table.name),
+}));
 
 export const permissions = pgTable('permissions', {
   id: text('id').primaryKey().$defaultFn(() => createId()),
@@ -314,21 +423,56 @@ export const rolePermissions = pgTable('role_permissions', {
 }));
 
 // RBAC Relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const organizationsRelations = relations(organizations, ({ many, one }) => ({
+  users: many(users),
+  roles: many(roles),
+  jobPostings: many(jobPostings),
+  personas: many(personas),
+  processGroups: many(processGroups),
+  subscription: one(organizationSubscriptions, {
+    fields: [organizations.id],
+    references: [organizationSubscriptions.organizationId],
+  }),
+}));
+
+export const organizationSubscriptionsRelations = relations(organizationSubscriptions, ({ one }) => ({
+  organization: one(organizations, {
+    fields: [organizationSubscriptions.organizationId],
+    references: [organizations.id],
+  }),
+}));
+
+export const usersRelations = relations(users, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [users.organizationId],
+    references: [organizations.id],
+  }),
   userRoles: many(userRoles),
   assignedRoles: many(userRoles, { relationName: 'AssignedBy' }),
 }));
 
-export const rolesRelations = relations(roles, ({ many }) => ({
+export const rolesRelations = relations(roles, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [roles.organizationId],
+    references: [organizations.id],
+  }),
   userRoles: many(userRoles),
   rolePermissions: many(rolePermissions),
 }));
 
-export const interviewRoomsRelations = relations(interviewRooms, ({ many }) => ({
+export const interviewRoomsRelations = relations(interviewRooms, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [interviewRooms.organizationId],
+    references: [organizations.id],
+  }),
   interviews: many(interviews),
 }));
 
 export const interviewsRelations = relations(interviews, ({ one, many }) => ({
+  organization: one(organizations, {
+    fields: [interviews.organizationId],
+    references: [organizations.id],
+  }),
   room: one(interviewRooms, {
     fields: [interviews.roomId],
     references: [interviewRooms.id],

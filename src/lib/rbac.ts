@@ -1,5 +1,5 @@
 import { db } from '@/db';
-import { users, roles, permissions, userRoles, rolePermissions } from '@/db/schema';
+import { DEFAULT_ORGANIZATION_ID, organizations, users, roles, permissions, userRoles, rolePermissions } from '@/db/schema';
 import { eq, and, inArray } from 'drizzle-orm';
 import { AuthUser, PermissionCheck } from '@/types';
 import bcrypt from 'bcryptjs';
@@ -38,12 +38,14 @@ export const DEFAULT_PERMISSIONS = [
   { name: 'users:read', resource: 'users', action: 'read', description: 'View users' },
   { name: 'users:update', resource: 'users', action: 'update', description: 'Update user information' },
   { name: 'users:delete', resource: 'users', action: 'delete', description: 'Delete users' },
+  { name: 'users:manage', resource: 'users', action: 'manage', description: 'Manage users and role assignments' },
   
   // Roles (Admin only)
   { name: 'roles:create', resource: 'roles', action: 'create', description: 'Create new roles' },
   { name: 'roles:read', resource: 'roles', action: 'read', description: 'View roles' },
   { name: 'roles:update', resource: 'roles', action: 'update', description: 'Update roles' },
   { name: 'roles:delete', resource: 'roles', action: 'delete', description: 'Delete roles' },
+  { name: 'roles:manage', resource: 'roles', action: 'manage', description: 'Manage roles and permissions' },
 ];
 
 // Default roles
@@ -63,6 +65,7 @@ export const DEFAULT_ROLES = [
       'candidates:create', 'candidates:read', 'candidates:update', 'candidates:delete',
       'personas:create', 'personas:read', 'personas:update', 'personas:delete',
       'process-groups:create', 'process-groups:read', 'process-groups:update', 'process-groups:delete',
+      'users:manage',
     ],
   },
   {
@@ -103,13 +106,19 @@ export async function getUserWithPermissions(userId: string): Promise<AuthUser |
   const userWithRoles = await db
     .select({
       id: users.id,
+      organizationId: users.organizationId,
       email: users.email,
       firstName: users.firstName,
       lastName: users.lastName,
+      organizationName: organizations.name,
+      organizationSlug: organizations.slug,
+      organizationSubscriptionStatus: organizations.subscriptionStatus,
+      organizationSubscriptionPlan: organizations.subscriptionPlan,
       roleName: roles.name,
       permissionName: permissions.name,
     })
     .from(users)
+    .innerJoin(organizations, eq(users.organizationId, organizations.id))
     .leftJoin(userRoles, eq(users.id, userRoles.userId))
     .leftJoin(roles, eq(userRoles.roleId, roles.id))
     .leftJoin(rolePermissions, eq(roles.id, rolePermissions.roleId))
@@ -129,11 +138,19 @@ export async function getUserWithPermissions(userId: string): Promise<AuthUser |
 
   return {
     id: user.id,
+    organizationId: user.organizationId,
     email: user.email,
     firstName: user.firstName,
     lastName: user.lastName,
     roles: Array.from(roleSet),
     permissions: Array.from(permissionSet),
+    organization: {
+      id: user.organizationId,
+      name: user.organizationName,
+      slug: user.organizationSlug,
+      subscriptionStatus: user.organizationSubscriptionStatus,
+      subscriptionPlan: user.organizationSubscriptionPlan,
+    },
   };
 }
 
@@ -162,7 +179,17 @@ export async function hasRole(userId: string, roleName: string): Promise<boolean
   return user.roles.includes(roleName);
 }
 
-export async function initializeRBAC(): Promise<void> {
+export async function initializeRBAC(organizationId = DEFAULT_ORGANIZATION_ID): Promise<void> {
+  await db.insert(organizations)
+    .values({
+      id: organizationId,
+      name: 'JobHuntly',
+      slug: 'tsl',
+      subscriptionStatus: 'active',
+      subscriptionPlan: 'internal',
+    })
+    .onConflictDoNothing();
+
   // Create default permissions
   for (const perm of DEFAULT_PERMISSIONS) {
     await db.insert(permissions)
@@ -174,6 +201,7 @@ export async function initializeRBAC(): Promise<void> {
   for (const roleData of DEFAULT_ROLES) {
     const [role] = await db.insert(roles)
       .values({
+        organizationId,
         name: roleData.name,
         description: roleData.description,
         isSystem: roleData.isSystem ? 'true' : 'false',

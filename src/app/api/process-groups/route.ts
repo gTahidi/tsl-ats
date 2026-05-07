@@ -1,11 +1,16 @@
 import { db } from '@/db';
 import { processGroups, processStepTemplates } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 export async function GET() {
     try {
+        const authUser = await requireCurrentAuthUser();
+        if (isAuthResponse(authUser)) return authUser;
+
         const groups = await db.query.processGroups.findMany({
+            where: eq(processGroups.organizationId, authUser.organizationId),
             orderBy: (table, { desc }) => desc(table.createdAt),
             with: {
                 stepTemplates: {
@@ -39,10 +44,13 @@ export async function GET() {
 
 export async function POST(request: Request) {
     try {
+        const authUser = await requireCurrentAuthUser();
+        if (isAuthResponse(authUser)) return authUser;
+
         const data = await request.json();
 
         // Sanitize group data by converting date strings to Date objects
-        const groupData: any = { ...data };
+        const groupData: any = { ...data, organizationId: authUser.organizationId };
         if (groupData.createdAt) groupData.createdAt = new Date(groupData.createdAt);
         if (groupData.updatedAt) groupData.updatedAt = new Date(groupData.updatedAt);
         if (groupData.deletedAt) groupData.deletedAt = new Date(groupData.deletedAt);
@@ -58,7 +66,7 @@ export async function POST(request: Request) {
             if (data.steps) {
                 for (const step of data.steps) {
                     // Sanitize step data
-                    const stepData: any = { ...step };
+                    const stepData: any = { ...step, organizationId: authUser.organizationId };
                     if (stepData.createdAt) stepData.createdAt = new Date(stepData.createdAt);
                     if (stepData.updatedAt) stepData.updatedAt = new Date(stepData.updatedAt);
                     if (stepData.deletedAt) stepData.deletedAt = new Date(stepData.deletedAt);
@@ -71,7 +79,10 @@ export async function POST(request: Request) {
             }
 
             return db.query.processGroups.findFirst({
-                where: eq(processGroups.id, upserted.id),
+                where: and(
+                    eq(processGroups.id, upserted.id),
+                    eq(processGroups.organizationId, authUser.organizationId),
+                ),
                 with: {
                     stepTemplates: true,
                 },

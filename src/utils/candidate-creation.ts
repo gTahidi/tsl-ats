@@ -1,7 +1,7 @@
 
 import { db } from '@/db';
-import { candidates, jobPostings, processGroups, processSteps, processStepTemplates, referees } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { candidates, jobPostings, processSteps, referees } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { CvRanking, Referee } from '@/lib/gemini/schema';
 
 // This type defines the expected shape of the transaction client from Drizzle.
@@ -9,6 +9,7 @@ import { CvRanking, Referee } from '@/lib/gemini/schema';
 type DrizzleTransactionClient = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
 export interface CandidateUpdateData {
+    organizationId: string;
     candidateId: string;
     cvId: string;
     rating?: CvRanking;
@@ -16,9 +17,10 @@ export interface CandidateUpdateData {
 }
 
 export interface CandidateCreationData {
+    organizationId: string;
     jobId: string;
     personaId: string;
-    cvId: string;
+    cvId?: string;
     notes?: string;
     source?: string;
     rating?: CvRanking;
@@ -29,7 +31,10 @@ export interface CandidateCreationData {
 export async function createCandidateWithInitialStep(tx: DrizzleTransactionClient, data: CandidateCreationData) {
     // 1. Find the job's process group and the first step in the process.
     const job = await tx.query.jobPostings.findFirst({
-        where: eq(jobPostings.id, data.jobId),
+        where: and(
+            eq(jobPostings.id, data.jobId),
+            eq(jobPostings.organizationId, data.organizationId),
+        ),
         with: {
             processGroup: {
                 with: {
@@ -50,11 +55,12 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
 
     // 2. Create or upsert the candidate (idempotent for same job+persona).
     const insertPayload: typeof candidates.$inferInsert = {
+        organizationId: data.organizationId,
         jobId: data.jobId,
         personaId: data.personaId,
-        cvId: data.cvId,
     };
 
+    if (data.cvId) insertPayload.cvId = data.cvId;
     if (data.notes) insertPayload.notes = data.notes;
     if (data.source) insertPayload.source = data.source;
     if (data.metadata) insertPayload.metadata = data.metadata;
@@ -66,8 +72,9 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
         .onConflictDoUpdate({
             target: [candidates.jobId, candidates.personaId],
             set: {
-                cvId: data.cvId,
+                organizationId: data.organizationId,
                 updatedAt: new Date(),
+                ...(data.cvId ? { cvId: data.cvId } : {}),
                 ...(data.rating ? { rating: data.rating } : {}),
                 ...(data.notes ? { notes: data.notes } : {}),
                 ...(data.source ? { source: data.source } : {}),
@@ -83,6 +90,7 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     });
     if (!existingInitialStep) {
         await tx.insert(processSteps).values({
+            organizationId: data.organizationId,
             candidateId: upsertedCandidate.id,
             templateId: initialStepTemplate.id,
             status: 'PENDING',
@@ -93,12 +101,13 @@ export async function createCandidateWithInitialStep(tx: DrizzleTransactionClien
     // 4. Insert referees if they exist
     if (data.referees && data.referees.length > 0) {
         // Ensure cvId is present before inserting referees
-        if (!data.cvId) {
+        const cvId = data.cvId;
+        if (!cvId) {
             throw new Error('cvId is required to insert referees.');
         }
         const refereeValues = data.referees.map(ref => ({
             ...ref,
-            cvId: data.cvId, // Link referee to the CV
+            cvId, // Link referee to the CV
             candidateId: upsertedCandidate.id, // Link referee to the candidate (new or existing)
         }));
         await tx.insert(referees).values(refereeValues);
@@ -121,7 +130,10 @@ export async function updateCandidateWithNewCv(tx: DrizzleTransactionClient, dat
     const [updatedCandidate] = await tx
         .update(candidates)
         .set(updatePayload)
-        .where(eq(candidates.id, data.candidateId))
+        .where(and(
+            eq(candidates.id, data.candidateId),
+            eq(candidates.organizationId, data.organizationId),
+        ))
         .returning();
 
     if (!updatedCandidate) {

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { jobPostings, personas, cvs, candidates } from '@/db/schema';
+import { DEFAULT_ORGANIZATION_ID, jobPostings, personas, cvs, candidates } from '@/db/schema';
 import { and, eq } from 'drizzle-orm';
 import { parseAndRankCvWithGemini } from '@/lib/gemini/cv-parser';
 import { uploadFile } from '@/lib/azure-storage';
 import { createCandidateWithInitialStep, updateCandidateWithNewCv } from '@/utils/candidate-creation';
 import { createAndStoreCvEmbeddings } from '@/utils/embedding-creation';
 import { sendCvReceivedEmail } from '@/lib/email';
+import { getCurrentAuthUser } from '@/lib/tenant';
 import { z } from 'zod';
 
 // --- Zod Schemas for Postmark --- 
@@ -34,14 +35,17 @@ type PersonaOverrides = {
 
 // --- Job Matching Logic ---
 
-async function findJobBySubject(subject: string): Promise<string | null> {
+async function findJobBySubject(subject: string, organizationId: string): Promise<string | null> {
   if (!subject || subject.trim().length === 0) {
     return null;
   }
 
   // Get all active jobs from the database
   const jobs = await db.query.jobPostings.findMany({
-    where: eq(jobPostings.status, 'Open')
+    where: and(
+      eq(jobPostings.status, 'Open'),
+      eq(jobPostings.organizationId, organizationId),
+    )
   });
 
   if (jobs.length === 0) {
@@ -118,10 +122,13 @@ async function findJobBySubject(subject: string): Promise<string | null> {
 
 // --- Core CV Processing Logic --- 
 
-async function processCv(file: File, jobId: string, emailHint?: string, personaOverrides?: PersonaOverrides): Promise<{ candidate: any; job: any; createdNewCandidate: boolean }> {
+async function processCv(file: File, jobId: string, organizationId: string, emailHint?: string, personaOverrides?: PersonaOverrides): Promise<{ candidate: any; job: any; createdNewCandidate: boolean }> {
   // 1. Fetch job details for ranking context
   const job = await db.query.jobPostings.findFirst({
-    where: eq(jobPostings.id, jobId)
+    where: and(
+      eq(jobPostings.id, jobId),
+      eq(jobPostings.organizationId, organizationId),
+    )
   });
 
   if (!job) {
@@ -189,7 +196,10 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
 
   // 3. Check if a candidate with this email already exists for this job
   const existingPersona = await db.query.personas.findFirst({
-    where: eq(personas.email, parsedCv.contactInfo.email!)
+    where: and(
+      eq(personas.email, parsedCv.contactInfo.email!),
+      eq(personas.organizationId, organizationId),
+    )
   });
 
   let existingCandidate: any = null;
@@ -197,7 +207,8 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
     existingCandidate = await db.query.candidates.findFirst({
       where: and(
         eq(candidates.jobId, jobId),
-        eq(candidates.personaId, existingPersona.id)
+        eq(candidates.personaId, existingPersona.id),
+        eq(candidates.organizationId, organizationId),
       ),
       with: { cv: true },
     });
@@ -228,6 +239,7 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
   const { candidate, cvId } = await db.transaction(async (tx) => {
     // 6a. Create or update the Persona
     const personaData = {
+      organizationId,
       name: parsedCv.contactInfo.name || 'Unknown',
       email: parsedCv.contactInfo.email!,
       surname: parsedCv.contactInfo.surname,
@@ -237,9 +249,10 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
     };
 
     const [persona] = await tx.insert(personas).values(personaData).onConflictDoUpdate({
-      target: personas.email,
+      target: [personas.organizationId, personas.email],
       set: {
         name: personaData.name,
+        organizationId,
         surname: personaData.surname,
         location: personaData.location,
         phone: personaData.phone,
@@ -250,6 +263,7 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
 
     // 6b. Create the new CV record
     const [newCv] = await tx.insert(cvs).values({
+      organizationId,
       content: parsedCv,
       fileUrl: fileUrl,
       originalFilename: file.name,
@@ -262,6 +276,7 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
     if (existingCandidate) {
       // 6c. If candidate exists, update them with the new CV
       finalCandidate = await updateCandidateWithNewCv(tx, {
+        organizationId,
         candidateId: existingCandidate.id,
         cvId: newCv.id,
         rating: ranking,
@@ -270,6 +285,7 @@ async function processCv(file: File, jobId: string, emailHint?: string, personaO
     } else {
       // 6d. Otherwise, create a new candidate
       finalCandidate = await createCandidateWithInitialStep(tx, {
+        organizationId,
         jobId: jobId,
         personaId: persona.id,
         cvId: newCv.id,
@@ -305,6 +321,7 @@ export async function POST(req: NextRequest) {
     let emailHint: string | undefined;
     let isEmailWebhook = false;
     let personaOverrides: PersonaOverrides | undefined;
+    let organizationId = DEFAULT_ORGANIZATION_ID;
 
     // --- Handle Postmark JSON Webhook ---
     if (contentType.includes('application/json')) {
@@ -336,7 +353,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Find job by matching email subject against job titles/descriptions
-      const matchedJobId = await findJobBySubject(Subject || '');
+      const matchedJobId = await findJobBySubject(Subject || '', organizationId);
 
       if (!matchedJobId) {
         console.log('No job match found, using General job as fallback');
@@ -352,6 +369,12 @@ export async function POST(req: NextRequest) {
 
       // --- Handle FormData from UI ---
     } else if (contentType.includes('multipart/form-data')) {
+      const authUser = await getCurrentAuthUser();
+      if (!authUser) {
+        return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+      }
+
+      organizationId = authUser.organizationId;
       console.log('Processing form-data upload...');
       const formData = await req.formData();
       file = formData.get('file') as File;
@@ -405,7 +428,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'File and Job ID are required' }, { status: 400 });
     }
 
-    const { candidate, job, createdNewCandidate } = await processCv(file, jobId, emailHint, personaOverrides);
+    const { candidate, job, createdNewCandidate } = await processCv(file, jobId, organizationId, emailHint, personaOverrides);
 
     // Send confirmation email only for email-originated applications and only when a new candidate was created
     if (isEmailWebhook && createdNewCandidate && candidate.persona?.email) {

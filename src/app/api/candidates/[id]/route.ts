@@ -1,13 +1,20 @@
 import { db } from '@/db';
 import { candidates, cvs, cvChunks, processSteps, referees } from '@/db/schema';
-import { eq, inArray } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     const candidate = await db.query.candidates.findFirst({
-      where: eq(candidates.id, id),
+      where: and(
+        eq(candidates.id, id),
+        eq(candidates.organizationId, authUser.organizationId),
+      ),
       with: {
         persona: true,
         job: {
@@ -50,6 +57,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     const { currentStep, ...data } = await request.json();
 
     const updatedCandidate = await db.transaction(async (tx) => {
@@ -58,7 +68,12 @@ export async function PUT(
 
         await tx
           .insert(processSteps)
-          .values({ ...currentStep, id: stepId, candidateId: id })
+          .values({
+            ...currentStep,
+            id: stepId,
+            candidateId: id,
+            organizationId: authUser.organizationId,
+          })
           .onConflictDoUpdate({ target: processSteps.id, set: currentStep });
 
         data.currentStepId = stepId;
@@ -67,7 +82,10 @@ export async function PUT(
       const [updated] = await tx
         .update(candidates)
         .set(data)
-        .where(eq(candidates.id, id))
+        .where(and(
+          eq(candidates.id, id),
+          eq(candidates.organizationId, authUser.organizationId),
+        ))
         .returning();
 
       return updated;
@@ -89,15 +107,23 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
     
     // Use transaction to handle cascading deletes
     await db.transaction(async (tx) => {
       // 1. Delete direct dependencies
-      await tx.delete(processSteps).where(eq(processSteps.candidateId, id));
+      await tx.delete(processSteps).where(and(
+        eq(processSteps.candidateId, id),
+        eq(processSteps.organizationId, authUser.organizationId),
+      ));
 
       // 2. Gather all unique CV IDs associated with the candidate and their referees
       const candidateCv = await tx.query.candidates.findFirst({
-        where: eq(candidates.id, id),
+        where: and(
+          eq(candidates.id, id),
+          eq(candidates.organizationId, authUser.organizationId),
+        ),
         columns: { cvId: true },
       });
 
@@ -119,7 +145,10 @@ export async function DELETE(
       
       // 4. Nullify the cvId in the candidate table to break the direct link
       if (candidateCv?.cvId) {
-        await tx.update(candidates).set({ cvId: null }).where(eq(candidates.id, id));
+        await tx.update(candidates).set({ cvId: null }).where(and(
+          eq(candidates.id, id),
+          eq(candidates.organizationId, authUser.organizationId),
+        ));
       }
 
       // 5. Cascade delete all related CVs and their chunks
@@ -127,12 +156,18 @@ export async function DELETE(
         const cvIdArray = Array.from(cvIdsToDelete);
         for (const cvId of cvIdArray) {
           await tx.delete(cvChunks).where(eq(cvChunks.cvId, cvId));
-          await tx.delete(cvs).where(eq(cvs.id, cvId));
+          await tx.delete(cvs).where(and(
+            eq(cvs.id, cvId),
+            eq(cvs.organizationId, authUser.organizationId),
+          ));
         }
       }
 
       // 6. Finally, delete the candidate itself
-      await tx.delete(candidates).where(eq(candidates.id, id));
+      await tx.delete(candidates).where(and(
+        eq(candidates.id, id),
+        eq(candidates.organizationId, authUser.organizationId),
+      ));
     });
 
     return NextResponse.json({ message: 'Candidate deleted successfully' });

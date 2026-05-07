@@ -107,10 +107,12 @@ export const POST = withAPILogging<any>(async (request, context) => {
       success: true,
       user: {
         id: authUser.id,
+        organizationId: authUser.organizationId,
         email: authUser.email,
         firstName: authUser.firstName,
         lastName: authUser.lastName,
         roles: authUser.roles,
+        organization: authUser.organization,
       }
     },
     { status: 200 }

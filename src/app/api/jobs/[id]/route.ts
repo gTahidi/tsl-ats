@@ -1,9 +1,10 @@
 import { db } from '@/db';
-import { jobPostings, candidates, processSteps, cvs, cvChunks } from '@/db/schema';
-import { eq } from 'drizzle-orm';
+import { jobPostings, candidates, processSteps, cvs, cvChunks, processGroups } from '@/db/schema';
+import { and, eq } from 'drizzle-orm';
 import { NextResponse } from 'next/server';
 import { uploadFile } from '@/lib/azure-storage';
 import { extractTextWithGemini } from '@/lib/gemini/text-extractor';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
 
 export async function GET(
   _request: Request,
@@ -11,8 +12,14 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     const job = await db.query.jobPostings.findFirst({
-      where: eq(jobPostings.id, id),
+      where: and(
+        eq(jobPostings.id, id),
+        eq(jobPostings.organizationId, authUser.organizationId),
+      ),
       with: {
         processGroup: true,
         candidates: {
@@ -45,6 +52,9 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
     const formData = await request.formData();
 
     const updatePayload: { [key: string]: any } = {
@@ -72,10 +82,31 @@ export async function PUT(
       }
     }
 
+    if (updatePayload.processGroupId) {
+      const [processGroup] = await db
+        .select({ id: processGroups.id })
+        .from(processGroups)
+        .where(and(
+          eq(processGroups.id, updatePayload.processGroupId),
+          eq(processGroups.organizationId, authUser.organizationId),
+        ))
+        .limit(1);
+
+      if (!processGroup) {
+        return NextResponse.json(
+          { error: 'Process group not found for this organization' },
+          { status: 400 }
+        );
+      }
+    }
+
     const [updatedJob] = await db
       .update(jobPostings)
       .set(updatePayload)
-      .where(eq(jobPostings.id, id))
+      .where(and(
+        eq(jobPostings.id, id),
+        eq(jobPostings.organizationId, authUser.organizationId),
+      ))
       .returning();
 
     if (!updatedJob) {
@@ -100,13 +131,31 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
+    const authUser = await requireCurrentAuthUser();
+    if (isAuthResponse(authUser)) return authUser;
+
+    const [job] = await db
+      .select({ id: jobPostings.id })
+      .from(jobPostings)
+      .where(and(
+        eq(jobPostings.id, id),
+        eq(jobPostings.organizationId, authUser.organizationId),
+      ))
+      .limit(1);
+
+    if (!job) {
+      return NextResponse.json({ error: 'Job not found' }, { status: 404 });
+    }
     
     // Use transaction to handle cascading deletes
     await db.transaction(async (tx) => {
       // Get all candidates for this job
       const jobCandidates = await tx.select({ id: candidates.id, cvId: candidates.cvId })
         .from(candidates)
-        .where(eq(candidates.jobId, id));
+        .where(and(
+          eq(candidates.jobId, id),
+          eq(candidates.organizationId, authUser.organizationId),
+        ));
       
       // Delete all related data for each candidate
       for (const candidate of jobCandidates) {
@@ -118,19 +167,31 @@ export async function DELETE(
           // First, nullify the cvId to remove the foreign key reference
           await tx.update(candidates)
             .set({ cvId: null })
-            .where(eq(candidates.id, candidate.id));
+            .where(and(
+              eq(candidates.id, candidate.id),
+              eq(candidates.organizationId, authUser.organizationId),
+            ));
           
           // Now we can safely delete CV chunks and CV
           await tx.delete(cvChunks).where(eq(cvChunks.cvId, candidate.cvId));
-          await tx.delete(cvs).where(eq(cvs.id, candidate.cvId));
+          await tx.delete(cvs).where(and(
+            eq(cvs.id, candidate.cvId),
+            eq(cvs.organizationId, authUser.organizationId),
+          ));
         }
       }
       
       // Delete all candidates for this job
-      await tx.delete(candidates).where(eq(candidates.jobId, id));
+      await tx.delete(candidates).where(and(
+        eq(candidates.jobId, id),
+        eq(candidates.organizationId, authUser.organizationId),
+      ));
       
       // Finally, delete the job posting
-      await tx.delete(jobPostings).where(eq(jobPostings.id, id));
+      await tx.delete(jobPostings).where(and(
+        eq(jobPostings.id, id),
+        eq(jobPostings.organizationId, authUser.organizationId),
+      ));
     });
 
     return NextResponse.json({ message: 'Job deleted successfully' });

@@ -1,5 +1,6 @@
 export type JobView = {
   id: string;
+  organizationId: string;
 
   title: string;
   description?: string | null;
@@ -22,6 +23,7 @@ export type JobView = {
 
 export type Persona = {
   id: string;
+  organizationId: string;
 
   name: string;
   surname: string;
@@ -51,6 +53,7 @@ export type Rating = {
 
 export interface CandidateView {
   id: string;
+  organizationId: string;
 
   cvFileKey?: string | null;
   notes?: string | null;
@@ -81,6 +84,7 @@ export interface CandidateView {
 
 export type ProcessGroup = {
   id: string;
+  organizationId: string;
 
   name: string;
 
@@ -96,6 +100,7 @@ export type ProcessGroup = {
 
 export type ProcessStepTemplate = {
   id: string;
+  organizationId: string;
 
   order: number;
   name: "Backlog" | "Screen" | "Interview" | "Offer" | "Hired" | "Rejected";
@@ -114,6 +119,7 @@ export type ProcessStepTemplate = {
 
 export type ProcessStep = {
   id: string;
+  organizationId: string;
 
   status: "Pending" | "Completed" | "Failed";
 
@@ -140,6 +146,7 @@ export type ProcessStep = {
 // RBAC Types
 export type User = {
   id: string;
+  organizationId: string;
   email: string;
   firstName: string;
   lastName: string;
@@ -154,6 +161,7 @@ export type User = {
 
 export type Role = {
   id: string;
+  organizationId: string;
   name: string;
   description?: string | null;
   isSystem: boolean;
@@ -204,11 +212,19 @@ export type RolePermission = {
 
 export type AuthUser = {
   id: string;
+  organizationId: string;
   email: string;
   firstName: string;
   lastName: string;
   roles: string[];
   permissions: string[];
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    subscriptionStatus: string;
+    subscriptionPlan: string;
+  };
 };
 
 export type PermissionCheck = {

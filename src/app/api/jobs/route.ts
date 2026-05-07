@@ -1,18 +1,25 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/db';
-import { jobPostings } from '@/db/schema';
+import { jobPostings, processGroups } from '@/db/schema';
 import { uploadFile } from '@/lib/azure-storage';
 import { extractTextWithGemini } from '@/lib/gemini/text-extractor';
 import { withAPILogging, logDatabaseOperation, logExternalAPI } from '@/lib/api-middleware';
+import { requireCurrentAuthUser, isAuthResponse } from '@/lib/tenant';
+import { and, eq } from 'drizzle-orm';
 
 export const GET = withAPILogging(async (request, context) => {
+  const authUser = await requireCurrentAuthUser();
+  if (isAuthResponse(authUser)) return authUser;
+
   const dbLogger = logDatabaseOperation(context, 'select', 'jobPostings', {
     'query.includes_relations': true,
+    'auth.organization_id': authUser.organizationId,
   });
 
   dbLogger.info('Executing jobs query with relations');
 
   const jobs = await db.query.jobPostings.findMany({
+    where: eq(jobPostings.organizationId, authUser.organizationId),
     orderBy: (table, { desc }) => desc(table.createdAt),
     with: {
       processGroup: true,
@@ -69,6 +76,9 @@ export const GET = withAPILogging(async (request, context) => {
 }, { operation: 'get_jobs' });
 
 export const POST = withAPILogging(async (request, context) => {
+  const authUser = await requireCurrentAuthUser();
+  if (isAuthResponse(authUser)) return authUser;
+
   const formData = await request.formData();
   const title = formData.get('title') as string;
   const description = formData.get('description') as string;
@@ -120,7 +130,24 @@ export const POST = withAPILogging(async (request, context) => {
     });
   }
 
+  const [processGroup] = await db
+    .select({ id: processGroups.id })
+    .from(processGroups)
+    .where(and(
+      eq(processGroups.id, processGroupId),
+      eq(processGroups.organizationId, authUser.organizationId),
+    ))
+    .limit(1);
+
+  if (!processGroup) {
+    return NextResponse.json(
+      { error: 'Process group not found for this organization' },
+      { status: 400 }
+    );
+  }
+
   const payload: Omit<typeof jobPostings.$inferInsert, 'id' | 'metadata'> = {
+    organizationId: authUser.organizationId,
     title,
     description,
     linkedinUrl,

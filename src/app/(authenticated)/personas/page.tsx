@@ -77,6 +77,7 @@ export default function Page(): React.JSX.Element {
       updatedAt: now,
     } : {
       id: crypto.randomUUID(),
+      organizationId: '',
       name: values.name,
       surname: values.surname,
       email: values.email,

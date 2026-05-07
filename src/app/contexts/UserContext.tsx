@@ -6,11 +6,19 @@ import { useRouter } from 'next/navigation';
 // Define the shape of our user and context
 interface AuthUser {
   id: string;
+  organizationId: string;
   email: string;
   firstName: string;
   lastName: string;
   roles: string[];
   permissions: string[];
+  organization: {
+    id: string;
+    name: string;
+    slug: string;
+    subscriptionStatus: string;
+    subscriptionPlan: string;
+  };
 }
 
 interface UserContextType {

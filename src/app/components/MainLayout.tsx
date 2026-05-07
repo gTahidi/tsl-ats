@@ -113,9 +113,16 @@ const MainLayout = ({ children }: Props) => {
         <Flex vertical justify="space-between" style={{ height: '100%', padding: '12px 8px' }}>
           <Flex vertical>
             <Flex justify={"center"} align="center" style={{ padding: '24px' }}>
-              <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
-                {collapsed ? 'Q' : 'Qchungi 0.0.1'}
-              </Typography.Title>
+              <Flex vertical align="center">
+                <Typography.Title level={collapsed ? 5 : 4} style={{ margin: 0 }}>
+                  {collapsed ? 'Q' : 'Qchungi ATS'}
+                </Typography.Title>
+                {!collapsed && user?.organization?.name && (
+                  <Typography.Text type="secondary" style={{ fontSize: 12, textAlign: 'center' }}>
+                    {user.organization.name}
+                  </Typography.Text>
+                )}
+              </Flex>
             </Flex>
             <Menu
               theme="light"
