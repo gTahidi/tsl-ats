@@ -90,3 +90,6 @@ mcp.json
 kilocode/
 
 test-junior-finance-workflow.sh
+
+# Local database backups (may contain production data)
+/backups/
