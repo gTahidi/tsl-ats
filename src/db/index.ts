@@ -17,11 +17,10 @@ declare global {
 
 const maxPool = Number(process.env.POSTGRES_POOL_MAX ?? '5');
 
-// The connection string from Azure already contains the sslmode=require parameter,
-// so we can rely on the postgres library to handle the SSL connection automatically.
+// TLS is controlled by the connection string's sslmode parameter (e.g. sslmode=require
+// for managed Postgres); the self-hosted database on the internal Docker network has none.
 // Use a small pool and disable prepared statements for PgBouncer compatibility.
 export const client = globalThis.__postgresClient ?? postgres(connectionString, {
-  ssl: 'require',
   max: maxPool,
   idle_timeout: 20, // seconds
   connect_timeout: 10, // seconds
